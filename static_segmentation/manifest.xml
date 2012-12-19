@@ -1,0 +1,14 @@
+<package>
+  <description brief="static_segmentation">
+
+     static_segmentation
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/static_segmentation</url>
+
+</package>
+
+
