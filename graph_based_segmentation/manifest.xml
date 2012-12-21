@@ -1,0 +1,23 @@
+<package>
+  <description brief="graph_based_segmentation">
+
+     graph_based_segmentation
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/graph_based_segmentation</url>
+  <depend package="roscpp"/>
+
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
+  <depend package="image_geometry" />
+
+ <export>
+    <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lsegment"/>
+ </export>
+
+</package>
+
+
