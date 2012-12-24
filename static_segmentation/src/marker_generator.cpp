@@ -33,7 +33,7 @@
 
 // Author(s): Marius Muja and Matei Ciocarlie
 
-#include "tabletop_segmenter/marker_generator.h"
+#include "static_segmentation/marker_generator.h"
 
 //for random colors
 #include <stdlib.h>
@@ -43,7 +43,7 @@
 
 #include <tf/transform_datatypes.h>
 
-namespace tabletop_segmenter {
+namespace static_segmentation {
 
 /*! The point cloud is a set of points belonging to the plane, in the plane coordinate system
   (with the origin in the plane and the z axis normal to the plane).
@@ -99,4 +99,4 @@ visualization_msgs::Marker MarkerGenerator::getTableMarker(float xmin, float xma
   return marker;
 }
 
-} //namespace tabletop_segmenter
+} //namespace static_segmentation

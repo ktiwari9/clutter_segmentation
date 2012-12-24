@@ -1,8 +1,8 @@
-#include <tabletop_segmenter/utilities.h>
+#include <static_segmentation/utilities.h>
 #include <rosbag/bag.h>
 #include<fstream>
 
-void tabletop_segmenter::storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud,
+void static_segmentation::storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud,
 				  const std::vector<sensor_msgs::PointCloud2> &clusters,
 				  sensor_msgs::CameraInfo::ConstPtr cam_info,
 				  sensor_msgs::Image::ConstPtr recent_rgb)
@@ -34,7 +34,7 @@ void tabletop_segmenter::storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud
   bag.close();
 }
 
-void tabletop_segmenter::storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud,
+void static_segmentation::storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud,
 				  const std::vector<sensor_msgs::PointCloud2> &clusters,
 				  sensor_msgs::CameraInfo::ConstPtr cam_info)
 {
@@ -64,7 +64,7 @@ void tabletop_segmenter::storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud
 }
 
 
-void tabletop_segmenter::convert_non_dense_2_dense(const pcl::PointCloud<Point> &in, 
+void static_segmentation::convert_non_dense_2_dense(const pcl::PointCloud<Point> &in,
 						   pcl::PointCloud<Point> &out)
 {
   if(in.is_dense){
@@ -93,7 +93,7 @@ void tabletop_segmenter::convert_non_dense_2_dense(const pcl::PointCloud<Point> 
   out.sensor_orientation_ = in.sensor_orientation_;
 }
 
-void tabletop_segmenter::convert_hull_to_ply(const pcl::PointCloud<Point> &in, 
+void static_segmentation::convert_hull_to_ply(const pcl::PointCloud<Point> &in,
 					     const std::vector< pcl::Vertices > &polygons, 
 					     const char* filename)
 {

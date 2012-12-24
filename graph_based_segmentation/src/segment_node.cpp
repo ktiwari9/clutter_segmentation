@@ -32,22 +32,19 @@ int main(int argc, char **argv) {
   int min_size = atoi(argv[3]);
 	
   printf("loading input image.\n");
-  //image<rgb> *input = loadPPM(argv[4]);
+
   cv::Mat input = cv::imread(argv[4]);
 
   graph_segment seg_(input);
 
   printf("processing\n");
-  int num_ccs;
 
   cv::Mat output = seg_.getSegmentedImage();
   cv::imwrite("final_image.jpg",output);
 
-  //image<rgb> *seg = segment_image(input, sigma, k, min_size, &num_ccs);
-  //savePPM(seg, argv[5]);
+  printf("Segmentation done..\n");
 
-  printf("got %d components\n", num_ccs);
-  printf("done! uff...thats hard work.\n");
+
 
   return 0;
 }

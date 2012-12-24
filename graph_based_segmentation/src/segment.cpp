@@ -48,6 +48,7 @@ sigma_(0.5),k_(1000),min_size_(20){
 
 	input_ = convertNativetocvMat(seg);
 
+
 }
 
 graph_segment::~graph_segment(){}
@@ -62,7 +63,7 @@ cv::Mat graph_segment::convertNativetocvMat(image<rgb>* input){
 	    for(int i =0; i<h; i++){
 	        for(int j=0; j<w; j++){
 
-	            rgb curr =input->data[i+j*w];
+	            rgb curr =input->data[j+i*w];
 	            _I(i,j)[0] = curr.r;
 	            _I(i,j)[1] = curr.g;
 	            _I(i,j)[2] = curr.b;
@@ -76,20 +77,19 @@ cv::Mat graph_segment::convertNativetocvMat(image<rgb>* input){
 
 image<rgb>* graph_segment::convertcvMattoNative(cv::Mat input){
 
-		int w = input.cols;
-	    int h = input.rows;
+		int h = input.rows;
+	    int w = input.cols;
 	    image<rgb> *im = new image<rgb>(w,h);
 
 	    for(int i =0; i<h; i++){
 	        for(int j=0; j<w; j++){
-
 	            rgb curr;
-	            //cv::Vec3b bgr = input(cv::Point(i,j));
-	            cv::Vec3b bgr = input.at<uchar>(i,j);
-	            curr.r = bgr[0];
-	            curr.g = bgr[1];
-	            curr.b = bgr[2];
-	            im->data[i+j*w] = curr;
+
+	            // Alter bgr pattern if incoming pattern is different
+	            curr.r = input.at<cv::Vec3b>(i,j)[2];
+	            curr.g = input.at<cv::Vec3b>(i,j)[1];
+	            curr.b = input.at<cv::Vec3b>(i,j)[0];
+	            im->data[j+i*w] = curr;
 	        }
 	    }
 	    return im;
@@ -97,7 +97,7 @@ image<rgb>* graph_segment::convertcvMattoNative(cv::Mat input){
 
 cv::Mat graph_segment::getSegmentedImage(){return input_;}
 
-int main(int argc, char **argv) {
+/*int main(int argc, char **argv) {
   if (argc != 6) {
     fprintf(stderr, "usage: %s sigma k min input(ppm) output(ppm)\n", argv[0]);
     return 1;
@@ -108,7 +108,6 @@ int main(int argc, char **argv) {
   int min_size = atoi(argv[3]);
 
   printf("loading input image.\n");
-  //image<rgb> *input = loadPPM(argv[4]);
   cv::Mat input = cv::imread(argv[4]);
 
   graph_segment seg_(input);
@@ -118,12 +117,7 @@ int main(int argc, char **argv) {
 
   cv::Mat output = seg_.getSegmentedImage();
   cv::imwrite("final_image.jpg",output);
-
-  //image<rgb> *seg = segment_image(input, sigma, k, min_size, &num_ccs);
-  //savePPM(seg, argv[5]);
-
-  printf("got %d components\n", num_ccs);
-  printf("done! uff...thats hard work.\n");
-
+  printf("Segmentation done..\n");
   return 0;
 }
+*/

@@ -7,8 +7,7 @@
   <author>Bharath Sankaran</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/active_segmentation</url>
-  <depend package="roscpp"/>
+  <url>http://ros.org/wiki/active_segmentation</url>  
 
 </package>
 

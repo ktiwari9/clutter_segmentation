@@ -46,7 +46,7 @@
 #include <pcl/io/io.h>
 #include <pcl_ros/transforms.h>
 
-#include "tabletop_segmenter/TabletopSegmentation.h"
+#include "static_segmentation/TabletopSegmentation.h"
 
 namespace enc = sensor_msgs::image_encodings;
 
@@ -56,7 +56,7 @@ bool dumpCVImage(const sensor_msgs::Image & img,
   cv_bridge::CvImagePtr cv_ptr;
   try
     {
-      cv_ptr = cv_bridge::toCvCopy(img);
+      cv_ptr = cv_bridge::toCvCopy(img,enc::BGR8);
     }
   catch (cv_bridge::Exception &e)
     {
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
   }
   if (!nh.ok()) exit(0);
 
-  tabletop_segmenter::TabletopSegmentation segmentation_srv;
+  static_segmentation::TabletopSegmentation segmentation_srv;
   if (!ros::service::call(service_name, segmentation_srv))
   {
     ROS_ERROR("Call to segmentation service failed");

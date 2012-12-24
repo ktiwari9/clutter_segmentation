@@ -69,9 +69,9 @@
 
 #include <pcl_ros/transforms.h>
 
-#include "tabletop_segmenter/marker_generator.h"
-#include "tabletop_segmenter/utilities.h"
-#include "tabletop_segmenter/TabletopSegmentation.h"
+#include "static_segmentation/marker_generator.h"
+#include "static_segmentation/utilities.h"
+#include "static_segmentation/TabletopSegmentation.h"
 
 // includes for projecting stereo into same frame
 #include <opencv/cv.h>
@@ -88,7 +88,7 @@ float getRGB( float r, float g, float b){
 
 namespace enc = sensor_msgs::image_encodings;
 
-namespace tabletop_segmenter {
+namespace static_segmentation {
 
 typedef pcl::PointXYZ    Point;
 typedef pcl::KdTree<Point>::Ptr KdTreePtr;
@@ -1074,14 +1074,14 @@ bool TabletopSegmentor::mergeCloud( const sensor_msgs::PointCloud2::ConstPtr &ro
 }
 
 
-} //namespace tabletop_segmenter
+} //namespace static_segmentation
 
 int main(int argc, char **argv) 
 {
   ros::init(argc, argv, "tabletop_segmentation_node");
   ros::NodeHandle nh;
 
-  tabletop_segmenter::TabletopSegmentor node(nh);
+  static_segmentation::TabletopSegmentor node(nh);
   ros::spin();
   return 0;
 }
