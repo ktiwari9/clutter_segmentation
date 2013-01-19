@@ -47,7 +47,10 @@
 #include <graph_based_segmentation/misc.h>
 #include <graph_based_segmentation/pnmfile.h>
 #include "graph_based_segmentation/segment-image.h"
-
+#include "graph_based_segmentation/GraphSegment.h"
+#include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
 
 using namespace std;
 
@@ -56,17 +59,25 @@ typedef struct {
     int y;
 }Pixel;
 
+namespace graph_based_segmentation {
+
 class graph_segment{
 
 protected:
 
+	ros::NodeHandle nh_;
+
 	cv::Mat input_;
-	float sigma_,k_;
+
+	double sigma_,k_;
+
 	int min_size_,num_ccs_;
 
 public:
 
 	graph_segment(cv::Mat input);
+
+	graph_segment(ros::NodeHandle &nh);
 
 	~graph_segment();
 
@@ -76,6 +87,21 @@ public:
 
 	cv::Mat getSegmentedImage();
 
+	bool serviceCallback(GraphSegment::Request &request, GraphSegment::Response& response);
+
+	cv::Mat returnCVImage(const sensor_msgs::Image & img);
+
+	sensor_msgs::ImagePtr returnRosImage(const sensor_msgs::Image rgb_image);
+
+private:
+
+	ros::NodeHandle nh_priv_;
+
+	ros::ServiceServer graph_segment_srv_;
+
 };
 
+}
+
 #endif
+

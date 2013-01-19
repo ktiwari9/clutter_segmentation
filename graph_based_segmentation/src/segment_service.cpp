@@ -42,15 +42,16 @@
 
 namespace graph_based_segmentation {
 
-graph_segment::graph_segment(cv::Mat input):
-sigma_(0.5),k_(1000),min_size_(20){
+graph_segment::graph_segment(ros::NodeHandle& nh):
+		nh_(nh), nh_priv_("~"){
 
-	image<rgb>* rgb_input = convertcvMattoNative(input);
+	nh_priv_.param<double>("sigma",sigma_,0.5);
 
-	image<rgb> *seg = segment_image(rgb_input,sigma_,k_,min_size_,&num_ccs_);
+	nh_priv_.param<double>("k",k_,1000);
 
-	input_ = convertNativetocvMat(seg);
+	nh_priv_.param<int>("min_size",min_size_,20);
 
+	graph_segment_srv_ = nh_.advertiseService(nh_.resolveName("graph_segment_srv"),&graph_segment::serviceCallback, this);
 
 }
 
@@ -99,7 +100,73 @@ image<rgb>* graph_segment::convertcvMattoNative(cv::Mat input){
 }
 
 cv::Mat graph_segment::getSegmentedImage(){return input_;}
+
+cv::Mat graph_segment::returnCVImage(const sensor_msgs::Image & img) {
+
+	cv_bridge::CvImagePtr cv_ptr;
+	try {
+		cv_ptr = cv_bridge::toCvCopy(img);
+	} catch (cv_bridge::Exception &e) {
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+		exit(0);
+	}
+
+	return cv_ptr->image;
+}
+
+sensor_msgs::ImagePtr graph_segment::returnRosImage(const sensor_msgs::Image rgb_image){
+
+	cv_bridge::CvImage out_msg;
+
+	//Get header and encoding from your input image
+	out_msg.header   = rgb_image.header;
+	out_msg.encoding = rgb_image.encoding;
+	out_msg.image    = input_;
+
+	ROS_INFO("Populating response with type sensor_msgs/Image");
+	return out_msg.toImageMsg();
 }
 
 
+bool graph_segment::serviceCallback(GraphSegment::Request& request, GraphSegment::Response& response){
 
+	// Convert to cv format
+	ROS_INFO("Received input image");
+	cv::Mat source = returnCVImage(request.rgb);
+
+	ROS_INFO("Converting to native source");
+	image<rgb>* rgb_input = convertcvMattoNative(source);
+
+	ROS_INFO("Segmenting image");
+	image<rgb> *seg = segment_image(rgb_input,sigma_,k_,min_size_,&num_ccs_);
+
+	ROS_INFO("Converting segmented image back to cv::Mat image");
+	input_ = convertNativetocvMat(seg);
+
+	if(input_.empty()){
+
+		response.result = response.FAILED;
+		return false;
+	}
+
+	else{
+
+		response.result = response.SUCCESS;
+		response.segment = *returnRosImage(request.rgb);
+		return true;
+	}
+
+}
+
+}
+
+
+int main(int argc, char **argv) {
+	ros::init(argc, argv, "graph_segment");
+	ros::NodeHandle nh;
+
+	graph_based_segmentation::graph_segment ss(nh);
+
+	ros::spin();
+	return 0;
+}

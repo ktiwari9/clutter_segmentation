@@ -17,9 +17,9 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 #uncomment if you have defined messages
-#rosbuild_genmsg()
+rosbuild_genmsg()
 #uncomment if you have defined services
-#rosbuild_gensrv()
+rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
@@ -28,6 +28,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #rosbuild_add_executable(example examples/example.cpp)
 rosbuild_add_library(segment src/segment.cpp)
-#rosbuild_add_executable(segment src/segment.cpp)
+rosbuild_add_executable(segment_service src/segment_service.cpp)
+rosbuild_add_executable(ping_segment_node src/ping_segment_node.cpp)
 rosbuild_add_executable(segment_node src/segment_node.cpp)
 target_link_libraries(segment_node segment)

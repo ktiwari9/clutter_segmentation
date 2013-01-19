@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
   cv::Mat input = cv::imread(argv[4]);
 
-  graph_segment seg_(input);
+  graph_based_segmentation::graph_segment seg_(input);
 
   printf("processing\n");
 

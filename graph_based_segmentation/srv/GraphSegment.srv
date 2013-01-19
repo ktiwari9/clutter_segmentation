@@ -1,0 +1,12 @@
+# request segmentation by sending the input rgb image
+sensor_msgs/Image rgb
+
+---
+
+# The PointCloud of detected part
+sensor_msgs/Image segment
+
+# Whether the detection has succeeded or failed
+int32 FAILED = 1
+int32 SUCCESS = 2
+int32 result
