@@ -1,6 +1,7 @@
 /*********************************************************************
 *
-*  Copyright (c) 2012, Max-Plank Institute for Intelligent Systems
+*  Copyright (c) 2012, Computational Learning and Motor Control Laboratory
+*  University of Southern California
 *  All rights reserved.
 *
 *  Redistribution and use in source and binary forms, with or without
@@ -29,44 +30,68 @@
 *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
-
-// Author(s): Jeannette Bohg
-
-#ifndef _UTILITIES_H_
-#define _UTILITIES_H_
-
+*********************************************************************
+/**
+ * \author Bharath Sankaran
+ *
+ * @b OpenCV wrapper for Pedro felzenbswalb's Graph based Segmentation
+ */
+#ifndef STATIC_SEGMENTATION_H
+#define STATIC_SEGMENTATION_H
 
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/CameraInfo.h>
+#include <opencv2/opencv.hpp>
+#include <vector>
 #include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <tabletop_segmenter/TabletopSegmentation.h>
+#include <graph_based_segmentation/GraphSegment.h>
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/Vertices.h>
+using namespace std;
 
-namespace static_segmentation {
+typedef struct {
+    int x;
+    int y;
+}Pixel;
 
-  typedef pcl::PointXYZ    Point;
-  
-  //! Store input and result
-  void storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud,
-		const std::vector<sensor_msgs::PointCloud2> &clusters,
-		sensor_msgs::CameraInfo::ConstPtr cam_info,
-		sensor_msgs::Image::ConstPtr recent_rgb);
-  
-  //! Store input and result
-  void storeBag(sensor_msgs::PointCloud2::ConstPtr whole_cloud,
-		const std::vector<sensor_msgs::PointCloud2> &clusters,
-		sensor_msgs::CameraInfo::ConstPtr cam_info);
+namespace static_segmenter {
 
-  void convert_non_dense_2_dense(const pcl::PointCloud<Point> &in, pcl::PointCloud<Point> &out);
-  
-  void convert_hull_to_ply(const pcl::PointCloud<Point> &in, 
-			   const std::vector< pcl::Vertices > &polygons, 
-			   const char* filename);
+class static_segment{
 
-}//namespace
+protected:
+
+	ros::NodeHandle nh_;
+
+	cv::Mat input_;
+
+	double sigma_,k_;
+
+	int min_size_,num_ccs_;
+
+	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
+
+	graph_based_segmentation::GraphSegment graphsegment_srv_;
+
+
+
+public:
+
+	static_segment(ros::NodeHandle &nh);
+
+	~static_segment();
+
+	bool serviceCallback();
+
+private:
+
+	ros::NodeHandle nh_priv_;
+
+	ros::ServiceServer static_segment_srv_;
+
+};
+
+}
 
 #endif
+
