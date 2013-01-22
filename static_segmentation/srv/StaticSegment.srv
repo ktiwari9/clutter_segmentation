@@ -1,0 +1,11 @@
+# empty request, as the node listens for incoming point clouds on its own
+
+---
+
+# The graph of the clusters 
+geometry_msgs/PolygonStamped c_graph
+
+# Whether the detection has succeeded or failed
+int32 FAILURE = 1
+int32 SUCCESS = 2
+int32 result
