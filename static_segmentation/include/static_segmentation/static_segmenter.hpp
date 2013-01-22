@@ -47,6 +47,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <tabletop_segmenter/TabletopSegmentation.h>
 #include <graph_based_segmentation/GraphSegment.h>
+#include <static_segmentation/StaticSegment.h>
+#include <geometry_msgs/Polygon.h>
 
 using namespace std;
 
@@ -55,7 +57,7 @@ typedef struct {
     int y;
 }Pixel;
 
-namespace static_segmenter {
+namespace static_segmenter{
 
 class static_segment{
 
@@ -65,9 +67,7 @@ protected:
 
 	cv::Mat input_;
 
-	double sigma_,k_;
-
-	int min_size_,num_ccs_;
+	std::string tabletop_service_,graph_service_,rgb_topic_;
 
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 
@@ -81,7 +81,9 @@ public:
 
 	~static_segment();
 
-	bool serviceCallback();
+	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
+
+	geometry_msgs::Polygon computeCGraph();
 
 private:
 

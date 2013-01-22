@@ -153,6 +153,7 @@ bool graph_segment::serviceCallback(GraphSegment::Request& request, GraphSegment
 
 		response.result = response.SUCCESS;
 		response.segment = *returnRosImage(request.rgb);
+		response.segment.header = request.rgb.header;
 		return true;
 	}
 

@@ -26,10 +26,72 @@ namespace static_segmenter{
 static_segment::static_segment(ros::NodeHandle &nh) :
 		nh_(nh),nh_priv_("~"){
 
-	//nh_priv_.<param>
+	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 
+	nh_priv_.param<std::string>("graph_service",graph_service_,std::string("/graph_segment_srv"));
+
+	nh_priv_.param<std::string>("rgb_input",rgb_topic_,std::string("/Honeybee/left/image_rect_color"));
+
+}
+
+geometry_msgs::Polygon static_segment::computeCGraph(){
+
+	//convert
+}
+
+bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response){
+
+	// recieving input rgb image
+	sensor_msgs::Image::ConstPtr recent_color =
+			ros::topic::waitForMessage<sensor_msgs::Image>(rgb_topic_, nh_, ros::Duration(5.0));
+
+	//convert input rgb image into cv::Mat
+	graphsegment_srv_.request.rgb = *recent_color;
+
+	//calling graph based segmentation service
+	if (!ros::service::call(graph_service_, graphsegment_srv_)) {
+		ROS_ERROR("Call to graph segmentation failed");
+		response.result = response.FAILURE;
+		return false;
+	}
+
+	if (graphsegment_srv_.response.result == graphsegment_srv_.response.FAILED) {
+		ROS_ERROR(" Graph based segmentation service returned error");
+		response.result = response.FAILURE;
+		return false;
+	}
+
+	// Calling tabletop segmentation service
+	if (!ros::service::call(tabletop_service_, tabletop_srv_)) {
+		ROS_ERROR("Call to tabletop segmentation service failed");
+		response.result = response.FAILURE;
+		return false;
+	}
+	if (tabletop_srv_.response.result != tabletop_srv_.response.SUCCESS
+			&& tabletop_srv_.response.result != tabletop_srv_.response.SUCCESS_NO_RGB) {
+
+		ROS_ERROR("Segmentation service returned error %d", tabletop_srv_.response.result);
+		response.result = response.FAILURE;
+		return false;
+	}
+
+	ROS_INFO("Segmentation service succeeded. Detected %d clusters", (int)tabletop_srv_.response.clusters.size());
+
+	if (tabletop_srv_.response.clusters.empty()) {
+		response.result = response.FAILURE;
+		return false;
+	}
+	else{
+
+		//If both services return success we project the graph clusters onto the euclidean clusters
+		// and generate a connectivity graph
+		response.c_graph.polygon = computeCGraph();
+		response.c_graph.header.stamp = recent_color.header.stamp;
+		response.c_graph.header.frame_id = recent_color.header.frame_id;
+	}
 
 
 }
+
 
 }
