@@ -33,4 +33,6 @@ rosbuild_gensrv()
 rosbuild_add_library(marker_generator src/marker_generator.cpp )
 rosbuild_add_executable(hamming_segmentation src/hamming_segmentation.cpp)
 rosbuild_add_executable(static_segmenter src/static_segmenter.cpp)
+rosbuild_add_executable(ping_static_segmenter src/ping_static_segmenter.cpp)
+
 

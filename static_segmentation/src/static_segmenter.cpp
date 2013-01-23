@@ -34,6 +34,9 @@ static_segment::static_segment(ros::NodeHandle &nh) :
 
 	nh_priv_.param<std::string>("camera_info_topic",camera_topic_,std::string("/Honeybee/left/camera_info"));
 
+	static_segment_srv_ = nh_.advertiseService(nh_.resolveName("static_segment_srv"),&static_segment::serviceCallback, this);
+
+
 
 }
 
@@ -112,7 +115,7 @@ cv::Mat static_segment::returnCVImage(const sensor_msgs::Image & img) {
 }
 
 
-geometry_msgs::Polygon static_segment::computeCGraph(){
+geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image){
 
 	//convert clusters to honeybee frame
 	ROS_INFO("Transforming clusters to bumblebee frame");
@@ -179,6 +182,20 @@ geometry_msgs::Polygon static_segment::computeCGraph(){
 	double min_val, max_val;
 
 	cv::minMaxLoc(segmented_gray,&min_val,&max_val,NULL,NULL,contour_mask);
+
+	//constructing return image
+	cv::Mat return_cvMat = cv::Mat::zeros(segmented_image.size(), segmented_image.type());
+	segmented_image.copyTo(return_cvMat,contour_mask);
+
+	// convert return image into sensor_msgs/ImagePtr
+	cv_bridge::CvImage out_image;
+
+	//Get header and encoding from your input image
+	out_image.header   = graphsegment_srv_.response.segment.header;
+	out_image.encoding = graphsegment_srv_.response.segment.encoding;
+	out_image.image    = return_cvMat;
+
+	return_image = out_image.toImageMsg();
 
 	ROS_INFO("Constructing the graph of all the clusters");
 
@@ -265,7 +282,9 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
 
 		//If both services return success we project the graph clusters onto the euclidean clusters
 		// and generate a connectivity graph
-		response.c_graph.polygon = computeCGraph();
+		sensor_msgs::ImagePtr graph_image;
+		response.c_graph.polygon = computeCGraph(graph_image);
+		response.graph_image = *graph_image;
 		response.c_graph.header.stamp = recent_color->header.stamp;
 		response.c_graph.header.frame_id = recent_color->header.frame_id;
 		return true;

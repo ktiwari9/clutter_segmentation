@@ -89,7 +89,7 @@ public:
 
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
 
-	geometry_msgs::Polygon computeCGraph();
+	geometry_msgs::Polygon computeCGraph(sensor_msgs::ImagePtr &return_image);
 
 	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
 			const sensor_msgs::CameraInfo &cam_info,
