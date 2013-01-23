@@ -27,7 +27,7 @@
 
 
  <export>
-    <cpp cflags="-I${prefix}/include -I${prefix}/msg_gen/cpp -I${prefix}/srv_gen/cpp" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lmarker_generator"/>
+    <cpp cflags="-I${prefix}/include -I${prefix}/msg_gen/cpp " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lmarker_generator"/>
  </export>
 </package>
 

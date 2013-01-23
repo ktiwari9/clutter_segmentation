@@ -67,6 +67,9 @@ bool dumpCVImage(const sensor_msgs::Image & img,
 
   cv::imwrite(name, cv_ptr->image);
 
+  //test what's in the image
+  std::cout<<cv_ptr->image<<std::endl;
+
   return true;
 }
 

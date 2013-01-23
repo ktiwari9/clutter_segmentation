@@ -47,8 +47,12 @@
 #include <sensor_msgs/image_encodings.h>
 #include <tabletop_segmenter/TabletopSegmentation.h>
 #include <graph_based_segmentation/GraphSegment.h>
-#include <static_segmentation/StaticSegment.h>
+#include "static_segmentation/StaticSegment.h"
 #include <geometry_msgs/Polygon.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
+#include "pcl_ros/transforms.h"
 
 using namespace std;
 
@@ -57,7 +61,7 @@ typedef struct {
     int y;
 }Pixel;
 
-namespace static_segmenter{
+namespace static_segmentation{
 
 class static_segment{
 
@@ -67,13 +71,15 @@ protected:
 
 	cv::Mat input_;
 
-	std::string tabletop_service_,graph_service_,rgb_topic_;
+	std::string tabletop_service_,graph_service_,rgb_topic_,camera_topic_;
 
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 
 	graph_based_segmentation::GraphSegment graphsegment_srv_;
 
+	tf::TransformListener listener_;
 
+	sensor_msgs::CameraInfo cam_info_;
 
 public:
 
@@ -84,6 +90,12 @@ public:
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
 
 	geometry_msgs::Polygon computeCGraph();
+
+	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
+			const sensor_msgs::CameraInfo &cam_info,
+			std::vector<sensor_msgs::Image> &masks);
+
+	cv::Mat returnCVImage(const sensor_msgs::Image & img);
 
 private:
 
