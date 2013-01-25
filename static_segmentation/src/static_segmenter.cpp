@@ -19,9 +19,10 @@
  *
  * @b Static Segmentation merging class
  */
+#include "static_segmentation/StaticSegment.h"
 #include "static_segmentation/static_segmenter.hpp"
 
-namespace static_segmentation{
+namespace static_segmentation {
 
 static_segment::static_segment(ros::NodeHandle &nh) :
 		nh_(nh),nh_priv_("~"){

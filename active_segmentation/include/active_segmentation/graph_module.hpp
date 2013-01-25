@@ -34,10 +34,11 @@
 /**
  * \author Bharath Sankaran
  *
- * @b Combines tabletop segmenter and Felzenswalbs graph based segmenter
+ * @b computes connectivity graph for static segmented connected components
  */
-#ifndef STATIC_SEGMENTATION_HPP
-#define STATIC_SEGMENTATION_HPP
+
+#ifndef GRAPH_MODULE_HPP
+#define GRAPH_MODULE_HPP
 
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
@@ -46,61 +47,95 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include "static_segmentation/StaticSegment.h"
-#include "tabletop_segmenter/TabletopSegmentation.h"
-#include "graph_based_segmentation/GraphSegment.h"
 #include <geometry_msgs/Polygon.h>
-#include <tf/transform_datatypes.h>
-#include <tf/transform_broadcaster.h>
-#include "pcl_ros/transforms.h"
 #include <tf/transform_listener.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <tr1/unordered_set> // should I use an un ordered set?
+#include <tr1/functional>
+
+// boost graph library includes
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/undirected_graph.hpp>
 
 using namespace std;
 
-namespace static_segmentation{
+namespace active_segmentation {
 
-class static_segment{
+// Defining Vertex Structure
+struct Vertex{
 
-protected:
+	int index_;
+	double centroid_;
+};
 
-	ros::NodeHandle nh_;
+// Defining Edge as a pait of vertices with a weight
+struct Edge{
 
-	cv::Mat input_;
+	std::pair<Vertex,Vertex> edge_;
+	double weight_;
+};
 
-	std::string tabletop_service_,graph_service_,rgb_topic_,camera_topic_;
+// Defining HashFunction as a product of both index vertices
+struct HashFunction {
+  size_t operator()(const Edge& x) const { return std::tr1::hash<int>()(x.edge_.first.index_*x.edge_.second.index_); }
+};
 
-	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 
-	graph_based_segmentation::GraphSegment graphsegment_srv_;
+struct SetEqual {
+    bool operator() (const Edge& a, const Edge& b) const {
 
-	tf::TransformListener listener_;
+    	if((a.edge_.first.index_ == b.edge_.first.index_ && a.edge_.second.index_ == b.edge_.second.index_) ||
+    			(a.edge_.first.index_ == b.edge_.second.index_ && a.edge_.second.index_ == b.edge_.first.index_))
+    		return true;
+    	else
+    		return false;}
+};
 
-	sensor_msgs::CameraInfo cam_info_;
+
+
+class graph_module{
 
 public:
 
-	static_segment(ros::NodeHandle &nh);
+	typedef std::tr1::unordered_set<Edge,HashFunction,SetEqual> Graph;
+	typedef std::tr1::unordered_set<Edge,HashFunction,SetEqual>::iterator Graph_it;
 
-	~static_segment();
+	// setS = std::set - container for edges (can be added and removed in any order) Statisfy Sequence or Associative
+	// set enforces absence of multigraph
+	// vecS = std::vector container for vectors ; Satisfy sequence or random access
+	//typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS,Vertex, Edge> Graph;
 
-	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
+protected:
 
-	geometry_msgs::Polygon computeCGraph(sensor_msgs::ImagePtr &return_image);
+	//defining boost Graph
+	int number_of_vertices_;
 
-	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
-			const sensor_msgs::CameraInfo &cam_info,
-			std::vector<sensor_msgs::Image> &masks);
+	Graph graph_;
 
-	cv::Mat returnCVImage(const sensor_msgs::Image & img);
+	Graph_it iter_;
 
-private:
+public:
 
-	ros::NodeHandle nh_priv_;
+	graph_module(int number_of_vertices);
 
-	ros::ServiceServer static_segment_srv_;
+	~graph_module();
+
+	bool findVertex(int index);
+
+	bool findVertex(Vertex v);
+
+	void addEdge(Edge new_edge){ graph_.insert(new_edge);}
+
+	void addEdge(Vertex v1, Vertex v2, double weight);
+
+	void addEdge(int node_1, double centroid_1, int node_2, double centroid_2, double weight);
+
+	bool findEdge(Edge e);
+
+	bool findEdge(Vertex v1, Vertex v2);
 
 };
 
 }
 
 #endif
-

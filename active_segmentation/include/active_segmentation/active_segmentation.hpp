@@ -34,10 +34,11 @@
 /**
  * \author Bharath Sankaran
  *
- * @b Combines tabletop segmenter and Felzenswalbs graph based segmenter
+ * @b computes connectivity graph for static segmented connected components
  */
-#ifndef STATIC_SEGMENTATION_HPP
-#define STATIC_SEGMENTATION_HPP
+
+#ifndef ACTIVE_SEGMENTATION_HPP
+#define ACTIVE_SEGMENTATION_HPP
 
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
@@ -46,19 +47,26 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include "static_segmentation/StaticSegment.h"
-#include "tabletop_segmenter/TabletopSegmentation.h"
-#include "graph_based_segmentation/GraphSegment.h"
 #include <geometry_msgs/Polygon.h>
-#include <tf/transform_datatypes.h>
-#include <tf/transform_broadcaster.h>
-#include "pcl_ros/transforms.h"
 #include <tf/transform_listener.h>
+#include <sensor_msgs/CameraInfo.h>
+
+// boost graph library includes
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/undirected_graph.hpp>
 
 using namespace std;
 
-namespace static_segmentation{
+namespace active_segmentation {
 
-class static_segment{
+class active_segment{
+
+public:
+
+	// setS = std::set - container for edges (can be added and removed in any order) Statisfy Sequence or Associative
+	// set enforces absence of multigraph
+	// vecS = std::vector container for vectors ; Satisfy sequence or random access
+	typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS,Vertex, Edge> BoostGraph;
 
 protected:
 
@@ -66,41 +74,36 @@ protected:
 
 	cv::Mat input_;
 
-	std::string tabletop_service_,graph_service_,rgb_topic_,camera_topic_;
+	//defining boost Graph
+	BoostGraph b_graph_;
 
-	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
+	int number_of_vertices_;
 
-	graph_based_segmentation::GraphSegment graphsegment_srv_;
+	std::string static_service_,rgb_topic_,camera_topic_;
 
 	tf::TransformListener listener_;
 
 	sensor_msgs::CameraInfo cam_info_;
 
+	static_segmentation::StaticSegment staticsegment_srv_;
+
 public:
 
-	static_segment(ros::NodeHandle &nh);
+	active_segment(ros::NodeHandle &nh);
 
-	~static_segment();
+	//overlaod constructor for non ROS Declaration
+	active_segment(cv::Mat input,geometry_msgs::Polygon polygon);
 
-	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
+	~active_segment();
 
-	geometry_msgs::Polygon computeCGraph(sensor_msgs::ImagePtr &return_image);
-
-	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
-			const sensor_msgs::CameraInfo &cam_info,
-			std::vector<sensor_msgs::Image> &masks);
-
-	cv::Mat returnCVImage(const sensor_msgs::Image & img);
+	void convertToGraph();
 
 private:
 
 	ros::NodeHandle nh_priv_;
-
-	ros::ServiceServer static_segment_srv_;
 
 };
 
 }
 
 #endif
-

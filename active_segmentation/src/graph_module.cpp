@@ -34,73 +34,85 @@
 /**
  * \author Bharath Sankaran
  *
- * @b Combines tabletop segmenter and Felzenswalbs graph based segmenter
+ * @b computes connectivity graph for static segmented connected components
  */
-#ifndef STATIC_SEGMENTATION_HPP
-#define STATIC_SEGMENTATION_HPP
 
-#include <ros/ros.h>
-#include <opencv2/opencv.hpp>
-#include <vector>
-#include <sensor_msgs/Image.h>
-#include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
-#include "static_segmentation/StaticSegment.h"
-#include "tabletop_segmenter/TabletopSegmentation.h"
-#include "graph_based_segmentation/GraphSegment.h"
-#include <geometry_msgs/Polygon.h>
-#include <tf/transform_datatypes.h>
-#include <tf/transform_broadcaster.h>
-#include "pcl_ros/transforms.h"
-#include <tf/transform_listener.h>
+#include "active_segmentation/graph_module.hpp"
 
-using namespace std;
+namespace active_segmentation {
 
-namespace static_segmentation{
+graph_module::graph_module(int number_of_vertices):
+	graph_(){
 
-class static_segment{
+	number_of_vertices_ = number_of_vertices;
+}
 
-protected:
+void graph_module::addEdge(Vertex v1, Vertex v2, double weight){
 
-	ros::NodeHandle nh_;
+	Edge e;
+	e.edge_ = make_pair(v1,v2);
+	e.weight_ = weight;
 
-	cv::Mat input_;
+	graph_.insert(e);
+}
 
-	std::string tabletop_service_,graph_service_,rgb_topic_,camera_topic_;
+void graph_module::addEdge(int node_1, double centroid_1, int node_2, double centroid_2, double weight){
 
-	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
+	Vertex v1, v2;
+	v1.index_ = node_1;
+	v1.centroid_ = centroid_1;
+	v2.index_ = node_2;
+	v2.centroid_ = centroid_2;
 
-	graph_based_segmentation::GraphSegment graphsegment_srv_;
+	Edge e;
+	e.edge_ = make_pair(v1,v2);
+	e.weight_ = weight;
 
-	tf::TransformListener listener_;
+	graph_.insert(e);
+}
 
-	sensor_msgs::CameraInfo cam_info_;
+bool graph_module::findVertex(Vertex v){
 
-public:
+	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
+		if(iter_->edge_.first.index_ == v.index_ || iter_->edge_.second.index_ == v.index_ )
+			return true;
 
-	static_segment(ros::NodeHandle &nh);
-
-	~static_segment();
-
-	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
-
-	geometry_msgs::Polygon computeCGraph(sensor_msgs::ImagePtr &return_image);
-
-	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
-			const sensor_msgs::CameraInfo &cam_info,
-			std::vector<sensor_msgs::Image> &masks);
-
-	cv::Mat returnCVImage(const sensor_msgs::Image & img);
-
-private:
-
-	ros::NodeHandle nh_priv_;
-
-	ros::ServiceServer static_segment_srv_;
-
-};
+	return false;
 
 }
 
-#endif
+bool graph_module::findVertex(int index){
 
+	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
+		if(iter_->edge_.first.index_ == index || iter_->edge_.second.index_ == index)
+			return true;
+
+	return false;
+
+}
+
+bool graph_module::findEdge(Edge e){
+
+	iter_ = graph_.find(e);
+
+	if(iter_ == graph_.end())
+		return false;
+	else
+		return true;
+}
+
+bool graph_module::findEdge(Vertex v1, Vertex v2){
+
+	Edge e;
+	e.edge_ = make_pair(v1,v2);
+
+	iter_ = graph_.find(e);
+
+	if(iter_ == graph_.end())
+		return false;
+	else
+		return true;
+}
+
+
+}
