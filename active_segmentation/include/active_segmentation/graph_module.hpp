@@ -134,6 +134,14 @@ public:
 
 	bool findEdge(Vertex v1, Vertex v2);
 
+	bool removeEdge(Edge e);
+
+	bool removeEdge(Vertex v1, Vertex v2);
+
+	int countVertex(Vertex v1);
+
+	std::vector<Vertex> findMaxVertex();
+
 };
 
 }

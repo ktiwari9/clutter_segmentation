@@ -110,8 +110,75 @@ bool graph_module::findEdge(Vertex v1, Vertex v2){
 
 	if(iter_ == graph_.end())
 		return false;
+
+	e.edge_ = make_pair(v2,v1);
+
+	iter_ = graph_.find(e);
+
+	if(iter_ == graph_.end())
+		return false;
+
+	return true;
+}
+
+bool graph_module::removeEdge(Edge e){
+
+	iter_ = graph_.find(e);
+
+	if(iter_ == graph_.end())
+		return false;
 	else
+	{
+		graph_.erase(iter_);
 		return true;
+	}
+
+
+}
+
+bool graph_module::removeEdge(Vertex v1, Vertex v2){
+
+	Edge e;
+	e.edge_ = make_pair(v1,v2);
+
+	bool val;
+	val = removeEdge(e);
+
+	if(val)
+		return true;
+	else
+	{
+		e.edge_ = make_pair(v2,v1);
+		val = removeEdge(e);
+
+		if(val)
+			return true;
+		else
+			return false;
+	}
+
+}
+
+int graph_module::countVertex(Vertex v1){
+
+	// Find a better way to do this
+	return 1;
+}
+
+std::vector<Vertex> graph_module::findMaxVertex(){
+
+	std::vector<Vertex> vertex_list;
+	int max_vert = 0;
+	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++){
+
+		if(max_vert < countVertex(iter_->edge_.first))
+			vertex_list.push_back(iter_->edge_.first);
+
+		if(max_vert < countVertex(iter_->edge_.second))
+			vertex_list.push_back(iter_->edge_.second);
+	}
+
+	return vertex_list;
 }
 
 
