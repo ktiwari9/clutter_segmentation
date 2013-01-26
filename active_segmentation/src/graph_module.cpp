@@ -47,6 +47,8 @@ graph_module::graph_module(int number_of_vertices):
 	number_of_vertices_ = number_of_vertices;
 }
 
+graph_module::~graph_module(){}
+
 void graph_module::addEdge(Vertex v1, Vertex v2, double weight){
 
 	Edge e;
@@ -56,13 +58,16 @@ void graph_module::addEdge(Vertex v1, Vertex v2, double weight){
 	graph_.insert(e);
 }
 
-void graph_module::addEdge(int node_1, double centroid_1, int node_2, double centroid_2, double weight){
+void graph_module::addEdge(int node_1, double centroid_x1, double centroid_y1,
+		int node_2, double centroid_x2, double centroid_y2, double weight){
 
 	Vertex v1, v2;
 	v1.index_ = node_1;
-	v1.centroid_ = centroid_1;
+	v1.x_ = centroid_x1;
+	v1.y_ = centroid_y1;
 	v2.index_ = node_2;
-	v2.centroid_ = centroid_2;
+	v2.x_ = centroid_x2;
+	v2.y_ = centroid_y2;
 
 	Edge e;
 	e.edge_ = make_pair(v1,v2);
@@ -161,24 +166,54 @@ bool graph_module::removeEdge(Vertex v1, Vertex v2){
 
 int graph_module::countVertex(Vertex v1){
 
-	// Find a better way to do this
-	return 1;
+	int num_of_edges = 0;
+	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
+		if(iter_->edge_.first.index_ == v1.index_ || iter_->edge_.second.index_ == v1.index_)
+			num_of_edges++;
+	return num_of_edges;
 }
 
-std::vector<Vertex> graph_module::findMaxVertex(){
+struct find_vertex
+{
+    int id;
+    find_vertex(int id) : id(id) {}
+    bool operator () ( const Vertex& v ) const
+    {
+        return v.index_ == id;
+    }
+};
 
-	std::vector<Vertex> vertex_list;
-	int max_vert = 0;
+Vertex graph_module::findMaxVertex(){
+
+	std::vector<Vertex> vertex_list_visited;
+	std::vector<Vertex>::iterator it;
+	int max_vert_count = 0;
+	int vert_location = 0;
+	Vertex max_vert;
+
 	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++){
 
-		if(max_vert < countVertex(iter_->edge_.first))
-			vertex_list.push_back(iter_->edge_.first);
+		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter_->edge_.first.index_));
+		if(it != vertex_list_visited.end())
+			if(max_vert_count < countVertex(iter_->edge_.first))
+			{
+				max_vert_count = countVertex(iter_->edge_.first);
+				vertex_list_visited.push_back(iter_->edge_.first);
+				vert_location++;
+			}
 
-		if(max_vert < countVertex(iter_->edge_.second))
-			vertex_list.push_back(iter_->edge_.second);
+		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter_->edge_.second.index_));
+		if(it != vertex_list_visited.end())
+			if(max_vert_count < countVertex(iter_->edge_.second)){
+
+				max_vert_count = countVertex(iter_->edge_.second);
+				vertex_list_visited.push_back(iter_->edge_.second);
+				vert_location++;
+			}
+
 	}
 
-	return vertex_list;
+	return vertex_list_visited[vert_location-1];
 }
 
 

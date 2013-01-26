@@ -50,6 +50,7 @@
 #include <geometry_msgs/Polygon.h>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <active_segmentation/graph_module.hpp>
 
 // boost graph library includes
 #include <boost/graph/adjacency_list.hpp>
@@ -74,6 +75,8 @@ protected:
 
 	cv::Mat input_;
 
+	geometry_msgs::Polygon polygon_;
+
 	//defining boost Graph
 	BoostGraph b_graph_;
 
@@ -87,6 +90,8 @@ protected:
 
 	static_segmentation::StaticSegment staticsegment_srv_;
 
+	graph_module cluster_graph_;
+
 public:
 
 	active_segment(ros::NodeHandle &nh);
@@ -97,6 +102,8 @@ public:
 	~active_segment();
 
 	void convertToGraph();
+
+	std::pair<double,double> findCentroid(int index);
 
 private:
 

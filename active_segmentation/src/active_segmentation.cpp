@@ -42,11 +42,30 @@
 
 namespace active_segmentation {
 
-active_segment::active_segment(cv::Mat input, geometry_msgs::Polygon polygon){
+active_segment::active_segment(cv::Mat input, geometry_msgs::Polygon polygon):
+	cluster_graph_(polygon.points.size()){
 
 	input_ = input;
 	number_of_vertices_ = polygon.points.size();
+	polygon_ = polygon;
 }
+
+active_segment::~active_segment(){}
+
+std::pair<double,double> active_segment::findCentroid(int index){
+
+	std::pair<double,double> centroid;
+	for(int i = 0;i<number_of_vertices_;i++){
+		if(input_.at<int>(polygon_.points[i].x,polygon_.points[i].y) == index){
+			centroid.first = polygon_.points[i].x;
+			centroid.second = polygon_.points[i].y;
+		}
+	}
+
+	return centroid;
+}
+
+
 
 void active_segment::convertToGraph(){
 
@@ -56,21 +75,84 @@ void active_segment::convertToGraph(){
 	for(int i = 0 ; i < rows ; i++)
 		for(int j = 0 ; j < cols; j++){
 
-			// checking for the first pixel in the image
-			if(i == 0 && j == 0){
-				if(input_.at<int>(i,j) > 0){
+			// if location is not background
+			if(input_.at<int>(i,j) > 0){
 
-					//check if the vertex already exists
+				// checking for the first pixel in the image
+				if(i == 0 && j == 0)
+					continue;
+
+				// checking first row and West value
+				if(j != 0){
+					if(input_.at<int>(i,j) == input_.at<int>(i,j-1)){
+						continue;
+					}
+					else{
+						// checking if prev value is not background to avoid connecting with background
+						if(input_.at<int>(i,j-1) > 0){
+
+							// first check edge
+							Vertex v1,v2;
+							v1.index_ = input_.at<int>(i,j-1);
+							v2.index_ = input_.at<int>(i,j);
+
+							if(!cluster_graph_.findEdge(v1,v2)){
+
+								// compute centroids of edges
+								std::pair<double,double> c_1 = findCentroid(input_.at<int>(i,j-1));
+								std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
+								v1.x_ = c_1.first; v1.y_ = c_1.second;
+								v2.x_ = c_2.first; v2.y_ = c_2.second;
+
+								// inserting edge - initializing all edge weights to zero
+								cluster_graph_.addEdge(v1,v2,1);
+							}
+						}
+					}
 				}
 
+				//checking all other rows (North Value)
+				if(i != 0){
+
+					if(input_.at<int>(i,j) == input_.at<int>(i-1,j)){
+						continue;
+					}
+					else{
+						// checking if prev value is not background to avoid connecting with background
+						if(input_.at<int>(i-1,j) > 0){
+
+							// first check edge
+							Vertex v1,v2;
+							v1.index_ = input_.at<int>(i-1,j);
+							v2.index_ = input_.at<int>(i,j);
+
+							if(!cluster_graph_.findEdge(v1,v2)){
+
+								// compute centroids of edges
+								std::pair<double,double> c_1 = findCentroid(input_.at<int>(i-1,j));
+								std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
+								v1.x_ = c_1.first; v1.y_ = c_1.second;
+								v2.x_ = c_2.first; v2.y_ = c_2.second;
+
+								// inserting edge - initializing all edge weights to zero
+								cluster_graph_.addEdge(v1,v2,1);
+							}
+						}
+					}
+				}
 			}
-
 		}
-
+}
 }
 
+int main(int argc, char **argv){
 
-}
+	cv::Mat input = cv::imread(argv[1]);
+	geometry_msgs::Polygon polygon;// = argv[2]; // change this dummy assignment later
 
+	active_segmentation::active_segment ss(input, polygon);
+	ss.convertToGraph();
+
+	return 0;
 
 }

@@ -65,7 +65,7 @@ namespace active_segmentation {
 struct Vertex{
 
 	int index_;
-	double centroid_;
+	double x_,y_;
 };
 
 // Defining Edge as a pait of vertices with a weight
@@ -128,7 +128,8 @@ public:
 
 	void addEdge(Vertex v1, Vertex v2, double weight);
 
-	void addEdge(int node_1, double centroid_1, int node_2, double centroid_2, double weight);
+	void addEdge(int node_1, double centroid_x1, double centroid_y1,
+			int node_2, double centroid_x2, double centroid_y2, double weight);
 
 	bool findEdge(Edge e);
 
@@ -140,7 +141,9 @@ public:
 
 	int countVertex(Vertex v1);
 
-	std::vector<Vertex> findMaxVertex();
+	Vertex findMaxVertex();
+
+	void displayGraph(); // Need to think about how to do this!
 
 };
 
