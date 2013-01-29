@@ -47,6 +47,10 @@ graph_module::graph_module(int number_of_vertices):
 	number_of_vertices_ = number_of_vertices;
 }
 
+graph_module::graph_module():
+	graph_(){
+}
+
 graph_module::~graph_module(){}
 
 void graph_module::addEdge(Vertex v1, Vertex v2, double weight){

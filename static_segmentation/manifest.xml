@@ -24,6 +24,8 @@
   <depend package="image_geometry" />
   <depend package="graph_based_segmentation" />
   <depend package="tabletop_segmenter" />
+  <depend package="usc_utilities" />
+  
 
 
  <export>

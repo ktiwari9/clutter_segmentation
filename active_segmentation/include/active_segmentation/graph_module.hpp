@@ -118,6 +118,8 @@ public:
 
 	graph_module(int number_of_vertices);
 
+	graph_module();
+
 	~graph_module();
 
 	bool findVertex(int index);

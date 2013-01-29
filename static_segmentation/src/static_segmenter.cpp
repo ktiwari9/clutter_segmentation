@@ -115,6 +115,15 @@ cv::Mat static_segment::returnCVImage(const sensor_msgs::Image & img) {
 	return cv_ptr->image;
 }
 
+geometry_msgs::Point32 static_segment::createPoint32( double x, double y, double z ){
+
+    geometry_msgs::Point32 point;
+    point.x = x;
+    point.y = y;
+    point.z = z;
+    return point;
+}
+
 
 geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image){
 
@@ -127,8 +136,30 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 		// transforming every cluster in the service
 		sensor_msgs::PointCloud2 transform_cloud;
 
+	/*	bool can_transform = false;
+		  while (!can_transform)
+		  {
+		    ROS_WARN("Waiting for transform between %s and %s\n", tabletop_srv_.response.clusters[0].header.frame_id.c_str(),
+		    		graphsegment_srv_.response.segment.header.frame_id.c_str());
+		    try
+		    {
+		      can_transform = listener_.waitForTransform(tabletop_srv_.response.clusters[0].header.frame_id,
+		    		  graphsegment_srv_.response.segment.header.frame_id,graphsegment_srv_.response.segment.header.stamp, ros::Duration(1.0));
+		      ros::spinOnce();
+		    }
+		    catch (tf::TransformException& ex)
+		    {
+		      ROS_ERROR("%s", ex.what());
+		    }
+		  }
+*/
+	//	ROS_VERIFY(pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
+		//		tabletop_srv_.response.clusters[i], transform_cloud,
+		//		listener_));
+
+		//-------------->// TODO: CORRECT THIS NAIVE FIX LATER<------------------------//
 		try {
-			//segmentation_srv.response.clusters[i].header.stamp = ros::Time(0);// <---- Change this later
+			tabletop_srv_.response.clusters[i].header.stamp = ros::Time(0);// <---- Change this later
 			pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
 					tabletop_srv_.response.clusters[i], transform_cloud,
 					listener_);
@@ -174,6 +205,7 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
 	cv::Mat segmented_image = returnCVImage(graphsegment_srv_.response.segment);
 	//segmented_image.copyTo(segmented_mask, contour_mask);
+	cv::imwrite("/tmp/segmented_image.png",segmented_image);
 
 	cv::Mat segmented_gray;
 
@@ -188,6 +220,9 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 	cv::Mat return_cvMat = cv::Mat::zeros(segmented_image.size(), segmented_image.type());
 	segmented_image.copyTo(return_cvMat,contour_mask);
 
+	cv::imwrite("/tmp/contour_image.png",contour_mask);
+
+
 	// convert return image into sensor_msgs/ImagePtr
 	cv_bridge::CvImage out_image;
 
@@ -196,9 +231,11 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 	out_image.encoding = graphsegment_srv_.response.segment.encoding;
 	out_image.image    = return_cvMat;
 
+	cv::imwrite("/tmp/graph_image.png",return_cvMat);
+
 	return_image = out_image.toImageMsg();
 
-	ROS_INFO("Constructing the graph of all the clusters");
+	ROS_INFO("Constructing the graph of all the clusters in range %f to %f", min_val,max_val);
 
 	geometry_msgs::Polygon return_polygon;
 
@@ -206,28 +243,34 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 	int count = 0;
 
 	cv::Mat center_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
+	cv::Mat gray_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
+
+	segmented_gray.copyTo(gray_graph,contour_mask);
 
 	for(int i=(int)min_val;i<=(int)max_val;i++){
 
-		cv::Mat cluster_mask = segmented_gray == (double)i;
+		cv::Mat cluster_mask = gray_graph == (double)i;
+		cv::threshold(cluster_mask, cluster_mask, 20, 255, CV_THRESH_BINARY);
 
-		if(cv::sum(cluster_mask).val[0] > 0.0){
+		if(cv::sum(cluster_mask).val[0] > 100000.0){ //TODO:change this heuristic later
 
+			ROS_INFO("Image sum value %f",(double)cv::sum(cluster_mask).val[0]);
 			// To compute image centroid of the pixel mask
 			cv::Moments m = cv::moments(cluster_mask, false);
-			cv::Point mask_center(m.m10/m.m00, m.m01/m.m00);
+			cv::Point2f mask_center(m.m10/m.m00, m.m01/m.m00);
 
 			//Populating the return polygon
-			return_polygon.points[count].x = mask_center.x;
-			return_polygon.points[count].y = mask_center.y;
-
+			return_polygon.points.push_back(createPoint32(mask_center.x,mask_center.y,0));
 			// Annotating the image
-			cv::circle(cluster_mask, mask_center, 5, cv::Scalar(128,0,0), -1);
-			cv::add(cluster_mask, center_graph, center_graph);
+			cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
 			count++;
 
 		}
 	}
+
+	cv::imwrite("/tmp/source_graph.png",center_graph);
+
+	ROS_INFO("Created graph with %d nodes", count);
 
 	return return_polygon;
 }
@@ -288,6 +331,7 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
 		response.graph_image = *graph_image;
 		response.c_graph.header.stamp = recent_color->header.stamp;
 		response.c_graph.header.frame_id = recent_color->header.frame_id;
+		response.result = response.SUCCESS;
 		return true;
 	}
 
@@ -297,7 +341,7 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
 
 int main(int argc, char **argv){
 
-	ros::init(argc, argv, "graph_segment");
+	ros::init(argc, argv, "static_segment");
 	ros::NodeHandle nh;
 
 	static_segmentation::static_segment ss(nh);

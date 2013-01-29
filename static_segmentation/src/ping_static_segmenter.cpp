@@ -76,6 +76,8 @@ bool dumpGraphImage(const sensor_msgs::Image & img,
 
   }
 
+  ROS_INFO("Saving Image");
+
   cv::imwrite(name, input);
 
 
@@ -112,11 +114,11 @@ int main(int argc, char **argv)
     exit(0);
   }
 
-  ROS_INFO("Segmentation service succeeded. Returned Segmented Graph");
+  ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",segmentation_srv.response.result);
 
   // DEBUG of projection
   if(segmentation_srv.response.result == segmentation_srv.response.SUCCESS)
-	  dumpGraphImage(segmentation_srv.response.graph_image,"segmented_image.png",
+	  dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",
 			  segmentation_srv.response.c_graph.polygon);
 
   return true;

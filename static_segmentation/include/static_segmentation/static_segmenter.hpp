@@ -53,6 +53,7 @@
 #include <tf/transform_broadcaster.h>
 #include "pcl_ros/transforms.h"
 #include <tf/transform_listener.h>
+#include <usc_utilities/assert.h>
 
 using namespace std;
 
@@ -91,6 +92,8 @@ public:
 			std::vector<sensor_msgs::Image> &masks);
 
 	cv::Mat returnCVImage(const sensor_msgs::Image & img);
+
+	geometry_msgs::Point32 createPoint32(double x, double y, double z);
 
 private:
 

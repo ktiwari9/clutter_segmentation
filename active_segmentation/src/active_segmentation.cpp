@@ -43,12 +43,21 @@
 namespace active_segmentation {
 
 active_segment::active_segment(cv::Mat input, geometry_msgs::Polygon polygon):
-	cluster_graph_(polygon.points.size()){
+			cluster_graph_(polygon.points.size()){
 
 	input_ = input;
 	number_of_vertices_ = polygon.points.size();
 	polygon_ = polygon;
 }
+
+active_segment::active_segment(ros::NodeHandle & nh):
+			nh_(nh),nh_priv_("~"),cluster_graph_(){
+
+	nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
+
+}
+
+
 
 active_segment::~active_segment(){}
 
@@ -65,92 +74,136 @@ std::pair<double,double> active_segment::findCentroid(int index){
 	return centroid;
 }
 
+cv::Mat active_segment::returnCVImage(const sensor_msgs::Image & img) {
+
+	cv_bridge::CvImagePtr cv_ptr;
+	try {
+		cv_ptr = cv_bridge::toCvCopy(img);
+	} catch (cv_bridge::Exception &e) {
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+		exit(0);
+	}
+
+	return cv_ptr->image;
+}
+
 
 
 void active_segment::convertToGraph(){
 
-	// now loop through image and construct graph from connected components
-	int rows = input_.rows, cols = input_.cols;
+	//Call static segmentation service
+	bool call_succeeded = false;
 
-	for(int i = 0 ; i < rows ; i++)
-		for(int j = 0 ; j < cols; j++){
+	while(!call_succeeded){
+		if(ros::service::call(static_service_,staticsegment_srv_)){
+			call_succeeded = true;
+			input_ = returnCVImage(staticsegment_srv_.response.graph_image);
+			polygon_ = staticsegment_srv_.response.c_graph.polygon;
+			number_of_vertices_ = polygon_.points.size();
+			cv::imwrite("/tmp/response_img.png",input_);
+		}
+	}
 
-			// if location is not background
-			if(input_.at<int>(i,j) > 0){
+	if (staticsegment_srv_.response.result == staticsegment_srv_.response.FAILURE)
+	{
+		ROS_ERROR("Segmentation service returned error");
+		exit(0);
+	}
 
-				// checking for the first pixel in the image
-				if(i == 0 && j == 0)
-					continue;
+	ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",staticsegment_srv_.response.result);
 
-				// checking first row and West value
-				if(j != 0){
-					if(input_.at<int>(i,j) == input_.at<int>(i,j-1)){
+	// DEBUG of projection
+	if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
+
+		// now loop through image and construct graph from connected components
+		int rows = input_.rows, cols = input_.cols;
+
+		for(int i = 0 ; i < rows ; i++)
+			for(int j = 0 ; j < cols; j++){
+
+				// if location is not background
+				if(input_.at<int>(i,j) > 0){
+
+					// checking for the first pixel in the image
+					if(i == 0 && j == 0)
 						continue;
-					}
-					else{
-						// checking if prev value is not background to avoid connecting with background
-						if(input_.at<int>(i,j-1) > 0){
 
-							// first check edge
-							Vertex v1,v2;
-							v1.index_ = input_.at<int>(i,j-1);
-							v2.index_ = input_.at<int>(i,j);
+					// checking first row and West value
+					if(j != 0){
+						if(input_.at<int>(i,j) == input_.at<int>(i,j-1)){
+							continue;
+						}
+						else{
+							// checking if prev value is not background to avoid connecting with background
+							if(input_.at<int>(i,j-1) > 0){
 
-							if(!cluster_graph_.findEdge(v1,v2)){
+								// first check edge
+								Vertex v1,v2;
+								v1.index_ = input_.at<int>(i,j-1);
+								v2.index_ = input_.at<int>(i,j);
 
-								// compute centroids of edges
-								std::pair<double,double> c_1 = findCentroid(input_.at<int>(i,j-1));
-								std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
-								v1.x_ = c_1.first; v1.y_ = c_1.second;
-								v2.x_ = c_2.first; v2.y_ = c_2.second;
+								if(!cluster_graph_.findEdge(v1,v2)){
 
-								// inserting edge - initializing all edge weights to zero
-								cluster_graph_.addEdge(v1,v2,1);
+									// compute centroids of edges
+									std::pair<double,double> c_1 = findCentroid(input_.at<int>(i,j-1));
+									std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
+									v1.x_ = c_1.first; v1.y_ = c_1.second;
+									v2.x_ = c_2.first; v2.y_ = c_2.second;
+
+									// inserting edge - initializing all edge weights to zero
+									cluster_graph_.addEdge(v1,v2,1);
+								}
 							}
 						}
 					}
-				}
 
-				//checking all other rows (North Value)
-				if(i != 0){
+					//checking all other rows (North Value)
+					if(i != 0){
 
-					if(input_.at<int>(i,j) == input_.at<int>(i-1,j)){
-						continue;
-					}
-					else{
-						// checking if prev value is not background to avoid connecting with background
-						if(input_.at<int>(i-1,j) > 0){
+						if(input_.at<int>(i,j) == input_.at<int>(i-1,j)){
+							continue;
+						}
+						else{
+							// checking if prev value is not background to avoid connecting with background
+							if(input_.at<int>(i-1,j) > 0){
 
-							// first check edge
-							Vertex v1,v2;
-							v1.index_ = input_.at<int>(i-1,j);
-							v2.index_ = input_.at<int>(i,j);
+								// first check edge
+								Vertex v1,v2;
+								v1.index_ = input_.at<int>(i-1,j);
+								v2.index_ = input_.at<int>(i,j);
 
-							if(!cluster_graph_.findEdge(v1,v2)){
+								if(!cluster_graph_.findEdge(v1,v2)){
 
-								// compute centroids of edges
-								std::pair<double,double> c_1 = findCentroid(input_.at<int>(i-1,j));
-								std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
-								v1.x_ = c_1.first; v1.y_ = c_1.second;
-								v2.x_ = c_2.first; v2.y_ = c_2.second;
+									// compute centroids of edges
+									std::pair<double,double> c_1 = findCentroid(input_.at<int>(i-1,j));
+									std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
+									v1.x_ = c_1.first; v1.y_ = c_1.second;
+									v2.x_ = c_2.first; v2.y_ = c_2.second;
 
-								// inserting edge - initializing all edge weights to zero
-								cluster_graph_.addEdge(v1,v2,1);
+									// inserting edge - initializing all edge weights to zero
+									cluster_graph_.addEdge(v1,v2,1);
+								}
 							}
 						}
 					}
 				}
 			}
-		}
+	}
 }
+
 }
 
 int main(int argc, char **argv){
 
-	cv::Mat input = cv::imread(argv[1]);
-	geometry_msgs::Polygon polygon;// = argv[2]; // change this dummy assignment later
 
-	active_segmentation::active_segment ss(input, polygon);
+	ros::init(argc, argv, "active_segment");
+	ros::NodeHandle nh;
+
+	//	cv::Mat input = cv::imread(argv[1]);
+	//	geometry_msgs::Polygon polygon;// = argv[2]; // change this dummy assignment later
+
+	//	active_segmentation::active_segment ss(input, polygon);
+	active_segmentation::active_segment ss(nh);
 	ss.convertToGraph();
 
 	return 0;

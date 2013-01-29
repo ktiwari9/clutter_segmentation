@@ -103,6 +103,8 @@ public:
 
 	void convertToGraph();
 
+	cv::Mat returnCVImage(const sensor_msgs::Image & img);
+
 	std::pair<double,double> findCentroid(int index);
 
 private:
