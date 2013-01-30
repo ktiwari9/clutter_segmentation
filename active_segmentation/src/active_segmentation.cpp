@@ -54,12 +54,16 @@ active_segment::active_segment(ros::NodeHandle & nh):
 			nh_(nh),nh_priv_("~"),cluster_graph_(){
 
 	nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
+	nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
+
+	cv::namedWindow( window_thread_.c_str(), CV_WINDOW_AUTOSIZE );// Create a window for display.
+	cv::startWindowThread();
 
 }
 
 
 
-active_segment::~active_segment(){}
+active_segment::~active_segment(){ cv::destroyWindow(window_thread_.c_str());}
 
 std::pair<double,double> active_segment::findCentroid(int index){
 
@@ -87,7 +91,65 @@ cv::Mat active_segment::returnCVImage(const sensor_msgs::Image & img) {
 	return cv_ptr->image;
 }
 
+cv::Mat active_segment::constructVisGraph(cv::Mat input, graph_module graph){
 
+	graph_module::Graph_it iter;
+
+	cv::Mat draw(input);
+
+	int count=0;
+	for(iter = graph.graph_.begin(); iter!=graph.graph_.end(); iter++){
+
+		cv::Point2f start(iter->edge_.first.x_,iter->edge_.first.y_);
+		cv::Point2f end(iter->edge_.second.x_,iter->edge_.second.y_);
+		addLine(draw,start,end);
+		count++;
+	}
+
+
+	ROS_INFO("Number of Edges %d",count);
+	cv::imwrite("/tmp/full_graph.png",draw);
+
+	return draw;
+}
+
+void active_segment::addLine(cv::Mat &image, cv::Point2f start, cv::Point2f end){
+
+	  int thickness = 2;
+	  int lineType = 8;
+	  // add points and line for each start and end image
+	  addCircle(image,start);
+	  addCircle(image, end);
+	  cv::line(image, start, end, cv::Scalar( 0, 0, 0 ), thickness, lineType );
+	  cv::imwrite("/tmp/inter_full_graph.png",image);
+}
+
+void active_segment::addCircle(cv::Mat& image, cv::Point2f center){
+
+	cv::circle(image, center, 4, cv::Scalar(128,0,0), -1,8,0);
+
+}
+
+void active_segment::controlGraph(){
+
+	// receive a new graph from
+	ROS_INFO("Commencing graph conversion");
+	convertToGraph();
+
+
+	//visualize graph
+	ROS_INFO("Displaying Graph");
+	cv::Mat view_image = constructVisGraph(input_,cluster_graph_);
+
+	cv::imshow(window_thread_.c_str(), view_image);
+
+	// find the max node
+	ROS_INFO("Finding max vertex");
+	//Vertex v1 = cluster_graph_.findMaxVertex();
+
+	// do something to move the vertex
+
+}
 
 void active_segment::convertToGraph(){
 
@@ -112,8 +174,21 @@ void active_segment::convertToGraph(){
 
 	ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",staticsegment_srv_.response.result);
 
+	// create an index map
+	std::vector<int> index_map;
+	std::vector<int>::iterator index_map_it;
+
+	ROS_INFO("NUmber of vertices %d",number_of_vertices_);
+
+	for(int vals=0;vals<number_of_vertices_;vals++){
+		int test_value = (int)input_.at<uchar>((int)polygon_.points[vals].x,(int)polygon_.points[vals].y);
+		index_map.push_back(test_value);
+	}
+
 	// DEBUG of projection
 	if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
+
+		int count = 0;
 
 		// now loop through image and construct graph from connected components
 		int rows = input_.rows, cols = input_.cols;
@@ -121,8 +196,10 @@ void active_segment::convertToGraph(){
 		for(int i = 0 ; i < rows ; i++)
 			for(int j = 0 ; j < cols; j++){
 
-				// if location is not background
-				if(input_.at<int>(i,j) > 0){
+				// if location is not background or not a polygon point
+				index_map_it = std::find(index_map.begin(),index_map.end(),(int)input_.at<uchar>(i,j));
+				if((int)input_.at<uchar>(i,j) > 0 && index_map_it!=index_map.end()){
+					//ROS_INFO("index value : %d",input_.at<int>(i,j));
 
 					// checking for the first pixel in the image
 					if(i == 0 && j == 0)
@@ -135,23 +212,26 @@ void active_segment::convertToGraph(){
 						}
 						else{
 							// checking if prev value is not background to avoid connecting with background
-							if(input_.at<int>(i,j-1) > 0){
+							index_map_it = std::find(index_map.begin(),index_map.end(),(int)input_.at<uchar>(i,j-1));
+							if((int)input_.at<uchar>(i,j-1) > 0 && index_map_it!=index_map.end()){
+								//ROS_INFO("index value prev j-1 : %d",input_.at<int>(i,j-1));
 
 								// first check edge
 								Vertex v1,v2;
-								v1.index_ = input_.at<int>(i,j-1);
-								v2.index_ = input_.at<int>(i,j);
+								v1.index_ = (int)input_.at<uchar>(i,j-1);
+								v2.index_ = (int)input_.at<uchar>(i,j);
 
 								if(!cluster_graph_.findEdge(v1,v2)){
 
 									// compute centroids of edges
-									std::pair<double,double> c_1 = findCentroid(input_.at<int>(i,j-1));
-									std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
+									std::pair<double,double> c_1 = findCentroid((int)input_.at<uchar>(i,j-1));
+									std::pair<double,double> c_2 = findCentroid((int)input_.at<uchar>(i,j));
 									v1.x_ = c_1.first; v1.y_ = c_1.second;
 									v2.x_ = c_2.first; v2.y_ = c_2.second;
 
 									// inserting edge - initializing all edge weights to zero
 									cluster_graph_.addEdge(v1,v2,1);
+									count++;
 								}
 							}
 						}
@@ -165,36 +245,39 @@ void active_segment::convertToGraph(){
 						}
 						else{
 							// checking if prev value is not background to avoid connecting with background
-							if(input_.at<int>(i-1,j) > 0){
+							index_map_it = std::find(index_map.begin(),index_map.end(),(int)input_.at<uchar>(i-1,j));
+							if((int)input_.at<uchar>(i-1,j) > 0 && index_map_it!=index_map.end()){
+								//ROS_INFO("index value prev i-1 : %d",input_.at<int>(i-1,j));
 
 								// first check edge
 								Vertex v1,v2;
-								v1.index_ = input_.at<int>(i-1,j);
-								v2.index_ = input_.at<int>(i,j);
+								v1.index_ = (int)input_.at<uchar>(i-1,j);
+								v2.index_ = (int)input_.at<uchar>(i,j);
 
 								if(!cluster_graph_.findEdge(v1,v2)){
 
 									// compute centroids of edges
-									std::pair<double,double> c_1 = findCentroid(input_.at<int>(i-1,j));
-									std::pair<double,double> c_2 = findCentroid(input_.at<int>(i,j));
+									std::pair<double,double> c_1 = findCentroid((int)input_.at<uchar>(i-1,j));
+									std::pair<double,double> c_2 = findCentroid((int)input_.at<uchar>(i,j));
 									v1.x_ = c_1.first; v1.y_ = c_1.second;
 									v2.x_ = c_2.first; v2.y_ = c_2.second;
 
 									// inserting edge - initializing all edge weights to zero
 									cluster_graph_.addEdge(v1,v2,1);
+									count++;
 								}
 							}
 						}
 					}
 				}
 			}
+		ROS_INFO("Number of accumulated Edges %d",count);
 	}
 }
 
 }
 
-int main(int argc, char **argv){
-
+int run_active_segmentation(int argc, char **argv){
 
 	ros::init(argc, argv, "active_segment");
 	ros::NodeHandle nh;
@@ -204,8 +287,20 @@ int main(int argc, char **argv){
 
 	//	active_segmentation::active_segment ss(input, polygon);
 	active_segmentation::active_segment ss(nh);
-	ss.convertToGraph();
+
+
+
+	while(nh.ok()){
+
+		ss.controlGraph();
+		ros::spinOnce();
+	}
 
 	return 0;
+}
+
+int main(int argc, char **argv){
+
+	return run_active_segmentation(argc,argv);
 
 }

@@ -82,7 +82,7 @@ protected:
 
 	int number_of_vertices_;
 
-	std::string static_service_,rgb_topic_,camera_topic_;
+	std::string static_service_,rgb_topic_,camera_topic_,window_thread_;
 
 	tf::TransformListener listener_;
 
@@ -106,6 +106,16 @@ public:
 	cv::Mat returnCVImage(const sensor_msgs::Image & img);
 
 	std::pair<double,double> findCentroid(int index);
+
+	cv::Mat constructVisGraph(cv::Mat input_image, graph_module graph);
+
+	void addLine(cv::Mat &image, cv::Point2f start, cv::Point2f end);
+
+	void addCircle(cv::Mat &image, cv::Point2f center);
+
+	void controlGraph();
+
+	//bool findIndex(int index);
 
 private:
 

@@ -260,10 +260,13 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 			cv::Point2f mask_center(m.m10/m.m00, m.m01/m.m00);
 
 			//Populating the return polygon
+			// check bound on return mat center if zero reject
+			if((int)return_cvMat.at<uchar>(mask_center.x,mask_center.y) > 0.0){ // Better way to check this?
 			return_polygon.points.push_back(createPoint32(mask_center.x,mask_center.y,0));
 			// Annotating the image
 			cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
 			count++;
+			}
 
 		}
 	}

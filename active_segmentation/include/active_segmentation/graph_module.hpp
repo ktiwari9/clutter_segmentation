@@ -95,6 +95,8 @@ struct SetEqual {
 
 class graph_module{
 
+friend class active_segment;
+
 public:
 
 	typedef std::tr1::unordered_set<Edge,HashFunction,SetEqual> Graph;
