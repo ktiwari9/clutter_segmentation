@@ -16,6 +16,7 @@ rosbuild_init()
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+set(GRAPH_DIR ${PROJECT_SOURCE_DIR}/../graph_module)
 
 #uncomment if you have defined messages
 rosbuild_genmsg()
@@ -30,9 +31,9 @@ rosbuild_gensrv()
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_add_library(marker_generator src/marker_generator.cpp )
 rosbuild_add_executable(hamming_segmentation src/hamming_segmentation.cpp)
 rosbuild_add_executable(static_segmenter src/static_segmenter.cpp)
+target_link_libraries(static_segmenter graph_module)
 rosbuild_add_executable(ping_static_segmenter src/ping_static_segmenter.cpp)
 
 

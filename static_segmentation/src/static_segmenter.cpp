@@ -21,6 +21,7 @@
  */
 #include "static_segmentation/StaticSegment.h"
 #include "static_segmentation/static_segmenter.hpp"
+#include <graph_module/graph_module.hpp>
 
 namespace static_segmentation {
 
@@ -36,8 +37,6 @@ static_segment::static_segment(ros::NodeHandle &nh) :
 	nh_priv_.param<std::string>("camera_info_topic",camera_topic_,std::string("/Honeybee/left/camera_info"));
 
 	static_segment_srv_ = nh_.advertiseService(nh_.resolveName("static_segment_srv"),&static_segment::serviceCallback, this);
-
-
 
 }
 
@@ -125,7 +124,8 @@ geometry_msgs::Point32 static_segment::createPoint32( double x, double y, double
 }
 
 
-geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image){
+graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image, bool request,
+		graph_module::EGraph in_graph){
 
 	//convert clusters to honeybee frame
 	ROS_INFO("Transforming clusters to bumblebee frame");
@@ -136,7 +136,7 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 		// transforming every cluster in the service
 		sensor_msgs::PointCloud2 transform_cloud;
 
-	/*	bool can_transform = false;
+		/*	bool can_transform = false;
 		  while (!can_transform)
 		  {
 		    ROS_WARN("Waiting for transform between %s and %s\n", tabletop_srv_.response.clusters[0].header.frame_id.c_str(),
@@ -152,8 +152,8 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 		      ROS_ERROR("%s", ex.what());
 		    }
 		  }
-*/
-	//	ROS_VERIFY(pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
+		 */
+		//	ROS_VERIFY(pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
 		//		tabletop_srv_.response.clusters[i], transform_cloud,
 		//		listener_));
 
@@ -204,7 +204,6 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 	cv::Mat segmented_mask = cv::Mat::zeros(mask_all.size(), mask_all.type());
 
 	cv::Mat segmented_image = returnCVImage(graphsegment_srv_.response.segment);
-	//segmented_image.copyTo(segmented_mask, contour_mask);
 	cv::imwrite("/tmp/segmented_image.png",segmented_image);
 
 	cv::Mat segmented_gray;
@@ -237,8 +236,6 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
 	ROS_INFO("Constructing the graph of all the clusters in range %f to %f", min_val,max_val);
 
-	geometry_msgs::Polygon return_polygon;
-
 	// Now loop through the min max values and construct the separation graph
 	int count = 0;
 
@@ -247,6 +244,9 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
 	segmented_gray.copyTo(gray_graph,contour_mask);
 
+	// clearing cluster index list
+	node_list_.clear();
+
 	for(int i=(int)min_val;i<=(int)max_val;i++){
 
 		cv::Mat cluster_mask = gray_graph == (double)i;
@@ -254,7 +254,8 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
 		if(cv::sum(cluster_mask).val[0] > 100000.0){ //TODO:change this heuristic later
 
-			ROS_INFO("Image sum value %f",(double)cv::sum(cluster_mask).val[0]);
+			//ROS_INFO("Image sum value %f",(double)cv::sum(cluster_mask).val[0]);
+
 			// To compute image centroid of the pixel mask
 			cv::Moments m = cv::moments(cluster_mask, false);
 			cv::Point2f mask_center(m.m10/m.m00, m.m01/m.m00);
@@ -262,10 +263,26 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 			//Populating the return polygon
 			// check bound on return mat center if zero reject
 			if((int)return_cvMat.at<uchar>(mask_center.x,mask_center.y) > 0.0){ // Better way to check this?
-			return_polygon.points.push_back(createPoint32(mask_center.x,mask_center.y,0));
-			// Annotating the image
-			cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
-			count++;
+
+				ROS_INFO("Value at Pixel %d Expected Value %d",(int)return_cvMat.at<uchar>(mask_center.x,mask_center.y),i);
+
+				graph_node local_node;
+				local_node.index_ = i;
+				local_node.hist_ = computePatchFeature(input_,cluster_mask);
+				local_node.x_ = mask_center.x; local_node.y_ = mask_center.y;
+
+				node_list_.push_back(local_node);
+
+				// Annotating the image
+				cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
+				cv::circle(cluster_mask, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
+
+				// Sanity Check
+				std::stringstream name;
+				name<<"/tmp/cluster_mask_"<<i<<".png";
+				cv::imwrite(name.str().c_str(),cluster_mask);
+
+				count++;
 			}
 
 		}
@@ -275,8 +292,101 @@ geometry_msgs::Polygon static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
 	ROS_INFO("Created graph with %d nodes", count);
 
-	return return_polygon;
+	// now compute the outgraph using the segmented image and sensor image
+	if(!request){
+		updateOldNodeList(in_graph);
+		updateNewNodeList();
+	}
+
+	old_node_list_ = node_list_;
+	return buildEGraph(node_list_,return_cvMat);
+
 }
+
+cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
+
+	cv::MatND temp;
+	return temp;
+}
+
+void static_segment::updateOldNodeList(graph_module::EGraph in_graph){
+
+	// compare indices with incoming sensor message and update
+	// x,y positions of node in message
+}
+
+void static_segment::updateNewNodeList(){
+
+	// compare tracked nodes with new nodes (nearest neighbour and Descriptor match)
+	// and add nodes if needed
+}
+
+void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ros_graph& graph){
+
+	graph::Vertex_ros v1,v2;
+	v1.index_ = it_1->index_;
+	v1.x_ = it_1->x_; v1.y_ = it_1->y_;
+	v2.index_ = it_2->index_;
+	v2.x_ = it_2->x_;v2.y_ = it_2->y_;
+
+	if(!graph.findEdge(v1,v2))
+		graph.addEdge(v1,v2,1); // TODO: Think about adding distance between nodes as weight
+
+}
+
+graph_module::EGraph static_segment::buildEGraph(std::vector<graph_node> node_list, cv::Mat segment){
+
+	// construct graph
+	graph::ros_graph e_graph(node_list.size());
+	std::vector<graph_node>::iterator node_it_end;
+
+	// now loop through image and construct graph from connected components
+	int rows = segment.rows, cols = segment.cols;
+
+
+	for(int i = 0 ; i < rows ; i++)
+		for(int j = 0 ; j < cols; j++){
+
+			node_it_end = std::find_if(node_list.begin(),node_list.end(),find_node((int)input_.at<uchar>(i,j)));
+			//if node in list
+			if(node_it_end!=node_list.end()){
+
+				//check if this is the first pixel in the image
+				if(i == 0 && j == 0)
+					continue;
+
+				//checking the first row and west value in the image
+				if(j != 0){
+					if(segment.at<int>(i,j) == segment.at<int>(i,j-1))
+						continue;
+					else
+					{
+						node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)input_.at<uchar>(i,j-1)));
+						if(node_it_!=node_list.end())
+							addEdge(node_it_,node_it_end,e_graph);
+					}
+
+				}
+
+				//checking all the other rows (North Value)
+				if(i != 0){
+					if(segment.at<int>(i,j) == segment.at<int>(i-1,j))
+						continue;
+					else
+					{
+						node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)input_.at<uchar>(i-1,j)));
+						if(node_it_!=node_list.end())
+							addEdge(node_it_,node_it_end,e_graph);
+					}
+				}
+			}
+		}
+
+	return e_graph.convertToEGraphMsg();
+
+}
+
+
 
 bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response){
 
@@ -330,14 +440,18 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
 		//If both services return success we project the graph clusters onto the euclidean clusters
 		// and generate a connectivity graph
 		sensor_msgs::ImagePtr graph_image;
-		response.c_graph.polygon = computeCGraph(graph_image);
+
+		if(request.call == request.EMPTY)
+			response.out_graph = computeCGraph(graph_image,true,request.in_graph);
+		else
+			response.out_graph = computeCGraph(graph_image,false,request.in_graph);
+
 		response.graph_image = *graph_image;
-		response.c_graph.header.stamp = recent_color->header.stamp;
-		response.c_graph.header.frame_id = recent_color->header.frame_id;
+		response.graph_image.header.stamp = recent_color->header.stamp;
+		response.graph_image.header.frame_id = recent_color->header.frame_id;
 		response.result = response.SUCCESS;
 		return true;
 	}
-
 }
 
 }

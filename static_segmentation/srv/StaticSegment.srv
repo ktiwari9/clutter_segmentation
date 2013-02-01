@@ -1,9 +1,14 @@
 # empty request, as the node listens for incoming point clouds on its own
+int32 EMPTY = 1
+int32 FULL = 2
+int32 call
+
+graph_module/EGraph in_graph
 
 ---
 
 # The graph of the clusters 
-geometry_msgs/PolygonStamped c_graph
+graph_module/EGraph out_graph
 
 # The graph of the clusters 
 sensor_msgs/Image graph_image

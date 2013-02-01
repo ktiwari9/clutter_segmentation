@@ -52,7 +52,7 @@
 #include<static_segmentation/StaticSegment.h>
 #include <geometry_msgs/Polygon.h>
 
-bool dumpGraphImage(const sensor_msgs::Image & img,
+/*bool dumpGraphImage(const sensor_msgs::Image & img,
 		 const char *name, geometry_msgs::Polygon& input_graph)
 {
   cv_bridge::CvImagePtr cv_ptr;
@@ -86,6 +86,7 @@ bool dumpGraphImage(const sensor_msgs::Image & img,
 
   return true;
 }
+*/
 
 /*! Simply pings the graph_based_segmentation segmentation and recognition services and prints out the result.*/
 int main(int argc, char **argv)
@@ -118,8 +119,8 @@ int main(int argc, char **argv)
 
   // DEBUG of projection
   if(segmentation_srv.response.result == segmentation_srv.response.SUCCESS)
-	  dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",
-			  segmentation_srv.response.c_graph.polygon);
+	 ROS_INFO("Response Success");
+	  // dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",segmentation_srv.response.c_graph.polygon);
 
   return true;
 }

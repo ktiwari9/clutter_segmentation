@@ -37,7 +37,7 @@
  * @b computes connectivity graph for static segmented connected components
  */
 
-#include "active_segmentation/graph_module.hpp"
+#include "graph_module/EGraph.h"
 #include "active_segmentation/active_segmentation.hpp"
 
 namespace active_segmentation {
@@ -102,6 +102,7 @@ cv::Mat active_segment::constructVisGraph(cv::Mat input, graph_module graph){
 
 		cv::Point2f start(iter->edge_.first.x_,iter->edge_.first.y_);
 		cv::Point2f end(iter->edge_.second.x_,iter->edge_.second.y_);
+		ROS_INFO_STREAM("Edge 1: "<<start.x<<","<<start.y<<" Edge 2:"<<end.x<<","<<end.y);
 		addLine(draw,start,end);
 		count++;
 	}
@@ -185,6 +186,10 @@ void active_segment::convertToGraph(){
 		index_map.push_back(test_value);
 	}
 
+	//DEBUG TEST:
+	for(int vals=0;vals<index_map.size();vals++)
+		ROS_INFO("Index_map values %d",index_map[vals]);
+
 	// DEBUG of projection
 	if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
 
@@ -198,6 +203,7 @@ void active_segment::convertToGraph(){
 
 				// if location is not background or not a polygon point
 				index_map_it = std::find(index_map.begin(),index_map.end(),(int)input_.at<uchar>(i,j));
+
 				if((int)input_.at<uchar>(i,j) > 0 && index_map_it!=index_map.end()){
 					//ROS_INFO("index value : %d",input_.at<int>(i,j));
 
@@ -213,6 +219,7 @@ void active_segment::convertToGraph(){
 						else{
 							// checking if prev value is not background to avoid connecting with background
 							index_map_it = std::find(index_map.begin(),index_map.end(),(int)input_.at<uchar>(i,j-1));
+
 							if((int)input_.at<uchar>(i,j-1) > 0 && index_map_it!=index_map.end()){
 								//ROS_INFO("index value prev j-1 : %d",input_.at<int>(i,j-1));
 
@@ -222,13 +229,14 @@ void active_segment::convertToGraph(){
 								v2.index_ = (int)input_.at<uchar>(i,j);
 
 								if(!cluster_graph_.findEdge(v1,v2)){
-
+									ROS_INFO_STREAM("Adding Edge Between Indices: "<<v1.index_<<" and "<<v2.index_);
 									// compute centroids of edges
 									std::pair<double,double> c_1 = findCentroid((int)input_.at<uchar>(i,j-1));
 									std::pair<double,double> c_2 = findCentroid((int)input_.at<uchar>(i,j));
 									v1.x_ = c_1.first; v1.y_ = c_1.second;
 									v2.x_ = c_2.first; v2.y_ = c_2.second;
 
+									ROS_INFO_STREAM("Adding Edge Between Vertex: "<<v1.x_<<","<<v1.y_<<" and "<<v2.x_<<","<<v2.y_);
 									// inserting edge - initializing all edge weights to zero
 									cluster_graph_.addEdge(v1,v2,1);
 									count++;
@@ -246,6 +254,7 @@ void active_segment::convertToGraph(){
 						else{
 							// checking if prev value is not background to avoid connecting with background
 							index_map_it = std::find(index_map.begin(),index_map.end(),(int)input_.at<uchar>(i-1,j));
+
 							if((int)input_.at<uchar>(i-1,j) > 0 && index_map_it!=index_map.end()){
 								//ROS_INFO("index value prev i-1 : %d",input_.at<int>(i-1,j));
 
@@ -255,13 +264,14 @@ void active_segment::convertToGraph(){
 								v2.index_ = (int)input_.at<uchar>(i,j);
 
 								if(!cluster_graph_.findEdge(v1,v2)){
+									ROS_INFO_STREAM("Adding Edge Between Indices: "<<v1.index_<<" and "<<v2.index_);
 
 									// compute centroids of edges
 									std::pair<double,double> c_1 = findCentroid((int)input_.at<uchar>(i-1,j));
 									std::pair<double,double> c_2 = findCentroid((int)input_.at<uchar>(i,j));
 									v1.x_ = c_1.first; v1.y_ = c_1.second;
 									v2.x_ = c_2.first; v2.y_ = c_2.second;
-
+									ROS_INFO_STREAM("Adding Edge Between Vertex: "<<v1.x_<<","<<v1.y_<<" and "<<v2.x_<<","<<v2.y_);
 									// inserting edge - initializing all edge weights to zero
 									cluster_graph_.addEdge(v1,v2,1);
 									count++;
@@ -281,14 +291,7 @@ int run_active_segmentation(int argc, char **argv){
 
 	ros::init(argc, argv, "active_segment");
 	ros::NodeHandle nh;
-
-	//	cv::Mat input = cv::imread(argv[1]);
-	//	geometry_msgs::Polygon polygon;// = argv[2]; // change this dummy assignment later
-
-	//	active_segmentation::active_segment ss(input, polygon);
 	active_segmentation::active_segment ss(nh);
-
-
 
 	while(nh.ok()){
 

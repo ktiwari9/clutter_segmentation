@@ -45,21 +45,45 @@
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/PointCloud2.h>
 #include "static_segmentation/StaticSegment.h"
 #include "tabletop_segmenter/TabletopSegmentation.h"
 #include "graph_based_segmentation/GraphSegment.h"
-#include <geometry_msgs/Polygon.h>
+#include "graph_module/EGraph.h"
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include "pcl_ros/transforms.h"
 #include <tf/transform_listener.h>
 #include <usc_utilities/assert.h>
+#include <graph_module/graph_module.hpp>
 
 using namespace std;
 
 namespace static_segmentation{
 
+struct graph_node{
+
+	int index_;
+	cv::MatND hist_;
+	double x_,y_;
+};
+
+struct find_node{
+
+	int id;
+	find_node(int id) : id(id){}
+	bool operator()(const graph_node& g) const
+	{
+		return g.index_ == id;
+	}
+};
+
 class static_segment{
+
+public:
+	typedef std::vector<graph_node> local_graph;
+	typedef std::vector<graph_node>::iterator local_graph_it;
 
 protected:
 
@@ -77,6 +101,12 @@ protected:
 
 	sensor_msgs::CameraInfo cam_info_;
 
+	local_graph node_list_;
+
+	local_graph_it node_it_;
+
+	local_graph old_node_list_;
+
 public:
 
 	static_segment(ros::NodeHandle &nh);
@@ -85,7 +115,8 @@ public:
 
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
 
-	geometry_msgs::Polygon computeCGraph(sensor_msgs::ImagePtr &return_image);
+	graph_module::EGraph computeCGraph(sensor_msgs::ImagePtr &return_image, bool request,
+			graph_module::EGraph in_graph);
 
 	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
 			const sensor_msgs::CameraInfo &cam_info,
@@ -94,6 +125,16 @@ public:
 	cv::Mat returnCVImage(const sensor_msgs::Image & img);
 
 	geometry_msgs::Point32 createPoint32(double x, double y, double z);
+
+	cv::MatND computePatchFeature(cv::Mat input, cv::Mat mask);
+
+	graph_module::EGraph buildEGraph(std::vector<graph_node> node_list, cv::Mat segment);
+
+	void addEdge(local_graph_it it_1, local_graph_it it_2, graph::ros_graph& graph);
+
+	void updateOldNodeList(graph_module::EGraph in_graph);
+
+	void updateNewNodeList();
 
 private:
 

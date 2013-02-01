@@ -50,7 +50,7 @@
 #include <geometry_msgs/Polygon.h>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/CameraInfo.h>
-#include <active_segmentation/graph_module.hpp>
+#include "graph_module/EGraph.h"
 
 // boost graph library includes
 #include <boost/graph/adjacency_list.hpp>
@@ -62,13 +62,6 @@ namespace active_segmentation {
 
 class active_segment{
 
-public:
-
-	// setS = std::set - container for edges (can be added and removed in any order) Statisfy Sequence or Associative
-	// set enforces absence of multigraph
-	// vecS = std::vector container for vectors ; Satisfy sequence or random access
-	typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS,Vertex, Edge> BoostGraph;
-
 protected:
 
 	ros::NodeHandle nh_;
@@ -76,9 +69,6 @@ protected:
 	cv::Mat input_;
 
 	geometry_msgs::Polygon polygon_;
-
-	//defining boost Graph
-	BoostGraph b_graph_;
 
 	int number_of_vertices_;
 
@@ -97,7 +87,7 @@ public:
 	active_segment(ros::NodeHandle &nh);
 
 	//overlaod constructor for non ROS Declaration
-	active_segment(cv::Mat input,geometry_msgs::Polygon polygon);
+	active_segment(cv::Mat input, graph_module::EGraph graph);
 
 	~active_segment();
 
@@ -114,8 +104,6 @@ public:
 	void addCircle(cv::Mat &image, cv::Point2f center);
 
 	void controlGraph();
-
-	//bool findIndex(int index);
 
 private:
 
