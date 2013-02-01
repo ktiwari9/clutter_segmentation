@@ -1,0 +1,22 @@
+<package>
+  <description brief="graph_module">
+
+     graph_module
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/graph_module</url>
+  <depend package="roscpp"/>
+  <depend package="tf"/>
+  <depend package="sensor_msgs"/>
+  <depend package="geometry_msgs" />
+
+   <export>
+    <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib "/>
+ </export>
+
+</package>
+
+
