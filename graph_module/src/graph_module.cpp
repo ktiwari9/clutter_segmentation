@@ -80,6 +80,7 @@ bool ros_graph::buildGraph(graph_module::VGraph in_graph_msg){
 
 graph_module::EGraph ros_graph::convertToEGraphMsg(){
 
+	ROS_INFO("Converting to E graph Message");
 	graph_module::EGraph out_msg;
 	for(iter_=graph_.begin(); iter_!=graph_.end(); iter_++){
 

@@ -19,11 +19,12 @@
  *
  * @b Static Segmentation merging class
  */
-#include "static_segmentation/StaticSegment.h"
-#include "static_segmentation/static_segmenter.hpp"
+#include <static_segmentation/StaticSegment.h>
+#include <static_segmentation/static_segmenter.hpp>
 #include <graph_module/graph_module.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <ros/ros.h>
 
 namespace static_segmentation {
 
@@ -37,6 +38,8 @@ static_segment::static_segment(ros::NodeHandle &nh) :
 	nh_priv_.param<std::string>("rgb_input",rgb_topic_,std::string("/Honeybee/left/image_rect_color"));
 
 	nh_priv_.param<std::string>("camera_info_topic",camera_topic_,std::string("/Honeybee/left/camera_info"));
+
+	nh_priv_.param<double>("similarity_thresh",threshold_,100.0);
 
 	static_segment_srv_ = nh_.advertiseService(nh_.resolveName("static_segment_srv"),&static_segment::serviceCallback, this);
 
@@ -270,7 +273,7 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 
 				graph_node local_node;
 				local_node.index_ = i;
-				local_node.hist_ = computePatchFeature(input_,cluster_mask);
+				local_node.hist_ = computePatchFeature(return_cvMat,cluster_mask);
 				local_node.x_ = mask_center.x; local_node.y_ = mask_center.y;
 
 				node_list_.push_back(local_node);
@@ -300,15 +303,41 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 		updateNewNodeList();
 	}
 
-	old_node_list_ = node_list_;
+	ROS_INFO("Saving old node list");
+	old_node_list_.clear();
+	old_node_list_.insert( old_node_list_.end(), node_list_.begin(), node_list_.end());
+	ROS_INFO("Returning list");
 	return buildEGraph(node_list_,return_cvMat);
 
 }
 
 cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
 
-	cv::MatND temp;
-	return temp;
+	cv::MatND hist;
+	cv::Mat hsv;
+
+	cv::cvtColor(input,hsv,CV_BGR2HSV);
+
+
+	// let's quantize the hue to 30 levels
+	// and the saturation to 32 levels
+	int hbins = 30, sbins = 32;
+	int histSize[] = {hbins, sbins};
+	// hue varies from 0 to 179, see cvtColor
+	float hranges[] = { 0, 180 };
+	// saturation varies from 0 (black-gray-white) to
+	// 255 (pure spectrum color)
+	float sranges[] = { 0, 256 };
+	const float* ranges[] = { hranges, sranges };
+	// we compute the histogram from the 0-th and 1-st channels
+	int channels[] = {0, 1};
+
+	calcHist( &hsv, 1, channels, mask, // do not use mask
+			hist, 2, histSize, ranges,
+			true, // the histogram is uniform
+			false );
+
+	return hist;
 }
 
 void static_segment::updateOldNodeList(graph_module::EGraph in_graph){
@@ -316,15 +345,16 @@ void static_segment::updateOldNodeList(graph_module::EGraph in_graph){
 	// compare indices with incoming sensor message and update
 	// x,y positions of node in message
 	// TODO: if this is too slow, make it fast
+	ROS_INFO("Updating Old node list");
 
-	for(int i=0; i<in_graph.edges.size(); i++){
+	for(int i=0; i<(int)in_graph.edges.size(); i++){
 
-		node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),in_graph.edges[i].start.index);
+		node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),find_node(in_graph.edges[i].start.index));
 		node_it_->x_ = in_graph.edges[i].start.point.x;
 		node_it_->y_ = in_graph.edges[i].start.point.y;
 
 		//update reverse position
-		node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),in_graph.edges[i].end.index);
+		node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),find_node(in_graph.edges[i].end.index));
 		node_it_->x_ = in_graph.edges[i].end.point.x;
 		node_it_->y_ = in_graph.edges[i].end.point.y;
 
@@ -333,6 +363,8 @@ void static_segment::updateOldNodeList(graph_module::EGraph in_graph){
 }
 
 void static_segment::updateNewNodeList(){
+
+	ROS_INFO("Updating New node list");
 
 	// compare tracked nodes with new nodes (nearest neighbour and Descriptor match)
 	// and add nodes if needed
@@ -346,12 +378,14 @@ void static_segment::updateNewNodeList(){
 		point.z = 0;
 		point.intensity = node_it_->index_;
 
-		point_cloud.push_back(point);
+		point_cloud->push_back(point);
 
-		}
+	}
 
+	// Place holder vector
+	local_graph new_nodes;
 	for(node_it_= node_list_.begin(); node_it_ != node_list_.end(); node_it_++){
-		pcl::PointXYZ new_point;
+		pcl::PointXYZI new_point;
 		new_point.x = node_it_->x_;
 		new_point.y = node_it_->y_;
 		new_point.z = 0;
@@ -366,20 +400,39 @@ void static_segment::updateNewNodeList(){
 		float radius = 25.0;
 
 		// TODO: naive assumption that only the first point in the cluster matches
-		  if ( kdtree->radiusSearch (new_point, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 )
-		  {
-			  if(compareDescriptor(old_node_list_[pointIdxRadiusSearch[0]].hist_,node_it_->hist_) < threshold)
-				  node_it_->index_ = old_node_list_[pointIdxRadiusSearch[0]].index_;
-			  // fugrue out a way to insert
-		  }
-		  else{
-			  //add new point
-		  }
+		if ( kdtree->radiusSearch (new_point, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 )
+		{
+			threshold_ = 100; int index = (int)pointIdxRadiusSearch.size() + 1;
+			for(int i=0 ; i < (int)pointIdxRadiusSearch.size(); i++){
 
+				if(old_node_list_[pointIdxRadiusSearch[i]].hist_.dot(node_it_->hist_) < threshold_)
+				{
+					threshold_ = old_node_list_[pointIdxRadiusSearch[i]].hist_.dot(node_it_->hist_);
+					index = pointIdxRadiusSearch[i];
+				}
+			}
+			// If new node did not match any on the list
+			if(index > (int)pointIdxRadiusSearch.size())
+				new_nodes.push_back(*node_it_);
+			else
+				old_node_list_[pointIdxRadiusSearch[index]] = *node_it_;
 
+		}
+		else
+			new_nodes.push_back(*node_it_); // Add new node to list
+		}
 
+	if(new_nodes.size() > 0){
+		ROS_INFO("%d new nodes found",(int)new_nodes.size());
+		node_list_.insert( node_list_.end(), new_nodes.begin(), new_nodes.end());
 	}
 
+	ROS_INFO("All nodes updated");
+}
+
+double static_segment::compareDescriptor(cv::MatND hist_orig, cv::MatND hist_new){
+
+	return hist_orig.dot(hist_new);
 }
 
 void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ros_graph& graph){
@@ -398,13 +451,14 @@ void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ro
 graph_module::EGraph static_segment::buildEGraph(std::vector<graph_node> node_list, cv::Mat segment){
 
 	// construct graph
+	ROS_INFO("Constructing E graph Message");
 	graph::ros_graph e_graph(node_list.size());
 	std::vector<graph_node>::iterator node_it_end;
 
 	// now loop through image and construct graph from connected components
 	int rows = segment.rows, cols = segment.cols;
 
-
+	ROS_INFO("Scanning Image");
 	for(int i = 0 ; i < rows ; i++)
 		for(int j = 0 ; j < cols; j++){
 

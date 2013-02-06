@@ -35,5 +35,6 @@ rosbuild_add_executable(hamming_segmentation src/hamming_segmentation.cpp)
 rosbuild_add_executable(static_segmenter src/static_segmenter.cpp)
 target_link_libraries(static_segmenter graph_module)
 rosbuild_add_executable(ping_static_segmenter src/ping_static_segmenter.cpp)
+target_link_libraries(ping_static_segmenter graph_module)
 
 

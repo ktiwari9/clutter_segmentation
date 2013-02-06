@@ -52,41 +52,55 @@
 #include<static_segmentation/StaticSegment.h>
 #include <geometry_msgs/Polygon.h>
 
-/*bool dumpGraphImage(const sensor_msgs::Image & img,
-		 const char *name, geometry_msgs::Polygon& input_graph)
+#include<graph_module/EGraph.h>
+#include<graph_module/graph_module.hpp>
+
+bool dumpGraphImage(const sensor_msgs::Image & img,
+		 const char *name, graph_module::EGraph& input_graph)
 {
-  cv_bridge::CvImagePtr cv_ptr;
-  try
-    {
-      cv_ptr = cv_bridge::toCvCopy(img);
-    }
-  catch (cv_bridge::Exception &e)
-    {
-      ROS_ERROR("cv_bridge exception: %s", e.what());
-      return false;
-    }
+	cv_bridge::CvImagePtr cv_ptr;
+	try
+	{
+		cv_ptr = cv_bridge::toCvCopy(img);
+	}
+	catch (cv_bridge::Exception &e)
+	{
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+		return false;
+	}
 
 
-  cv::Mat input = cv_ptr->image;
+	cv::Mat input = cv_ptr->image;
 
-  for(int i=0;i<input_graph.points.size();i++){
+	graph::ros_graph new_graph;
 
-	  cv::Point center(input_graph.points[i].x,input_graph.points[i].y);
-	  cv::circle(input,center, 5, cv::Scalar(128,0,0), -1);
+	bool result = new_graph.buildGraph(input_graph);
 
-  }
+	if(result){
 
-  ROS_INFO("Saving Image");
+		for(new_graph.iter_=new_graph.graph_.begin();new_graph.iter_!=new_graph.graph_.end(); new_graph.iter_++){
 
-  cv::imwrite(name, input);
+			// First point
+			graph::Edge_ros edge = *new_graph.iter_;
+			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
+			cv::circle(input,center_1, 5, cv::Scalar(128,0,0), -1);
+			// Second point
+			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
+			cv::circle(input,center_2, 5, cv::Scalar(128,0,0), -1);
+
+		}
+
+		ROS_INFO("Saving Image");
+
+		cv::imwrite(name, input);
 
 
-  //test what's in the image
-  //std::cout<<cv_ptr->image<<std::endl;
+	}
 
-  return true;
+	return true;
 }
-*/
+
+
 
 /*! Simply pings the graph_based_segmentation segmentation and recognition services and prints out the result.*/
 int main(int argc, char **argv)
@@ -104,6 +118,8 @@ int main(int argc, char **argv)
 
   static_segmentation::StaticSegment segmentation_srv;
 
+  segmentation_srv.request.call = segmentation_srv.request.EMPTY;
+
   if (!ros::service::call(service_name, segmentation_srv))
   {
     ROS_ERROR("Call to segmentation service failed");
@@ -120,7 +136,7 @@ int main(int argc, char **argv)
   // DEBUG of projection
   if(segmentation_srv.response.result == segmentation_srv.response.SUCCESS)
 	 ROS_INFO("Response Success");
-	  // dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",segmentation_srv.response.c_graph.polygon);
+	   dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",segmentation_srv.response.out_graph);
 
   return true;
 }

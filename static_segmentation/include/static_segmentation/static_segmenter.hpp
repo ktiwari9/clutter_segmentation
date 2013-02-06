@@ -36,8 +36,8 @@
  *
  * @b Combines tabletop segmenter and Felzenswalbs graph based segmenter
  */
-#ifndef STATIC_SEGMENTATION_HPP
-#define STATIC_SEGMENTATION_HPP
+#ifndef STATIC_SEGMENTATER_HPP
+#define STATIC_SEGMENTATER_HPP
 
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
@@ -58,9 +58,7 @@
 #include <usc_utilities/assert.h>
 #include <graph_module/graph_module.hpp>
 
-using namespace std;
-
-namespace static_segmentation{
+namespace static_segmentation {
 
 struct graph_node{
 
@@ -101,6 +99,8 @@ protected:
 
 	sensor_msgs::CameraInfo cam_info_;
 
+	double threshold_;
+
 	local_graph node_list_;
 
 	local_graph old_node_list_;
@@ -136,6 +136,8 @@ public:
 	void updateOldNodeList(graph_module::EGraph in_graph);
 
 	void updateNewNodeList();
+
+	double compareDescriptor(cv::MatND hist_orig, cv::MatND hist_new);
 
 private:
 
