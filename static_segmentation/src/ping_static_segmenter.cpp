@@ -54,6 +54,7 @@
 
 #include<graph_module/EGraph.h>
 #include<graph_module/graph_module.hpp>
+#include <boost/lexical_cast.hpp>
 
 bool dumpGraphImage(const sensor_msgs::Image & img,
 		 const char *name, graph_module::EGraph& input_graph)
@@ -78,29 +79,31 @@ bool dumpGraphImage(const sensor_msgs::Image & img,
 
 	if(result){
 
-		for(new_graph.iter_=new_graph.graph_.begin();new_graph.iter_!=new_graph.graph_.end(); new_graph.iter_++){
+		for(graph::ros_graph::IGraph_it iter_=new_graph.graph_.begin();iter_!=new_graph.graph_.end(); ++iter_){
 
 			// First point
-			graph::Edge_ros edge = *new_graph.iter_;
+			graph::Edge_ros edge = *iter_;
 			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
-			cv::circle(input,center_1, 5, cv::Scalar(128,0,0), -1);
 			// Second point
 			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
-			cv::circle(input,center_2, 5, cv::Scalar(128,0,0), -1);
 
+			// Display shenanigans
+			cv::circle(input,center_1, 5, cv::Scalar(128,0,128), -1);
+			cv::circle(input,center_2, 5, cv::Scalar(128,0,128), -1);
+			cv::line(input,center_1,center_2,cv::Scalar(128,0,0),1,0);
+
+			cv::putText(input, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+			    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+
+			cv::putText(input, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+						    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
 		}
-
 		ROS_INFO("Saving Image");
-
 		cv::imwrite(name, input);
-
-
 	}
 
 	return true;
 }
-
-
 
 /*! Simply pings the graph_based_segmentation segmentation and recognition services and prints out the result.*/
 int main(int argc, char **argv)

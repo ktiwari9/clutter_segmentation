@@ -101,8 +101,6 @@ public:
 
 	IGraph graph_;
 
-	IGraph_it iter_;
-
 	ros_graph(int number_of_vertices);
 
 	ros_graph();

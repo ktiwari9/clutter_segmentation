@@ -51,10 +51,7 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/CameraInfo.h>
 #include "graph_module/EGraph.h"
-
-// boost graph library includes
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/undirected_graph.hpp>
+#include <graph_module/graph_module.hpp>
 
 using namespace std;
 
@@ -66,9 +63,11 @@ protected:
 
 	ros::NodeHandle nh_;
 
-	cv::Mat input_;
+	cv::Mat input_, segment_;
 
-	geometry_msgs::Polygon polygon_;
+	graph_module::EGraph graph_msg_;
+
+	graph::ros_graph cluster_graph_;
 
 	int number_of_vertices_;
 
@@ -80,24 +79,28 @@ protected:
 
 	static_segmentation::StaticSegment staticsegment_srv_;
 
-	graph_module cluster_graph_;
+	bool tracking_;
+
+
 
 public:
 
 	active_segment(ros::NodeHandle &nh);
 
-	//overlaod constructor for non ROS Declaration
-	active_segment(cv::Mat input, graph_module::EGraph graph);
+	//overload constructor for non ROS Declaration
+	active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph);
 
 	~active_segment();
 
-	void convertToGraph();
+	bool convertToGraph();
 
 	cv::Mat returnCVImage(const sensor_msgs::Image & img);
 
 	std::pair<double,double> findCentroid(int index);
 
-	cv::Mat constructVisGraph(cv::Mat input_image, graph_module graph);
+	cv::Mat constructVisGraph(cv::Mat input_image, graph::ros_graph graph);
+
+	void constructVisGraph();
 
 	void addLine(cv::Mat &image, cv::Point2f start, cv::Point2f end);
 

@@ -26,6 +26,8 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <ros/ros.h>
 
+bool DEBUG = false;
+
 namespace static_segmentation {
 
 static_segment::static_segment(ros::NodeHandle &nh) :
@@ -206,39 +208,15 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 	cv::drawContours(contour_mask, contours_all, -1, cv::Scalar::all(255), CV_FILLED,8);
 
 	// Copy only part of image that belongs to tabletop clusters
-	cv::Mat segmented_mask = cv::Mat::zeros(mask_all.size(), mask_all.type());
-
 	cv::Mat segmented_image = returnCVImage(graphsegment_srv_.response.segment);
-	cv::imwrite("/tmp/segmented_image.png",segmented_image);
 
-	cv::Mat segmented_gray;
-
-	cv::cvtColor(segmented_image, segmented_gray, CV_BGR2GRAY);
-
-	// min and max value
+	// min and max value by converting into gray scale image
 	double min_val, max_val;
-
+	cv::Mat segmented_gray;
+	cv::cvtColor(segmented_image, segmented_gray, CV_BGR2GRAY);
 	cv::minMaxLoc(segmented_gray,&min_val,&max_val,NULL,NULL,contour_mask);
 
 	//constructing return image
-	cv::Mat return_cvMat = cv::Mat::zeros(segmented_image.size(), segmented_image.type());
-	segmented_image.copyTo(return_cvMat,contour_mask);
-
-	cv::imwrite("/tmp/contour_image.png",contour_mask);
-
-
-	// convert return image into sensor_msgs/ImagePtr
-	cv_bridge::CvImage out_image;
-
-	//Get header and encoding from your input image
-	out_image.header   = graphsegment_srv_.response.segment.header;
-	out_image.encoding = graphsegment_srv_.response.segment.encoding;
-	out_image.image    = return_cvMat;
-
-	cv::imwrite("/tmp/graph_image.png",return_cvMat);
-
-	return_image = out_image.toImageMsg();
-
 	ROS_INFO("Constructing the graph of all the clusters in range %f to %f", min_val,max_val);
 
 	// Now loop through the min max values and construct the separation graph
@@ -246,6 +224,7 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 
 	cv::Mat center_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
 	cv::Mat gray_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
+	cv::Mat final_clusters = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
 
 	segmented_gray.copyTo(gray_graph,contour_mask);
 
@@ -259,39 +238,58 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 
 		if(cv::sum(cluster_mask).val[0] > 100000.0){ //TODO:change this heuristic later
 
-			//ROS_INFO("Image sum value %f",(double)cv::sum(cluster_mask).val[0]);
+			ROS_DEBUG("Image sum value %f",(double)cv::sum(cluster_mask).val[0]);
 
 			// To compute image centroid of the pixel mask
 			cv::Moments m = cv::moments(cluster_mask, false);
 			cv::Point2f mask_center(m.m10/m.m00, m.m01/m.m00);
 
 			//Populating the return polygon
-			// check bound on return mat center if zero reject
-			if((int)return_cvMat.at<uchar>(mask_center.x,mask_center.y) > 0.0){ // Better way to check this?
+			graph_node local_node;
+			local_node.index_ = i;
+			local_node.hist_ = computePatchFeature(input_,cluster_mask);
+			local_node.x_ = mask_center.x; local_node.y_ = mask_center.y;
 
-				ROS_INFO("Value at Pixel %d Expected Value %d",(int)return_cvMat.at<uchar>(mask_center.x,mask_center.y),i);
+			node_list_.push_back(local_node);
 
-				graph_node local_node;
-				local_node.index_ = i;
-				local_node.hist_ = computePatchFeature(return_cvMat,cluster_mask);
-				local_node.x_ = mask_center.x; local_node.y_ = mask_center.y;
+			// Annotating the image
+			cv::add(cluster_mask, final_clusters, final_clusters);
+			cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
+			cv::circle(cluster_mask, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
 
-				node_list_.push_back(local_node);
-
-				// Annotating the image
-				cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
-				cv::circle(cluster_mask, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
-
-				// Sanity Check
+			// Sanity Check
+			if(DEBUG){
 				std::stringstream name;
 				name<<"/tmp/cluster_mask_"<<i<<".png";
 				cv::imwrite(name.str().c_str(),cluster_mask);
-
-				count++;
 			}
+
+
+			count++;
+
 
 		}
 	}
+
+	cv::Mat return_cvMat = cv::Mat::zeros(segmented_image.size(), input_.type());
+	input_.copyTo(return_cvMat,final_clusters);
+
+	gray_graph = cv::Mat::zeros(segmented_image.size(), CV_8UC1);
+	segmented_gray.copyTo(gray_graph,final_clusters);
+
+	cv::imwrite("/tmp/contour_image.png",final_clusters);
+
+
+	// convert return image into sensor_msgs/ImagePtr
+	cv_bridge::CvImage out_image;
+
+	//Get header and encoding from your input image
+	out_image.header   = graphsegment_srv_.response.segment.header;
+	out_image.encoding = graphsegment_srv_.response.segment.encoding;
+	out_image.image    = return_cvMat;
+	return_image = out_image.toImageMsg();
+
+	cv::imwrite("/tmp/graph_image.png",return_cvMat);
 
 	cv::imwrite("/tmp/source_graph.png",center_graph);
 
@@ -307,7 +305,7 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 	old_node_list_.clear();
 	old_node_list_.insert( old_node_list_.end(), node_list_.begin(), node_list_.end());
 	ROS_INFO("Returning list");
-	return buildEGraph(node_list_,return_cvMat);
+	return buildEGraph(node_list_,gray_graph);
 
 }
 
@@ -315,6 +313,8 @@ cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
 
 	cv::MatND hist;
 	cv::Mat hsv;
+
+	ROS_DEBUG("Compute Patch Feature");
 
 	cv::cvtColor(input,hsv,CV_BGR2HSV);
 
@@ -349,7 +349,7 @@ void static_segment::updateOldNodeList(graph_module::EGraph in_graph){
 
 	for(int i=0; i<(int)in_graph.edges.size(); i++){
 
-		node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),find_node(in_graph.edges[i].start.index));
+		local_graph_it node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),find_node(in_graph.edges[i].start.index));
 		node_it_->x_ = in_graph.edges[i].start.point.x;
 		node_it_->y_ = in_graph.edges[i].start.point.y;
 
@@ -371,7 +371,7 @@ void static_segment::updateNewNodeList(){
 	pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(new pcl::PointCloud<pcl::PointXYZI>);
 
 	// Cloud transfer process to initialize for kd tree search
-	for(node_it_= old_node_list_.begin(); node_it_ != old_node_list_.end(); node_it_++){
+	for(local_graph_it node_it_= old_node_list_.begin(); node_it_ != old_node_list_.end(); ++node_it_){
 		pcl::PointXYZI point;
 		point.x = node_it_->x_;
 		point.y = node_it_->y_;
@@ -384,7 +384,7 @@ void static_segment::updateNewNodeList(){
 
 	// Place holder vector
 	local_graph new_nodes;
-	for(node_it_= node_list_.begin(); node_it_ != node_list_.end(); node_it_++){
+	for(local_graph_it node_it_= node_list_.begin(); node_it_ != node_list_.end(); ++node_it_){
 		pcl::PointXYZI new_point;
 		new_point.x = node_it_->x_;
 		new_point.y = node_it_->y_;
@@ -443,8 +443,10 @@ void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ro
 	v2.index_ = it_2->index_;
 	v2.x_ = it_2->x_;v2.y_ = it_2->y_;
 
-	if(!graph.findEdge(v1,v2))
+	if(!graph.findEdge(v1,v2)){
+		ROS_DEBUG("Adding before Edge between %d and %d",v1.index_,v2.index_);
 		graph.addEdge(v1,v2,1); // TODO: Think about adding distance between nodes as weight
+	}
 
 }
 
@@ -458,44 +460,45 @@ graph_module::EGraph static_segment::buildEGraph(std::vector<graph_node> node_li
 	// now loop through image and construct graph from connected components
 	int rows = segment.rows, cols = segment.cols;
 
-	ROS_INFO("Scanning Image");
 	for(int i = 0 ; i < rows ; i++)
 		for(int j = 0 ; j < cols; j++){
 
-			node_it_end = std::find_if(node_list.begin(),node_list.end(),find_node((int)input_.at<uchar>(i,j)));
-			//if node in list
-			if(node_it_end!=node_list.end()){
+			if((int)segment.at<uchar>(i,j) > 0){
 
-				//check if this is the first pixel in the image
-				if(i == 0 && j == 0)
-					continue;
+				node_it_end = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i,j)));
+				//if node in list
+				if(node_it_end!=node_list.end()){
 
-				//checking the first row and west value in the image
-				if(j != 0){
-					if(segment.at<int>(i,j) == segment.at<int>(i,j-1))
+					//check if this is the first pixel in the image
+					if(i == 0 && j == 0)
 						continue;
-					else
-					{
-						node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)input_.at<uchar>(i,j-1)));
-						if(node_it_!=node_list.end())
-							addEdge(node_it_,node_it_end,e_graph);
+
+					//checking the first row and west value in the image
+					if(j != 0){
+						if((int)segment.at<uchar>(i,j) != (int)segment.at<uchar>(i,j-1)){
+
+							local_graph_it node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i,j-1)));
+							if(node_it_!=node_list.end())
+								addEdge(node_it_,node_it_end,e_graph);
+						}
 					}
 
-				}
-
-				//checking all the other rows (North Value)
-				if(i != 0){
-					if(segment.at<int>(i,j) == segment.at<int>(i-1,j))
-						continue;
-					else
-					{
-						node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)input_.at<uchar>(i-1,j)));
-						if(node_it_!=node_list.end())
-							addEdge(node_it_,node_it_end,e_graph);
+					//checking all the other rows (North Value)
+					if(i != 0){
+						if((int)segment.at<uchar>(i,j) != (int)segment.at<uchar>(i-1,j))
+						{
+							local_graph_it node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i-1,j)));
+							if(node_it_!=node_list.end())
+								addEdge(node_it_,node_it_end,e_graph);
+						}
 					}
 				}
 			}
 		}
+
+
+	for(int i=0;i<node_list.size();i++)
+		ROS_DEBUG("Printing E-Graph Values %d",node_list[i].index_);
 
 	return e_graph.convertToEGraphMsg();
 
@@ -516,6 +519,7 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
 
 	//convert input rgb image into cv::Mat
 	graphsegment_srv_.request.rgb = *recent_color;
+	input_ = returnCVImage(*recent_color);
 
 	//calling graph based segmentation service
 	if (!ros::service::call(graph_service_, graphsegment_srv_)) {

@@ -105,7 +105,7 @@ protected:
 
 	local_graph old_node_list_;
 
-	local_graph_it node_it_;
+	//local_graph_it node_it_;
 
 
 public:

@@ -82,7 +82,7 @@ graph_module::EGraph ros_graph::convertToEGraphMsg(){
 
 	ROS_INFO("Converting to E graph Message");
 	graph_module::EGraph out_msg;
-	for(iter_=graph_.begin(); iter_!=graph_.end(); iter_++){
+	for(IGraph_it iter_=graph_.begin(); iter_!=graph_.end(); iter_++){
 
 		graph_module::Edge edge;
 
@@ -134,7 +134,7 @@ void ros_graph::addEdge(int node_1, double centroid_x1, double centroid_y1,
 
 bool ros_graph::findVertex(Vertex_ros v){
 
-	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
+	for(IGraph_it iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
 		if(iter_->edge_.first.index_ == v.index_ || iter_->edge_.second.index_ == v.index_ )
 			return true;
 
@@ -144,7 +144,7 @@ bool ros_graph::findVertex(Vertex_ros v){
 
 bool ros_graph::findVertex(int index){
 
-	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
+	for(IGraph_it iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
 		if(iter_->edge_.first.index_ == index || iter_->edge_.second.index_ == index)
 			return true;
 
@@ -154,7 +154,7 @@ bool ros_graph::findVertex(int index){
 
 bool ros_graph::findEdge(Edge_ros e){
 
-	iter_ = graph_.find(e);
+	IGraph_it iter_ = graph_.find(e);
 
 	if(iter_ == graph_.end())
 		return false;
@@ -167,7 +167,7 @@ bool ros_graph::findEdge(Vertex_ros v1, Vertex_ros v2){
 	Edge_ros e;
 	e.edge_ = make_pair(v1,v2);
 
-	iter_ = graph_.find(e);
+	IGraph_it iter_ = graph_.find(e);
 
 	if(iter_ == graph_.end())
 		return false;
@@ -184,7 +184,7 @@ bool ros_graph::findEdge(Vertex_ros v1, Vertex_ros v2){
 
 bool ros_graph::removeEdge(Edge_ros e){
 
-	iter_ = graph_.find(e);
+	IGraph_it iter_ = graph_.find(e);
 
 	if(iter_ == graph_.end())
 		return false;
@@ -223,7 +223,7 @@ bool ros_graph::removeEdge(Vertex_ros v1, Vertex_ros v2){
 int ros_graph::countVertex(Vertex_ros v1){
 
 	int num_of_edges = 0;
-	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
+	for(IGraph_it iter_ = graph_.begin(); iter_ != graph_.end(); iter_++)
 		if(iter_->edge_.first.index_ == v1.index_ || iter_->edge_.second.index_ == v1.index_)
 			num_of_edges++;
 	return num_of_edges;
@@ -247,29 +247,39 @@ Vertex_ros ros_graph::findMaxVertex(){
 	int vert_location = 0;
 	Vertex_ros max_vert;
 
-	for(iter_ = graph_.begin(); iter_ != graph_.end(); iter_++){
+	for(IGraph_it iter = graph_.begin(); iter != graph_.end(); ++iter){
 
-		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter_->edge_.first.index_));
-		if(it != vertex_list_visited.end())
-			if(max_vert_count < countVertex(iter_->edge_.first))
+		if(vertex_list_visited.empty()){
+			max_vert_count = countVertex(iter->edge_.first);
+			vertex_list_visited.push_back(iter->edge_.first);
+			vert_location++;
+		}
+
+
+		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter->edge_.first.index_));
+		if(it == vertex_list_visited.end())
+			if(max_vert_count < countVertex(iter->edge_.first))
 			{
-				max_vert_count = countVertex(iter_->edge_.first);
-				vertex_list_visited.push_back(iter_->edge_.first);
+				max_vert_count = countVertex(iter->edge_.first);
+				vertex_list_visited.push_back(iter->edge_.first);
 				vert_location++;
 			}
 
-		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter_->edge_.second.index_));
-		if(it != vertex_list_visited.end())
-			if(max_vert_count < countVertex(iter_->edge_.second)){
-
-				max_vert_count = countVertex(iter_->edge_.second);
-				vertex_list_visited.push_back(iter_->edge_.second);
+		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter->edge_.second.index_));
+		if(it == vertex_list_visited.end())
+			if(max_vert_count < countVertex(iter->edge_.second)){
+				max_vert_count = countVertex(iter->edge_.second);
+				vertex_list_visited.push_back(iter->edge_.second);
 				vert_location++;
 			}
-
 	}
 
-	return vertex_list_visited[vert_location-1];
+	for(int i=0;i<vertex_list_visited.size();i++)
+		ROS_DEBUG("Vertex index %d",vertex_list_visited[i].index_);
+
+	ROS_DEBUG("Max Vertex Location %d Max Vertex Count %d index %d",vert_location,
+			max_vert_count,vertex_list_visited[vert_location - 1].index_);
+	return vertex_list_visited[vert_location - 1];
 }
 
 
