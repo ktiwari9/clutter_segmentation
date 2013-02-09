@@ -135,6 +135,7 @@ void active_segment::constructVisGraph(){
 
 bool active_segment::pushAndTrack(){
 
+
 	return true;
 
 }
