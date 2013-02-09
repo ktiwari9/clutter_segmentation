@@ -55,6 +55,7 @@ active_segment::active_segment(ros::NodeHandle & nh):
 	nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
 	nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
 	nh_priv_.param<bool>("tracking",tracking_,false);
+	nh_priv_.param<std::string>("left_camera_topic",left_camera_topic_,std::string("/Honeybee/left/camera_info"));
 
 	cv::namedWindow( window_thread_.c_str(), CV_WINDOW_AUTOSIZE );// Create a window for display.
 	cv::startWindowThread();
@@ -132,6 +133,12 @@ void active_segment::constructVisGraph(){
 		cv::imshow(window_thread_.c_str(), disp_image);
 }
 
+bool active_segment::pushAndTrack(){
+
+	return true;
+
+}
+
 void active_segment::controlGraph(){
 
 	// receive a new graph from
@@ -144,8 +151,14 @@ void active_segment::controlGraph(){
 
 		// find the max node
 		ROS_INFO("Pushing max vertex");
-		//graph::Vertex_ros v1 = cluster_graph_.findMaxVertex();
-		// do something to move the vertex
+		graph::Vertex_ros v1 = cluster_graph_.findMaxVertex();
+
+		// Project Vertex to 3D
+		cv::Point2d push_2d(v1.x_,v1.y_);
+		cv::Point3d push_3d = left_cam_.projectPixelTo3dRay(push_2d); // getting push location in 3D
+
+		//Now push and track;
+
 	}
 }
 
@@ -164,9 +177,19 @@ bool active_segment::convertToGraph(){
 	while(!call_succeeded){
 		if(ros::service::call(static_service_,staticsegment_srv_)){
 			call_succeeded = true;
+
+			//getting camera info
+			sensor_msgs::CameraInfo::ConstPtr cam_info =
+				    ros::topic::waitForMessage<sensor_msgs::CameraInfo>(left_camera_topic_, nh_, ros::Duration(5.0));
+
+			left_cam_.fromCameraInfo(cam_info); // Getting left camera info
+
 			input_ = returnCVImage(staticsegment_srv_.response.graph_image);
+
 			graph_msg_ = staticsegment_srv_.response.out_graph;
+
 			bool result = cluster_graph_.buildGraph(graph_msg_);
+
 			cv::imwrite("/tmp/response_img.png",input_);
 		}
 	}

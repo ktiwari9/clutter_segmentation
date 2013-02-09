@@ -52,6 +52,7 @@
 #include <sensor_msgs/CameraInfo.h>
 #include "graph_module/EGraph.h"
 #include <graph_module/graph_module.hpp>
+#include <image_geometry/pinhole_camera_model.h>
 
 using namespace std;
 
@@ -71,11 +72,13 @@ protected:
 
 	int number_of_vertices_;
 
-	std::string static_service_,rgb_topic_,camera_topic_,window_thread_;
+	std::string static_service_,rgb_topic_,camera_topic_,window_thread_,left_camera_topic_;
 
 	tf::TransformListener listener_;
 
 	sensor_msgs::CameraInfo cam_info_;
+
+	image_geometry::PinholeCameraModel left_cam_;
 
 	static_segmentation::StaticSegment staticsegment_srv_;
 
@@ -107,6 +110,8 @@ public:
 	void addCircle(cv::Mat &image, cv::Point2f center);
 
 	void controlGraph();
+
+	bool pushAndTrack();
 
 private:
 
