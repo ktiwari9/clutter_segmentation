@@ -120,7 +120,7 @@ cv::Mat active_segment::constructVisGraph(cv::Mat input, graph::ros_graph graph)
 
 
 	ROS_INFO("Number of Edges %d",count);
-	if(input_.empty())
+	if(!input_.empty())
 		cv::imwrite("/tmp/full_graph.png",draw);
 
 	return draw;
@@ -134,6 +134,8 @@ void active_segment::constructVisGraph(){
 }
 
 bool active_segment::pushAndTrack(){
+
+	// track a set of points using openCV
 
 
 	return true;

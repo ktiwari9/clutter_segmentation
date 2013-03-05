@@ -36,16 +36,17 @@
  *
  * @b Combines tabletop segmenter and Felzenswalbs graph based segmenter
  */
-#ifndef STATIC_SEGMENTATER_HPP
-#define STATIC_SEGMENTATER_HPP
+#pragma once
+#ifndef STATIC_SEGMENTER_HPP
+#define STATIC_SEGMENTER_HPP
 
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/image_encodings.h>
 #include "static_segmentation/StaticSegment.h"
 #include "tabletop_segmenter/TabletopSegmentation.h"
 #include "graph_based_segmentation/GraphSegment.h"
@@ -103,7 +104,11 @@ protected:
 
 	local_graph node_list_;
 
+	std::vector<local_graph> graph_list_;
+
 	local_graph old_node_list_;
+
+	std::vector<local_graph> old_graph_list_;
 
 	//local_graph_it node_it_;
 
@@ -116,8 +121,8 @@ public:
 
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
 
-	graph_module::EGraph computeCGraph(sensor_msgs::ImagePtr &return_image, bool request,
-			graph_module::EGraph in_graph);
+	std::vector<graph_module::EGraph> computeCGraph(sensor_msgs::ImagePtr &return_image, bool request,
+			std::vector<graph_module::EGraph> in_graph);
 
 	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
 			const sensor_msgs::CameraInfo &cam_info,
