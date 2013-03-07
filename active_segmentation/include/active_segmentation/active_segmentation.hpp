@@ -42,11 +42,16 @@
 
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
+#include <iostream>
 #include <vector>
+#include <functional>
+#include <queue>
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include "static_segmentation/StaticSegment.h"
+#include "static_segmentation/StaticSeg.h"
+#include "static_segmentation/static_segmenter.hpp"
 #include <geometry_msgs/Polygon.h>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -54,19 +59,55 @@
 #include <graph_module/graph_module.hpp>
 #include <image_geometry/pinhole_camera_model.h>
 
-using namespace std;
-
 namespace active_segmentation {
 
+struct graph_node{
+
+	int index_;
+	cv::MatND hist_;
+	double x_,y_;
+};
+
+struct find_node{
+
+	int id;
+	find_node(int id) : id(id){}
+	bool operator()(const graph_node& g) const
+	{
+		return g.index_ == id;
+	}
+};
+
+struct local_graph{
+
+	graph::ros_graph graph_;
+	geometry_msgs::Point centroid_;
+};
+
+struct compare_graph : public std::binary_function<local_graph, local_graph, bool>
+{
+    bool operator()(const local_graph lhs, const local_graph rhs) const
+    {
+        //return lhs.graph_.graph_.size() < rhs.graph_.graph_.size();
+    	return lhs.graph_.number_of_vertices_ < rhs.graph_.number_of_vertices_;
+    }
+};
+
+
+
+
 class active_segment{
+
+public:
+
+	typedef std::priority_queue<local_graph,std::vector<local_graph>,compare_graph> graph_queue;
+
 
 protected:
 
 	ros::NodeHandle nh_;
 
 	cv::Mat input_, segment_;
-
-	graph_module::EGraph graph_msg_;
 
 	graph::ros_graph cluster_graph_;
 
@@ -81,6 +122,10 @@ protected:
 	image_geometry::PinholeCameraModel left_cam_;
 
 	static_segmentation::StaticSegment staticsegment_srv_;
+
+	graph_queue graph_list_;
+
+	std::vector<static_segmentation::StaticSeg> graph_msg_;
 
 	bool tracking_;
 

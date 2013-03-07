@@ -3,12 +3,10 @@ int32 EMPTY = 1
 int32 FULL = 2
 int32 call
 
-graph_module/EGraph[] in_graph
-
 ---
 
 # The graph of the clusters 
-graph_module/EGraph[] out_graph
+static_segmentation/StaticSeg[] graph_queue
 
 # The graph of the clusters 
 sensor_msgs/Image graph_image

@@ -46,7 +46,7 @@ active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGr
 
 	segment_ = segment;
 	input_ = input;
-	graph_msg_ = graph;
+	//graph_msg_ = graph;
 }
 
 active_segment::active_segment(ros::NodeHandle & nh):
@@ -136,6 +136,7 @@ void active_segment::constructVisGraph(){
 bool active_segment::pushAndTrack(){
 
 	// track a set of points using openCV
+	bool flag = true;
 
 
 	return true;
@@ -189,9 +190,16 @@ bool active_segment::convertToGraph(){
 
 			input_ = returnCVImage(staticsegment_srv_.response.graph_image);
 
-			graph_msg_ = staticsegment_srv_.response.out_graph;
+			graph_msg_ = staticsegment_srv_.response.graph_queue;
 
-			bool result = cluster_graph_.buildGraph(graph_msg_);
+			for(int i = 0; i < graph_msg_.size(); i++){
+
+				local_graph single_graph;
+				bool result = single_graph.graph_.buildGraph(graph_msg_[i].graph);
+				//single_graph.graph_ = cluster_graph_; // need to define opertor = or copy constructor
+				single_graph.centroid_ = graph_msg_[i].centroid;
+				graph_list_.push(single_graph);
+			}
 
 			cv::imwrite("/tmp/response_img.png",input_);
 		}

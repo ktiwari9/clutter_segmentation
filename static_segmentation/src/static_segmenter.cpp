@@ -21,6 +21,7 @@
  */
 #include "static_segmentation/StaticSegment.h"
 #include "static_segmentation/static_segmenter.hpp"
+#include "static_segmentation/StaticSeg.h"
 #include <graph_module/graph_module.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -139,8 +140,7 @@ geometry_msgs::Point32 static_segment::createPoint32( double x, double y, double
 }
 
 
-std::vector<graph_module::EGraph> static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image,
-		bool request, std::vector<graph_module::EGraph> in_graph){
+std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image){
 
 	//convert clusters to honeybee frame
 	ROS_INFO("Transforming clusters to bumblebee frame");
@@ -252,18 +252,29 @@ std::vector<graph_module::EGraph> static_segment::computeCGraph(sensor_msgs::Ima
 	cv::Mat final_clusters = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
 	// Now loop through the min max values and construct the separation graph
 	cv::Mat center_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
-	cv::Mat gray_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
 
 	// Creating a vector to store all the graphs in the image
 	graph_list_.clear();
-	graph_list_.resize((int)contours_all.size());
+	//graph_list_.resize((int)contours_all.size());
+	graph_centroid_.clear();
 
+	std::vector<cv::Mat> gray_mats;
 	// Now loop through the number of contours and construct separate graphs for each
 	for(int i = 0; i < (int)contours_all.size(); i++){
 
 		// now create a mask for every contour
 		cv::Mat sub_contour_mask = cv::Mat::zeros(mask_all.size(), CV_8UC1);
-		cv::drawContours(sub_contour_mask, contours_all[i], -1, cv::Scalar::all(255), CV_FILLED,8);
+		cv::Mat gray_graph = cv::Mat::zeros(segmented_gray.size(), CV_8UC1);
+
+		// TODO: This is a stupid hack: there has to be a better way to do this
+		std::vector<std::vector<cv::Point> > temp_contours;
+		temp_contours.push_back(contours_all[i]);
+		cv::drawContours(sub_contour_mask, temp_contours, -1, cv::Scalar::all(255), CV_FILLED,8);
+
+		// Now compute the centroid of this cluster mask
+		// To compute image centroid of the pixel mask
+		cv::Moments m_c = cv::moments(sub_contour_mask, false);
+		cv::Point2f sub_mask_center(m_c.m10/m_c.m00, m_c.m01/m_c.m00);
 
 		// min and max value by converting into gray scale image
 		double min_val, max_val;
@@ -272,14 +283,14 @@ std::vector<graph_module::EGraph> static_segment::computeCGraph(sensor_msgs::Ima
 		//constructing return image
 		ROS_INFO("Constructing the graph of all the clusters in range %f to %f", min_val,max_val);
 
-		segmented_gray.copyTo(gray_graph,contour_mask);
+		segmented_gray.copyTo(gray_graph,sub_contour_mask);
 
 		// clearing cluster index list
 		node_list_.clear();
 
-		for(int i=(int)min_val;i<=(int)max_val;i++){
+		for(int j=(int)min_val;j<=(int)max_val;j++){
 
-			cv::Mat cluster_mask = gray_graph == (double)i;
+			cv::Mat cluster_mask = gray_graph == (double)j;
 			cv::threshold(cluster_mask, cluster_mask, 20, 255, CV_THRESH_BINARY);
 
 			if(cv::sum(cluster_mask).val[0] > 100000.0){ //TODO:change this heuristic later
@@ -292,7 +303,7 @@ std::vector<graph_module::EGraph> static_segment::computeCGraph(sensor_msgs::Ima
 
 				//Populating the return polygon
 				graph_node local_node;
-				local_node.index_ = i;
+				local_node.index_ = j;
 				local_node.hist_ = computePatchFeature(input_,cluster_mask);
 				local_node.x_ = mask_center.x; local_node.y_ = mask_center.y;
 
@@ -303,32 +314,32 @@ std::vector<graph_module::EGraph> static_segment::computeCGraph(sensor_msgs::Ima
 				cv::circle(center_graph, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
 				cv::circle(cluster_mask, mask_center, 4, cv::Scalar(128,0,0), -1,8,0);
 
-				// Sanity Check
-				if(DEBUG){
-					std::stringstream name;
-					name<<"/tmp/cluster_mask_"<<i<<".png";
-					cv::imwrite(name.str().c_str(),cluster_mask);
-				}
 			}
 		}
 
 		// Now push the graph into the vector of graphs
+		if(DEBUG){
+			std::stringstream name;
+			name<<"/tmp/cluster_mask_"<<i<<".png";
+			cv::imwrite(name.str().c_str(),gray_graph);
+		}
+
 		graph_list_.push_back(node_list_);
-
+		graph_centroid_.push_back(sub_mask_center);
+		gray_mats.push_back(gray_graph);
 	}
-
 
 	// Data logging steps
 	cv::Mat return_cvMat = cv::Mat::zeros(segmented_image.size(), input_.type());
 	input_.copyTo(return_cvMat,final_clusters);
 
-	gray_graph = cv::Mat::zeros(segmented_image.size(), CV_8UC1);
-	segmented_gray.copyTo(gray_graph,final_clusters);
+	//gray_graph = cv::Mat::zeros(segmented_image.size(), CV_8UC1);
+	//segmented_gray.copyTo(gray_graph,final_clusters);
 	cv::imwrite("/tmp/input_image.png",input_);
-	cv::imwrite("/tmp/contour_image.png",final_clusters);
+	cv::imwrite("/tmp/seg_image.png",segmented_image);
 	cv::imwrite("/tmp/contour_mask.png",contour_mask);
 	cv::imwrite("/tmp/cluster_image.png",mask_all);
-	cv::imwrite("/tmp/graph_image.png",segmented_image);
+	cv::imwrite("/tmp/graph_image.png",center_graph);
 
 	// convert return image into sensor_msgs/ImagePtr
 	cv_bridge::CvImage out_image;
@@ -342,22 +353,40 @@ std::vector<graph_module::EGraph> static_segment::computeCGraph(sensor_msgs::Ima
 	//cv::imwrite("/tmp/graph_image.png",return_cvMat);
 	cv::imwrite("/tmp/source_graph.png",center_graph);
 
-	// now compute the outgraph using the segmented image and sensor image
-	if(!request){
-		updateOldNodeList(in_graph); //TODO: Need to rewrite these two functions to update the graph list
-		updateNewNodeList(); //TODO: Need to rewrite these two functions to update the graph list
+	std::vector<StaticSeg> return_vector; // TODO: Place holder to compile
+
+	ROS_INFO_STREAM("Sanity Check:\n number of graphs registered :"<<graph_list_.size()
+			<<" Number of centroids registered: "<<graph_centroid_.size());
+	// Convert to output message type
+	for(int i = 0; i < (int)graph_list_.size();i++)
+	{
+		StaticSeg single_seg;
+		single_seg.graph = buildEGraph(graph_list_[i],gray_mats[i]);
+		single_seg.centroid.x = graph_centroid_[i].x; single_seg.centroid.y = graph_centroid_[i].y;
+		single_seg.centroid.z = 1;
+		return_vector.push_back(single_seg);
 	}
 
-	ROS_INFO("Saving old node list");
-	old_node_list_.clear();
-	old_node_list_.insert( old_node_list_.end(), node_list_.begin(), node_list_.end());
-	ROS_INFO("Returning list");
+	ROS_INFO("Return vector built");
 
-	std::vector<graph_module::EGraph> return_graph;
-	for(int i = 0; i < (int)graph_list_.size();i++)
-		return_graph.push_back(buildEGraph(graph_list_[i],gray_graph));
+	return return_vector;
 
-	return return_graph;
+//	// now compute the outgraph using the segmented image and sensor image
+//	if(!request){
+//		updateOldNodeList(in_graph); //TODO: Need to rewrite these two functions to update the graph list
+//		updateNewNodeList(); //TODO: Need to rewrite these two functions to update the graph list
+//	}
+
+//	ROS_INFO("Saving old node list");
+//	old_node_list_.clear();
+//	old_node_list_.insert( old_node_list_.end(), node_list_.begin(), node_list_.end());
+//	ROS_INFO("Returning list");
+
+//	std::vector<graph_module::EGraph> return_graph;
+//	for(int i = 0; i < (int)graph_list_.size();i++)
+//		return_graph.push_back(buildEGraph(graph_list_[i],gray_graph));
+//
+//	return return_graph;
 }
 
 cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
@@ -391,25 +420,29 @@ cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
 	return hist;
 }
 
-void static_segment::updateOldNodeList(graph_module::EGraph in_graph){
+void static_segment::updateOldNodeList(std::vector<graph_module::EGraph> in_graph){
 
 	// compare indices with incoming sensor message and update
 	// x,y positions of node in message
-	// TODO: if this is too slow, make it fast
-	ROS_INFO("Updating Old node list");
 
-	for(int i=0; i<(int)in_graph.edges.size(); i++){
+	for(int j = 0; j < in_graph.size(); j++){
 
-		local_graph_it node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),find_node(in_graph.edges[i].start.index));
-		node_it_->x_ = in_graph.edges[i].start.point.x;
-		node_it_->y_ = in_graph.edges[i].start.point.y;
+		// TODO: if this is too slow, make it fast
+		ROS_INFO("Updating Old graph list");
 
-		//update reverse position
-		node_it_ = std::find_if(old_node_list_.begin(),old_node_list_.end(),find_node(in_graph.edges[i].end.index));
-		node_it_->x_ = in_graph.edges[i].end.point.x;
-		node_it_->y_ = in_graph.edges[i].end.point.y;
+		for(int i=0; i<(int)in_graph[j].edges.size(); i++){
 
+			local_graph_it node_it_ = std::find_if(old_graph_list_[j].begin(),old_graph_list_[j].end(),
+					find_node(in_graph[j].edges[i].start.index));
+			node_it_->x_ = in_graph[j].edges[i].start.point.x;
+			node_it_->y_ = in_graph[j].edges[i].start.point.y;
 
+			//update reverse position
+			node_it_ = std::find_if(old_graph_list_[j].begin(),old_graph_list_[j].end(),
+					find_node(in_graph[j].edges[i].end.index));
+			node_it_->x_ = in_graph[j].edges[i].end.point.x;
+			node_it_->y_ = in_graph[j].edges[i].end.point.y;
+		}
 	}
 }
 
@@ -610,12 +643,7 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
 		//If both services return success we project the graph clusters onto the euclidean clusters
 		// and generate a connectivity graph
 		sensor_msgs::ImagePtr graph_image;
-
-		if(request.call == request.EMPTY)
-			response.out_graph = computeCGraph(graph_image,true,request.in_graph);
-		else
-			response.out_graph = computeCGraph(graph_image,false,request.in_graph);
-
+		response.graph_queue = computeCGraph(graph_image);
 		response.graph_image = *graph_image;
 		response.graph_image.header.stamp = recent_color->header.stamp;
 		response.graph_image.header.frame_id = recent_color->header.frame_id;

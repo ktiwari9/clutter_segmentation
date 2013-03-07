@@ -48,8 +48,8 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/image_encodings.h>
-
-#include<static_segmentation/StaticSegment.h>
+#include <static_segmentation/StaticSeg.h>
+#include <static_segmentation/StaticSegment.h>
 #include <geometry_msgs/Polygon.h>
 
 #include<graph_module/EGraph.h>
@@ -57,7 +57,7 @@
 #include <boost/lexical_cast.hpp>
 
 bool dumpGraphImage(const sensor_msgs::Image & img,
-		 const char *name, graph_module::EGraph& input_graph)
+		 const char *name, std::vector<static_segmentation::StaticSeg>& input_graph)
 {
 	cv_bridge::CvImagePtr cv_ptr;
 	try
@@ -73,34 +73,40 @@ bool dumpGraphImage(const sensor_msgs::Image & img,
 
 	cv::Mat input = cv_ptr->image;
 
-	graph::ros_graph new_graph;
+	for(int i = 0; i < input_graph.size(); i++){
 
-	bool result = new_graph.buildGraph(input_graph);
+		graph::ros_graph new_graph;
+		bool result = new_graph.buildGraph(input_graph[i].graph);
 
-	if(result){
+		if(result){
 
-		for(graph::ros_graph::IGraph_it iter_=new_graph.graph_.begin();iter_!=new_graph.graph_.end(); ++iter_){
+			for(graph::ros_graph::IGraph_it iter_=new_graph.graph_.begin();iter_!=new_graph.graph_.end(); ++iter_){
 
-			// First point
-			graph::Edge_ros edge = *iter_;
-			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
-			// Second point
-			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
+				// First point
+				graph::Edge_ros edge = *iter_;
+				cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
+				// Second point
+				cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
 
-			// Display shenanigans
-			cv::circle(input,center_1, 5, cv::Scalar(128,0,128), -1);
-			cv::circle(input,center_2, 5, cv::Scalar(128,0,128), -1);
-			cv::line(input,center_1,center_2,cv::Scalar(128,0,0),1,0);
+				cv::Point centroid(input_graph[i].centroid.x,input_graph[i].centroid.y);
+				// Display shenanigans
+				cv::circle(input,center_1, 5, cv::Scalar(128,0,128), -1);
+				cv::circle(input,center_2, 5, cv::Scalar(128,0,128), -1);
+				cv::circle(input,centroid, 5, cv::Scalar(128,55,128), -1);
 
-			cv::putText(input, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-			    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+				cv::line(input,center_1,center_2,cv::Scalar(128,0,0),1,0);
 
-			cv::putText(input, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-						    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+				cv::putText(input, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+
+				cv::putText(input, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			}
+			ROS_INFO("Saving Image");
+			cv::imwrite(name, input);
 		}
-		ROS_INFO("Saving Image");
-		cv::imwrite(name, input);
 	}
+
 
 	return true;
 }
@@ -139,7 +145,7 @@ int main(int argc, char **argv)
   // DEBUG of projection
   if(segmentation_srv.response.result == segmentation_srv.response.SUCCESS)
 	 ROS_INFO("Response Success");
-	   dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",segmentation_srv.response.out_graph);
+	   dumpGraphImage(segmentation_srv.response.graph_image,"/tmp/segmented_image.png",segmentation_srv.response.graph_queue);
 
   return true;
 }

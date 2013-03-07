@@ -48,6 +48,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 #include "static_segmentation/StaticSegment.h"
+#include "static_segmentation/StaticSeg.h"
 #include "tabletop_segmenter/TabletopSegmentation.h"
 #include "graph_based_segmentation/GraphSegment.h"
 #include "graph_module/EGraph.h"
@@ -58,6 +59,7 @@
 #include <tf/transform_listener.h>
 #include <usc_utilities/assert.h>
 #include <graph_module/graph_module.hpp>
+#include <geometry_msgs/Point.h>
 
 namespace static_segmentation {
 
@@ -110,6 +112,8 @@ protected:
 
 	std::vector<local_graph> old_graph_list_;
 
+	std::vector<cv::Point2f> graph_centroid_;
+
 	//local_graph_it node_it_;
 
 
@@ -121,8 +125,7 @@ public:
 
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
 
-	std::vector<graph_module::EGraph> computeCGraph(sensor_msgs::ImagePtr &return_image, bool request,
-			std::vector<graph_module::EGraph> in_graph);
+	std::vector<StaticSeg> computeCGraph(sensor_msgs::ImagePtr &return_image);
 
 	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
 			const sensor_msgs::CameraInfo &cam_info,
@@ -138,7 +141,7 @@ public:
 
 	void addEdge(local_graph_it it_1, local_graph_it it_2, graph::ros_graph& graph);
 
-	void updateOldNodeList(graph_module::EGraph in_graph);
+	void updateOldNodeList(std::vector<graph_module::EGraph> in_graph);
 
 	void updateNewNodeList();
 

@@ -30,7 +30,7 @@
 
 
  <export>
-    <cpp cflags="-I${prefix}/include -I${prefix}/srv_gen/cpp" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
+    <cpp cflags="-I${prefix}/include -I${prefix}/srv_gen/cpp -I${prefix}/msg_gen/cpp" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
  </export>
 </package>
 

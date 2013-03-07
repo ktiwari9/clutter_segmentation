@@ -21,7 +21,8 @@ set(GRAPH_DIR ${PROJECT_SOURCE_DIR}/../graph_module)
 #rosbuild_genmsg()
 #uncomment if you have defined services
 #rosbuild_gensrv()
-
+include_directories(${GRAPH_DIR}/include)
+link_directories(${GRAPH_DIR}/lib)
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
