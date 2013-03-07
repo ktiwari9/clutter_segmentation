@@ -49,6 +49,7 @@
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+#include <image_geometry/pinhole_camera_model.h>
 #include "static_segmentation/StaticSegment.h"
 #include "static_segmentation/StaticSeg.h"
 #include "static_segmentation/static_segmenter.hpp"
@@ -57,7 +58,6 @@
 #include <sensor_msgs/CameraInfo.h>
 #include "graph_module/EGraph.h"
 #include <graph_module/graph_module.hpp>
-#include <image_geometry/pinhole_camera_model.h>
 
 namespace active_segmentation {
 

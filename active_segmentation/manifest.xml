@@ -26,7 +26,7 @@
   <depend package="graph_module" />
   <depend package="usc_utilities" />
    <export>
-    <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lgraph_module"/>
+    <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
  </export>
 
   
