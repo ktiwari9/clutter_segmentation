@@ -536,55 +536,66 @@ void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ro
 
 graph_module::EGraph static_segment::buildEGraph(std::vector<graph_node> node_list, cv::Mat segment){
 
-	// construct graph
-	ROS_INFO("Constructing E graph Message");
-	graph::ros_graph e_graph(node_list.size());
-	std::vector<graph_node>::iterator node_it_end;
+  // construct graph
+  ROS_INFO("Constructing E graph Message");
+  graph::ros_graph e_graph(node_list.size());
 
-	// now loop through image and construct graph from connected components
-	int rows = segment.rows, cols = segment.cols;
+  if(e_graph.number_of_vertices_ > 1)
+  {
+    std::vector<graph_node>::iterator node_it_end;
 
-	for(int i = 0 ; i < rows ; i++)
-		for(int j = 0 ; j < cols; j++){
+    // now loop through image and construct graph from connected components
+    int rows = segment.rows, cols = segment.cols;
 
-			if((int)segment.at<uchar>(i,j) > 0){
+    for(int i = 0 ; i < rows ; i++)
+      for(int j = 0 ; j < cols; j++){
 
-				node_it_end = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i,j)));
-				//if node in list
-				if(node_it_end!=node_list.end()){
+        if((int)segment.at<uchar>(i,j) > 0){
 
-					//check if this is the first pixel in the image
-					if(i == 0 && j == 0)
-						continue;
+          node_it_end = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i,j)));
+          //if node in list
+          if(node_it_end!=node_list.end()){
 
-					//checking the first row and west value in the image
-					if(j != 0){
-						if((int)segment.at<uchar>(i,j) != (int)segment.at<uchar>(i,j-1)){
+            //check if this is the first pixel in the image
+            if(i == 0 && j == 0)
+              continue;
 
-							local_graph_it node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i,j-1)));
-							if(node_it_!=node_list.end())
-								addEdge(node_it_,node_it_end,e_graph);
-						}
-					}
+            //checking the first row and west value in the image
+            if(j != 0){
+              if((int)segment.at<uchar>(i,j) != (int)segment.at<uchar>(i,j-1)){
 
-					//checking all the other rows (North Value)
-					if(i != 0){
-						if((int)segment.at<uchar>(i,j) != (int)segment.at<uchar>(i-1,j))
-						{
-							local_graph_it node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i-1,j)));
-							if(node_it_!=node_list.end())
-								addEdge(node_it_,node_it_end,e_graph);
-						}
-					}
-				}
-			}
-		}
+                local_graph_it node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i,j-1)));
+                if(node_it_!=node_list.end())
+                  addEdge(node_it_,node_it_end,e_graph);
+              }
+            }
+
+            //checking all the other rows (North Value)
+            if(i != 0){
+              if((int)segment.at<uchar>(i,j) != (int)segment.at<uchar>(i-1,j))
+              {
+                local_graph_it node_it_ = std::find_if(node_list.begin(),node_list.end(),find_node((int)segment.at<uchar>(i-1,j)));
+                if(node_it_!=node_list.end())
+                  addEdge(node_it_,node_it_end,e_graph);
+              }
+            }
+          }
+        }
+      }
+  }
+  else
+  {
+    // To account for singular nodes, ie point graphs that only have one node
+    local_graph_it node_it_ = node_list.begin();
+    addEdge(node_it_,node_it_,e_graph);
+
+  }
 
 
-	for(int i=0;i< (int)node_list.size();i++)
-		ROS_DEBUG("Printing E-Graph Values %d",node_list[i].index_);
+  for(int i=0;i< (int)node_list.size();i++)
+    ROS_DEBUG("Printing E-Graph Values %d",node_list[i].index_);
 
-	return e_graph.convertToEGraphMsg();
+  return e_graph.convertToEGraphMsg();
 
 }
 

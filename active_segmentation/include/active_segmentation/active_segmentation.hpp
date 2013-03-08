@@ -93,6 +93,9 @@ struct compare_graph : public std::binary_function<local_graph, local_graph, boo
     }
 };
 
+/*
+ * Temporary container class which helps iterate over the priority queue
+ */
 template <class T, class S, class C>
     S& Container(std::priority_queue<T, S, C>& q) {
         struct HackedQueue : private std::priority_queue<T, S, C> {
@@ -138,8 +141,6 @@ protected:
 	std::vector<static_segmentation::StaticSeg> graph_msg_;
 
 	bool tracking_;
-
-
 
 public:
 

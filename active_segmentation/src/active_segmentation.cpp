@@ -43,25 +43,25 @@
 namespace active_segmentation {
 
 active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph):
-		graph_iter_(Container(graph_list_)){
+		    graph_iter_(Container(graph_list_)){
 
-	//graph_iter_ = Container(graph_list_);
-	segment_ = segment;
-	input_ = input;
-	//graph_msg_ = graph;
+  //graph_iter_ = Container(graph_list_);
+  segment_ = segment;
+  input_ = input;
+  //graph_msg_ = graph;
 }
 
 active_segment::active_segment(ros::NodeHandle & nh):
-			nh_(nh),nh_priv_("~"),graph_iter_(Container(graph_list_)){
+			    nh_(nh),nh_priv_("~"),graph_iter_(Container(graph_list_)){
 
-	//graph_iter_ = Container(graph_list_);
-	nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
-	nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
-	nh_priv_.param<bool>("tracking",tracking_,false);
-	nh_priv_.param<std::string>("left_camera_topic",left_camera_topic_,std::string("/Honeybee/left/camera_info"));
+  //graph_iter_ = Container(graph_list_);
+  nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
+  nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
+  nh_priv_.param<bool>("tracking",tracking_,false);
+  nh_priv_.param<std::string>("left_camera_topic",left_camera_topic_,std::string("/Honeybee/left/camera_info"));
 
-	cv::namedWindow( window_thread_.c_str(), CV_WINDOW_AUTOSIZE );// Create a window for display.
-	cv::startWindowThread();
+  cv::namedWindow( window_thread_.c_str(), CV_WINDOW_AUTOSIZE );// Create a window for display.
+  cv::startWindowThread();
 
 }
 
@@ -71,196 +71,199 @@ active_segment::~active_segment(){ cv::destroyWindow(window_thread_.c_str());}
 
 cv::Mat active_segment::returnCVImage(const sensor_msgs::Image & img) {
 
-	cv_bridge::CvImagePtr cv_ptr;
-	try {
-		cv_ptr = cv_bridge::toCvCopy(img);
-	} catch (cv_bridge::Exception &e) {
-		ROS_ERROR("cv_bridge exception: %s", e.what());
-		exit(0);
-	}
+  cv_bridge::CvImagePtr cv_ptr;
+  try {
+    cv_ptr = cv_bridge::toCvCopy(img);
+  } catch (cv_bridge::Exception &e) {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+    exit(0);
+  }
 
-	return cv_ptr->image;
+  return cv_ptr->image;
 }
 
 cv::Mat active_segment::constructVisGraph(cv::Mat input, graph_queue graph){
 
-	cv::Mat draw(input);
+  cv::Mat draw(input);
 
-	int count=0;
+  int count=0;
 
-	for(std::vector<local_graph>::iterator node = graph_iter_.begin();
-			node != graph_iter_.end() ; ++node){
+  for(std::vector<local_graph>::iterator node = graph_iter_.begin();
+      node != graph_iter_.end() ; ++node){
 
-		//local_graph const *node = &(graph.top()); // Getting a pointer to the top node to access the other elements
-		// using the offset operator
-		ROS_INFO("Finding Max Vertex");
-		graph::Vertex_ros push_vertex = node->graph_.findMaxVertex();
+    //local_graph const *node = &(graph.top()); // Getting a pointer to the top node to access the other elements
+    // using the offset operator
+    ROS_INFO("Finding Max Vertex %d",count);
+    graph::Vertex_ros push_vertex = node->graph_.findMaxVertex();
 
-		ROS_DEBUG("Max Vertex index %d",push_vertex.index_);
-		for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
-				iter_!=node->graph_.graph_.end(); ++iter_){
+    ROS_DEBUG("Max Vertex index %d",push_vertex.index_);
 
-			// First point
-			graph::Edge_ros edge = *iter_;
-			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
-			// Second point
-			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
+    for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
+        iter_!=node->graph_.graph_.end(); ++iter_){
 
-			// Display shenanigans
-			cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
-			cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
-			cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
+      // First point
+      graph::Edge_ros edge = *iter_;
+      cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
+      // Second point
+      cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
 
-			if(push_vertex.index_ != edge.edge_.first.index_)
-				cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-			else
-				if(count != 0)
-					cv::putText(draw, " LMV "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-				else
-					cv::putText(draw, "Max Vertex: "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+      // Display shenanigans
+      cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
+      cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
+      cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
 
-
-			if(push_vertex.index_ != edge.edge_.second.index_)
-				cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-			else
-				if(count != 0)
-					cv::putText(draw, " LMV "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-				else
-					cv::putText(draw, "Max Vertex: "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-
-			count++;
-		}
-	}
+      if(push_vertex.index_ != edge.edge_.first.index_)
+        cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+                    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+      else
+        if(count != 0)
+          cv::putText(draw, " LMV "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+        else
+          cv::putText(draw, "Max Vertex: "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
 
 
-	ROS_INFO("Number of Edges %d",count);
-	if(!input_.empty())
-		cv::imwrite("/tmp/full_graph.png",draw);
+      if(push_vertex.index_ != edge.edge_.second.index_)
+        cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+                    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+      else
+        if(count != 0)
+          cv::putText(draw, " LMV "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+        else
+          cv::putText(draw, "Max Vertex: "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
 
-	return draw;
+    }
+    count++;
+  }
+
+
+  ROS_INFO("Number of Edges %d",count);
+  if(!input_.empty())
+    cv::imwrite("/tmp/full_graph.png",draw);
+
+  return draw;
 }
 
 void active_segment::constructVisGraph(){
 
-	cv::Mat disp_image = constructVisGraph(input_,graph_list_);
-	if(!disp_image.empty())
-		cv::imshow(window_thread_.c_str(), disp_image);
+  cv::Mat disp_image = constructVisGraph(input_,graph_list_);
+  if(!disp_image.empty())
+    cv::imshow(window_thread_.c_str(), disp_image);
 }
 
 bool active_segment::pushAndTrack(){
 
-	// track a set of points using openCV
-	bool flag = true;
+  // track a set of points using openCV
+  bool flag = true;
 
 
-	return true;
+  return true;
 
 }
 
 void active_segment::controlGraph(){
 
-	// receive a new graph from
-	if(convertToGraph()){
+  // receive a new graph from
+  if(convertToGraph()){
 
-		ROS_INFO("Calling Static Segment service");
-		//visualize graph
-		ROS_INFO("Displaying Graph");
-		constructVisGraph();
+    ROS_INFO("Calling Static Segment service");
+    //visualize graph
+    ROS_INFO("Displaying Graph");
+    constructVisGraph();
 
-		// find the max node
-		ROS_INFO("Pushing max vertex");
+    // find the max node
+    ROS_INFO("Pushing max vertex");
 
-		graph::Vertex_ros v1 = graph_iter_[0].graph_.findMaxVertex();
+    graph::Vertex_ros v1 = graph_iter_[0].graph_.findMaxVertex();
 
-		// Project Vertex to 3D
-		cv::Point2d push_2d(v1.x_,v1.y_);
-		cv::Point3d push_3d = left_cam_.projectPixelTo3dRay(push_2d); // getting push location in 3D
-		ROS_INFO_STREAM("The 3D pushing location is "<<push_3d);
-		//Now push and track;
+    // Project Vertex to 3D
+    cv::Point2d push_2d(v1.x_,v1.y_);
+    cv::Point3d push_3d = left_cam_.projectPixelTo3dRay(push_2d); // getting push location in 3D
+    ROS_INFO_STREAM("The 3D pushing location is "<<push_3d);
+    //Now push and track;
 
-	}
+  }
 }
 
 bool active_segment::convertToGraph(){
 
-	//Call static segmentation service
-	bool call_succeeded = false;
+  //Call static segmentation service
+  bool call_succeeded = false;
 
-	if(tracking_){
-		// Do something with the tracking result
-	}
-	else{
-		staticsegment_srv_.request.call = staticsegment_srv_.request.EMPTY;
-	}
+  if(tracking_){
+    // Do something with the tracking result
+  }
+  else{
+    staticsegment_srv_.request.call = staticsegment_srv_.request.EMPTY;
+  }
 
-	while(!call_succeeded){
-		if(ros::service::call(static_service_,staticsegment_srv_)){
-			call_succeeded = true;
+  while(!call_succeeded){
+    if(ros::service::call(static_service_,staticsegment_srv_)){
+      call_succeeded = true;
+      ROS_INFO("Service Call succeeded");
 
-			//getting camera info
-			sensor_msgs::CameraInfo::ConstPtr cam_info =
-				    ros::topic::waitForMessage<sensor_msgs::CameraInfo>(left_camera_topic_, nh_, ros::Duration(5.0));
+      //getting camera info
+      sensor_msgs::CameraInfo::ConstPtr cam_info =
+          ros::topic::waitForMessage<sensor_msgs::CameraInfo>(left_camera_topic_, nh_, ros::Duration(10.0));
 
-			left_cam_.fromCameraInfo(cam_info); // Getting left camera info
+      left_cam_.fromCameraInfo(cam_info); // Getting left camera info
 
-			input_ = returnCVImage(staticsegment_srv_.response.graph_image);
+      input_ = returnCVImage(staticsegment_srv_.response.graph_image);
 
-			graph_msg_ = staticsegment_srv_.response.graph_queue;
+      graph_msg_ = staticsegment_srv_.response.graph_queue;
 
-			for(int i = 0; i < graph_msg_.size(); i++){
+      for(int i = 0; i < graph_msg_.size(); i++){
 
-				local_graph single_graph;
-				bool result = single_graph.graph_.buildGraph(graph_msg_[i].graph);
-				//single_graph.graph_ = cluster_graph_; // need to define opertor = or copy constructor
-				single_graph.centroid_ = graph_msg_[i].centroid;
-				graph_list_.push(single_graph);
-			}
+        local_graph single_graph;
+        single_graph.graph_.buildGraph(graph_msg_[i].graph);
+        //single_graph.graph_ = cluster_graph_; // need to define opertor = or copy constructor
+        single_graph.centroid_ = graph_msg_[i].centroid;
+        graph_list_.push(single_graph);
 
-			cv::imwrite("/tmp/response_img.png",input_);
-		}
-	}
+      }
 
-	if (staticsegment_srv_.response.result == staticsegment_srv_.response.FAILURE)
-	{
-		ROS_ERROR("Segmentation service returned error");
-		return false;
-	}
+      cv::imwrite("/tmp/response_img.png",input_);
+    }
+  }
 
-	ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",staticsegment_srv_.response.result);
+  if (staticsegment_srv_.response.result == staticsegment_srv_.response.FAILURE)
+  {
+    ROS_ERROR("Segmentation service returned error");
+    return false;
+  }
 
-	// DEBUG of projection
-	if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
-		ROS_INFO("Static Segment service call succeeded");
-		return true;
-	}
+  ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",staticsegment_srv_.response.result);
 
-	return false;
+  // DEBUG of projection
+  if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
+    ROS_INFO("Static Segment service call succeeded");
+    return true;
+  }
+
+  return false;
 }
 }
 
 int run_active_segmentation(int argc, char **argv){
 
-	ros::init(argc, argv, "active_segment");
-	ros::NodeHandle nh;
-	active_segmentation::active_segment ss(nh);
+  ros::init(argc, argv, "active_segment");
+  ros::NodeHandle nh;
+  active_segmentation::active_segment ss(nh);
 
-	while(nh.ok()){
+  while(nh.ok()){
 
-		ss.controlGraph();
-		ros::spinOnce();
-	}
+    ss.controlGraph();
+    ros::spinOnce();
+  }
 
-	return 0;
+  return 0;
 }
 
 int main(int argc, char **argv){
 
-	return run_active_segmentation(argc,argv);
+  return run_active_segmentation(argc,argv);
 
 }
