@@ -93,7 +93,15 @@ struct compare_graph : public std::binary_function<local_graph, local_graph, boo
     }
 };
 
-
+template <class T, class S, class C>
+    S& Container(std::priority_queue<T, S, C>& q) {
+        struct HackedQueue : private std::priority_queue<T, S, C> {
+            static S& Container(std::priority_queue<T, S, C>& q) {
+                return q.*&HackedQueue::c;
+            }
+        };
+    return HackedQueue::Container(q);
+}
 
 
 class active_segment{
@@ -125,6 +133,8 @@ protected:
 
 	graph_queue graph_list_;
 
+	std::vector<local_graph>& graph_iter_;
+
 	std::vector<static_segmentation::StaticSeg> graph_msg_;
 
 	bool tracking_;
@@ -146,7 +156,7 @@ public:
 
 	std::pair<double,double> findCentroid(int index);
 
-	cv::Mat constructVisGraph(cv::Mat input_image, graph::ros_graph graph);
+	cv::Mat constructVisGraph(cv::Mat input_image, graph_queue graph);
 
 	void constructVisGraph();
 

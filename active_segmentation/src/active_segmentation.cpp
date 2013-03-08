@@ -42,16 +42,19 @@
 
 namespace active_segmentation {
 
-active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph){
+active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph):
+		graph_iter_(Container(graph_list_)){
 
+	//graph_iter_ = Container(graph_list_);
 	segment_ = segment;
 	input_ = input;
 	//graph_msg_ = graph;
 }
 
 active_segment::active_segment(ros::NodeHandle & nh):
-			nh_(nh),nh_priv_("~"){
+			nh_(nh),nh_priv_("~"),graph_iter_(Container(graph_list_)){
 
+	//graph_iter_ = Container(graph_list_);
 	nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
 	nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
 	nh_priv_.param<bool>("tracking",tracking_,false);
@@ -79,43 +82,60 @@ cv::Mat active_segment::returnCVImage(const sensor_msgs::Image & img) {
 	return cv_ptr->image;
 }
 
-cv::Mat active_segment::constructVisGraph(cv::Mat input, graph::ros_graph graph){
+cv::Mat active_segment::constructVisGraph(cv::Mat input, graph_queue graph){
 
 	cv::Mat draw(input);
 
 	int count=0;
-	ROS_INFO("Finding Max Vertex");
-	graph::Vertex_ros push_vertex = cluster_graph_.findMaxVertex();
 
-	ROS_DEBUG("Max Vertex index %d",push_vertex.index_);
-	for(graph::ros_graph::IGraph_it iter_= graph.graph_.begin(); iter_!=graph.graph_.end(); ++iter_){
+	for(std::vector<local_graph>::iterator node = graph_iter_.begin();
+			node != graph_iter_.end() ; ++node){
 
-		// First point
-		graph::Edge_ros edge = *iter_;
-		cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
-		// Second point
-		cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
+		//local_graph const *node = &(graph.top()); // Getting a pointer to the top node to access the other elements
+		// using the offset operator
+		ROS_INFO("Finding Max Vertex");
+		graph::Vertex_ros push_vertex = node->graph_.findMaxVertex();
 
-		// Display shenanigans
-		cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
-		cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
-		cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
+		ROS_DEBUG("Max Vertex index %d",push_vertex.index_);
+		for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
+				iter_!=node->graph_.graph_.end(); ++iter_){
 
-		if(push_vertex.index_ != edge.edge_.first.index_)
-			cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-				CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-		else
-			cv::putText(draw, " Max Vertex: "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-				CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			// First point
+			graph::Edge_ros edge = *iter_;
+			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
+			// Second point
+			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
 
-		if(push_vertex.index_ != edge.edge_.second.index_)
-			cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-				CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-		else
-			cv::putText(draw, " Max Vertex: "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-				CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			// Display shenanigans
+			cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
+			cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
+			cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
 
-		count++;
+			if(push_vertex.index_ != edge.edge_.first.index_)
+				cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			else
+				if(count != 0)
+					cv::putText(draw, " LMV "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+				else
+					cv::putText(draw, "Max Vertex: "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+
+
+			if(push_vertex.index_ != edge.edge_.second.index_)
+				cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			else
+				if(count != 0)
+					cv::putText(draw, " LMV "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+				else
+					cv::putText(draw, "Max Vertex: "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+
+			count++;
+		}
 	}
 
 
@@ -128,7 +148,7 @@ cv::Mat active_segment::constructVisGraph(cv::Mat input, graph::ros_graph graph)
 
 void active_segment::constructVisGraph(){
 
-	cv::Mat disp_image = constructVisGraph(input_,cluster_graph_);
+	cv::Mat disp_image = constructVisGraph(input_,graph_list_);
 	if(!disp_image.empty())
 		cv::imshow(window_thread_.c_str(), disp_image);
 }
@@ -155,12 +175,13 @@ void active_segment::controlGraph(){
 
 		// find the max node
 		ROS_INFO("Pushing max vertex");
-		graph::Vertex_ros v1 = cluster_graph_.findMaxVertex();
+
+		graph::Vertex_ros v1 = graph_iter_[0].graph_.findMaxVertex();
 
 		// Project Vertex to 3D
 		cv::Point2d push_2d(v1.x_,v1.y_);
 		cv::Point3d push_3d = left_cam_.projectPixelTo3dRay(push_2d); // getting push location in 3D
-
+		ROS_INFO_STREAM("The 3D pushing location is "<<push_3d);
 		//Now push and track;
 
 	}
