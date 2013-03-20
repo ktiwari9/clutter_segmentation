@@ -11,6 +11,7 @@
 <path>/opt/ros/fuerte/stacks/geometry/tf/lib</path>
 <path>/opt/ros/fuerte/stacks/geometry/angles/lib</path>
 <path>/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/graph_module/src</path>
+<path>/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/graph_module/lib</path>
 <path>/opt/ros/fuerte/share/ros/core/mk</path>
 <path>/usr/local/lib/python2.7/dist-packages/rospkg-1.0.6-py2.7.egg</path>
 <path>/usr/local/lib/python2.7/dist-packages/rosdep-0.10.2-py2.7.egg</path>

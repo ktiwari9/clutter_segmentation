@@ -43,13 +43,13 @@
 namespace graph_based_segmentation {
 
 graph_segment::graph_segment(cv::Mat input):
-sigma_(0.5),k_(1000),min_size_(20){
+    sigma_(0.25),k_(1000),min_size_(100){//sigma_(0.5),k_(1000),min_size_(20)
 
-	image<rgb>* rgb_input = convertcvMattoNative(input);
+  image<rgb>* rgb_input = convertcvMattoNative(input);
 
-	image<rgb> *seg = segment_image(rgb_input,sigma_,k_,min_size_,&num_ccs_);
+  image<rgb> *seg = segment_image(rgb_input,sigma_,k_,min_size_,&num_ccs_);
 
-	input_ = convertNativetocvMat(seg);
+  input_ = convertNativetocvMat(seg);
 
 
 }
