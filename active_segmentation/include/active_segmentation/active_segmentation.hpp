@@ -94,6 +94,8 @@ struct local_graph{
 
 	graph::ros_graph graph_;
 	geometry_msgs::Point centroid_;
+	int index_;
+
 };
 
 struct compare_graph : public std::binary_function<local_graph, local_graph, bool>
@@ -131,15 +133,19 @@ public:
 
 	geometry_msgs::Point push_loc_;
 
-	arm_controller_interface::HeadJointTrajectoryClient head_joint_trajectory_client_;
+	//arm_controller_interface::HeadJointTrajectoryClient head_joint_trajectory_client_;
 
 	bool first_call_;
 
 	cv::Mat input_,prev_input_,segment_,prev_segment_;
 
+	std::vector<cv::Mat> prev_masks_,masks_;
+
 protected:
 
 	ros::NodeHandle nh_;
+
+	ros::Publisher pose_publisher_;
 
 	graph::ros_graph cluster_graph_;
 
@@ -157,22 +163,26 @@ protected:
 
 	graph_queue graph_list_;
 
-	std::vector<local_graph> graph_iter_,cluster_iter_;
+	std::vector<local_graph> &graph_iter_;
+	std::vector<local_graph> cluster_iter_;
 
 	std::vector<static_segmentation::StaticSeg> graph_msg_;
 
 	bool tracking_,got_table_;
+	int print_tag_;
 
 	pcl::ModelCoefficients::Ptr table_coefficients_;
 
 	// Optical flow parameters
-	float pyramid_scale_ = 0.5; // Pyramid scales
+	float pyramid_scale_; // Pyramid scales
 
-	int levels_ = 3, win_size_ = 11,of_iter_ = 5;
+	int levels_,win_size_,of_iter_;
 	// Number of Pyramid levels,window size, number of iterations
 
-	double poly_pixel_ = 6,poly_sigma_ = 1.25;
+	double poly_pixel_,poly_sigma_;
 	//size of pixel neighbourhood and std dev of gaussian
+
+	geometry_msgs::PoseStamped push_hand_pose_;
 
 public:
 
@@ -208,20 +218,25 @@ public:
 
 	cv::MatND computePatchFeature(cv::Mat input, cv::Mat mask);
 
-	cv::MatND getFeatureVector(cv::Mat input, cv::Mat mask, int index);
+	cv::MatND getFeatureVector(cv::Mat input, cv::Mat mask, int index,
+			cv::Mat cluster_mask);
 
 	void updateGraphList(cv::Mat flow);
 
 	// Matches an edge from the old subgraph with an edge in the new subgraph
-	bool matchEdges(std::pair<int,int> old_edge,std::pair<int,int> new_edge);
+	bool matchEdges(std::pair<int,int> old_edge,std::pair<int,int> new_edge,
+			int index);
 
 	void updateWithNewGraph();
 
 	void buildGraphFromMsg(graph_queue& graph_list);
 
+	void buildMaskList(std::vector<cv::Mat>& masks, std::vector<local_graph> graph_list,
+			std::vector<sensor_msgs::Image> images);
+
 	int findNearestNeighbour(geometry_msgs::Point vert,std::vector<local_graph> new_graph_iter);
 
-	bool matchGraphs(local_graph base_graph,local_graph match_graph);
+	bool matchGraphs(local_graph base_graph,local_graph match_graph,int index);
 
 	void projectVertex3DBASE(graph::Vertex_ros point,pcl::PointCloud<pcl::PointXYZ> &ray);
 

@@ -11,6 +11,9 @@ static_segmentation/StaticSeg[] graph_queue
 # The graph of the clusters 
 sensor_msgs/Image graph_image
 
+# The collection of masks
+sensor_msgs/Image[] cluster_masks
+
 # Whether the detection has succeeded or failed
 int32 FAILURE = 1
 int32 SUCCESS = 2

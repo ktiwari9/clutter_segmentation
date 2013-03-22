@@ -286,7 +286,7 @@ Vertex_ros ros_graph::findMaxVertex(){
   for(int i=0;i<vertex_list_visited.size();i++)
     ROS_DEBUG("Vertex index %d",vertex_list_visited[i].index_);
 
-  ROS_INFO("Number of Vertices : %d in current graph",number_of_vertices_);
+  ROS_DEBUG("Number of Vertices : %d in current graph",number_of_vertices_);
   ROS_DEBUG("Max Vertex Location %d Max Vertex Count %d index %d",vert_location,
             max_vert_count,vertex_list_visited[vert_location - 1].index_);
 

@@ -140,7 +140,8 @@ geometry_msgs::Point32 static_segment::createPoint32( double x, double y, double
 }
 
 
-std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image){
+std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &return_image,
+		std::vector<sensor_msgs::Image>& return_masks){
 
   //convert clusters to honeybee frame
   ROS_INFO("Transforming clusters to bumblebee frame");
@@ -369,6 +370,12 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
     single_seg.graph = buildEGraph(graph_list_[i],gray_mats[i]);
     single_seg.centroid.x = graph_centroid_[i].x; single_seg.centroid.y = graph_centroid_[i].y;
     single_seg.centroid.z = 1;
+    cv_bridge::CvImage conv_image;
+    conv_image.header = graphsegment_srv_.response.segment.header;
+    conv_image.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
+
+    conv_image.image = gray_mats[i];
+    return_masks.push_back(*conv_image.toImageMsg());
     return_vector.push_back(single_seg);
   }
 
@@ -376,22 +383,6 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
   return return_vector;
 
-  //	// now compute the outgraph using the segmented image and sensor image
-  //	if(!request){
-  //		updateOldNodeList(in_graph); //TODO: Need to rewrite these two functions to update the graph list
-  //		updateNewNodeList(); //TODO: Need to rewrite these two functions to update the graph list
-  //	}
-
-  //	ROS_INFO("Saving old node list");
-  //	old_node_list_.clear();
-  //	old_node_list_.insert( old_node_list_.end(), node_list_.begin(), node_list_.end());
-  //	ROS_INFO("Returning list");
-
-  //	std::vector<graph_module::EGraph> return_graph;
-  //	for(int i = 0; i < (int)graph_list_.size();i++)
-  //		return_graph.push_back(buildEGraph(graph_list_[i],gray_graph));
-  //
-  //	return return_graph;
 }
 
 cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
@@ -402,7 +393,6 @@ cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
   ROS_DEBUG("Compute Patch Feature");
 
   cv::cvtColor(input,hsv,CV_BGR2HSV);
-
 
   // let's quantize the hue to 30 levels
   // and the saturation to 32 levels
@@ -417,111 +407,12 @@ cv::MatND static_segment::computePatchFeature(cv::Mat input, cv::Mat mask){
   // we compute the histogram from the 0-th and 1-st channels
   int channels[] = {0, 1};
 
-  calcHist( &hsv, 1, channels, mask, // do not use mask
+  cv::calcHist( &hsv, 1, channels, mask, // do not use mask
             hist, 2, histSize, ranges,
             true, // the histogram is uniform
             false );
 
   return hist;
-}
-
-void static_segment::updateOldNodeList(std::vector<graph_module::EGraph> in_graph){
-
-  // compare indices with incoming sensor message and update
-  // x,y positions of node in message
-
-  for(int j = 0; j < in_graph.size(); j++){
-
-    // TODO: if this is too slow, make it fast
-    ROS_INFO("Updating Old graph list");
-
-    for(int i=0; i<(int)in_graph[j].edges.size(); i++){
-
-      local_graph_it node_it_ = std::find_if(old_graph_list_[j].begin(),old_graph_list_[j].end(),
-                                             find_node(in_graph[j].edges[i].start.index));
-      node_it_->x_ = in_graph[j].edges[i].start.point.x;
-      node_it_->y_ = in_graph[j].edges[i].start.point.y;
-
-      //update reverse position
-      node_it_ = std::find_if(old_graph_list_[j].begin(),old_graph_list_[j].end(),
-                              find_node(in_graph[j].edges[i].end.index));
-      node_it_->x_ = in_graph[j].edges[i].end.point.x;
-      node_it_->y_ = in_graph[j].edges[i].end.point.y;
-    }
-  }
-}
-
-void static_segment::updateNewNodeList(){
-
-  ROS_INFO("Updating New node list");
-
-  // compare tracked nodes with new nodes (nearest neighbour and Descriptor match)
-  // and add nodes if needed
-  pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-
-  // Cloud transfer process to initialize for kd tree search
-  for(local_graph_it node_it_= old_node_list_.begin(); node_it_ != old_node_list_.end(); ++node_it_){
-    pcl::PointXYZI point;
-    point.x = node_it_->x_;
-    point.y = node_it_->y_;
-    point.z = 0;
-    point.intensity = node_it_->index_;
-
-    point_cloud->push_back(point);
-
-  }
-
-  // Place holder vector
-  local_graph new_nodes;
-  for(local_graph_it node_it_= node_list_.begin(); node_it_ != node_list_.end(); ++node_it_){
-    pcl::PointXYZI new_point;
-    new_point.x = node_it_->x_;
-    new_point.y = node_it_->y_;
-    new_point.z = 0;
-    new_point.intensity = node_it_->index_;
-
-    pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kdtree(new pcl::KdTreeFLANN<pcl::PointXYZI>);
-
-    kdtree->setInputCloud(point_cloud);
-    std::vector<int> pointIdxRadiusSearch;
-    std::vector<float> pointRadiusSquaredDistance;
-
-    float radius = 25.0;
-
-    // TODO: naive assumption that only the first point in the cluster matches
-    if ( kdtree->radiusSearch (new_point, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 )
-    {
-      threshold_ = 100; int index = (int)pointIdxRadiusSearch.size() + 1;
-      for(int i=0 ; i < (int)pointIdxRadiusSearch.size(); i++){
-
-        if(old_node_list_[pointIdxRadiusSearch[i]].hist_.dot(node_it_->hist_) < threshold_)
-        {
-          threshold_ = old_node_list_[pointIdxRadiusSearch[i]].hist_.dot(node_it_->hist_);
-          index = pointIdxRadiusSearch[i];
-        }
-      }
-      // If new node did not match any on the list
-      if(index > (int)pointIdxRadiusSearch.size())
-        new_nodes.push_back(*node_it_);
-      else
-        old_node_list_[pointIdxRadiusSearch[index]] = *node_it_;
-
-    }
-    else
-      new_nodes.push_back(*node_it_); // Add new node to list
-  }
-
-  if(new_nodes.size() > 0){
-    ROS_INFO("%d new nodes found",(int)new_nodes.size());
-    node_list_.insert( node_list_.end(), new_nodes.begin(), new_nodes.end());
-  }
-
-  ROS_INFO("All nodes updated");
-}
-
-double static_segment::compareDescriptor(cv::MatND hist_orig, cv::MatND hist_new){
-
-  return hist_orig.dot(hist_new);
 }
 
 void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ros_graph& graph){
@@ -659,7 +550,7 @@ bool static_segment::serviceCallback(StaticSegment::Request &request, StaticSegm
     //If both services return success we project the graph clusters onto the euclidean clusters
     // and generate a connectivity graph
     sensor_msgs::ImagePtr graph_image;
-    response.graph_queue = computeCGraph(graph_image);
+    response.graph_queue = computeCGraph(graph_image,response.cluster_masks);
     response.graph_image = *graph_image;
     response.graph_image.header.stamp = recent_color->header.stamp;
     response.graph_image.header.frame_id = recent_color->header.frame_id;

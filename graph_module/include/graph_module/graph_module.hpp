@@ -59,7 +59,7 @@ namespace graph{
 struct Vertex_ros{
 
 	int index_;
-	double x_,y_;
+	mutable double x_,y_;
 };
 
 // Defining Edge as a pait of vertices with a weight
