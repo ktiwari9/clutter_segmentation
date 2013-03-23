@@ -48,8 +48,8 @@
 
 namespace active_segmentation {
 
-active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph):
-		    graph_iter_(Container(graph_list_)){
+active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph)
+	{//graph_iter_(Container(graph_list_)){
 
   segment_ = segment;
   input_ = input;
@@ -57,11 +57,12 @@ active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGr
 }
 
 active_segment::active_segment(ros::NodeHandle & nh):
-			    nh_(nh),nh_priv_("~"),graph_iter_(Container(graph_list_)),
+			    nh_(nh),nh_priv_("~"),//graph_iter_(Container(graph_list_)),
 			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true){
 
   nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
   nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
+  nh_priv_.param<std::string>("correspondence_thread",correspondence_thread_,std::string("Correspondence Window"));
   nh_priv_.param<bool>("tracking",tracking_,false);
   nh_priv_.param<std::string>("left_camera_topic",left_camera_topic_,std::string("/Honeybee/left/camera_info"));
   nh_priv_.param<std::string>("tabletop_service", tabletop_service_,std::string("/tabletop_segmentation"));
@@ -70,6 +71,8 @@ active_segment::active_segment(ros::NodeHandle & nh):
   pose_publisher_ = nh_priv_.advertise<geometry_msgs::PoseStamped>("/push_pose",5);
 
   cv::namedWindow( window_thread_.c_str(), CV_WINDOW_AUTOSIZE );// Create a window for display.
+  cv::namedWindow( correspondence_thread_.c_str(), CV_WINDOW_AUTOSIZE );// Create a window for display.
+
   cv::startWindowThread();
 
   // Initializing some values
@@ -81,12 +84,15 @@ active_segment::active_segment(ros::NodeHandle & nh):
   poly_sigma_ = 1.25;
   push_hand_pose_.header.frame_id = "/BASE";
 
-
 }
 
 
 
-active_segment::~active_segment(){ cv::destroyWindow(window_thread_.c_str());}
+active_segment::~active_segment(){
+
+	cv::destroyWindow(window_thread_.c_str());
+	cv::destroyWindow(correspondence_thread_.c_str());
+}
 
 cv::Mat active_segment::returnCVImage(const sensor_msgs::Image & img) {
 
@@ -159,66 +165,66 @@ void active_segment::initGraphHelpers(){
 
 cv::Mat active_segment::constructVisGraph(cv::Mat input){
 
-  cv::Mat draw(input);
+	cv::Mat draw(input);
 
-  int count=0;
+	int count=0;
 
-  for(std::vector<local_graph>::iterator node = graph_iter_.begin();
-      node != graph_iter_.end() ; ++node){
+	for(std::vector<local_graph>::iterator node = graph_iter_.begin();
+			node != graph_iter_.end() ; ++node){
 
-	ROS_DEBUG("Finding Max Vertex %d",count);
-    graph::Vertex_ros push_vertex = node->graph_.findMaxVertex();
+		ROS_DEBUG("Finding Max Vertex %d",count);
+		graph::Vertex_ros push_vertex = node->graph_.findMaxVertex();
 
-    ROS_DEBUG("Max Vertex index %d",push_vertex.index_);
+		ROS_DEBUG("Max Vertex index %d",push_vertex.index_);
 
-    for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
-        iter_!=node->graph_.graph_.end(); ++iter_){
+		for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
+				iter_!=node->graph_.graph_.end(); ++iter_){
 
-      // First point
-      graph::Edge_ros edge = *iter_;
-      cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
-      // Second point
-      cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
+			// First point
+			graph::Edge_ros edge = *iter_;
+			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
+			// Second point
+			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
 
-      // Display shenanigans
-      cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
-      cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
-      cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
+			// Display shenanigans
+			cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
+			cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
+			cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
 
-      if(push_vertex.index_ != edge.edge_.first.index_)
-        cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-                    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-      else
-        if(count != 0)
-          cv::putText(draw, " LMV "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-        else
-          cv::putText(draw, "Max Vertex: "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
-                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-
-
-      if(push_vertex.index_ != edge.edge_.second.index_)
-        cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-                    CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-      else
-        if(count != 0)
-          cv::putText(draw, " LMV "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-        else
-          cv::putText(draw, "Max Vertex: "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
-                      CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
-
-    }
-    count++;
-  }
+			if(push_vertex.index_ != edge.edge_.first.index_)
+				cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			else
+				if(count != 0)
+					cv::putText(draw, " LMV "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+				else
+					cv::putText(draw, "Max Vertex: "+boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
 
 
-  if(DEBUG)
-	  ROS_INFO("Number of Edges %d",count);
-  if(!input_.empty())
-    cv::imwrite("/tmp/full_graph.png",draw);
+			if(push_vertex.index_ != edge.edge_.second.index_)
+				cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+			else
+				if(count != 0)
+					cv::putText(draw, " LMV "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+				else
+					cv::putText(draw, "Max Vertex: "+ boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+							CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
 
-  return draw;
+		}
+		count++;
+	}
+
+
+
+	ROS_DEBUG("Number of Edges %d",count);
+	if(!input_.empty())
+		cv::imwrite("/tmp/full_graph.png",draw);
+
+	return draw;
 }
 
 void active_segment::constructVisGraph(){
@@ -377,23 +383,22 @@ void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
 		pcl::PointCloud<pcl::PointXYZ> &ray){
 
 	// Project Vertex to 3D
-	ROS_INFO("Entering base conversion function, pt.value x %f %f",point.x_,point.y_);
+	ROS_DEBUG("Entering base conversion function, pt.value x %f %f",point.x_,point.y_);
 	ray.clear();
 	cv::Point2d push_2d(point.x_,point.y_);
 	cv::Point3d push_3d = left_cam_.projectPixelTo3dRay(push_2d); // getting push location in 3D
-	ROS_INFO("finished projecting pixel to 3D");
 
 	ray.push_back(pcl::PointXYZ(0,0,0));
 	ray.push_back(pcl::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
 	ray.header = cam_info_.header;
 
-	ROS_INFO("Creating Ray in base frame");
+	ROS_DEBUG("Creating Ray in base frame");
 	ROS_VERIFY(listener_.waitForTransform("/BASE",cam_info_.header.frame_id,
 			cam_info_.header.stamp, ros::Duration(5.0)));
 
 	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
 			ray, listener_));
-	ROS_INFO("Converting cloud complete");
+	ROS_DEBUG("Converting cloud complete");
 
 }
 
@@ -403,9 +408,8 @@ void active_segment::controlGraph(){
 	// receive a new graph from
 	if(convertToGraph()){
 
-		ROS_INFO("Calling Static Segment service");
-		// find the max node
-		ROS_INFO_STREAM("Pushing max vertex");
+    	// find the max node
+		ROS_DEBUG("Pushing max vertex");
 		pcl::PointCloud<pcl::PointXYZ> push_3d_pcl;
 		projectVertex3DBASE(graph_iter_[0].graph_.findMaxVertex(),push_3d_pcl);
 		ROS_INFO_STREAM("The 3D pushing location in BASE FRAME IS is "<<push_3d_pcl.points[0]<<" "<<
@@ -421,34 +425,35 @@ void active_segment::controlGraph(){
 
 void active_segment::buildGraphFromMsg(graph_queue& graph_list)
 {
-	ROS_INFO("Building graph from message");
-    for(unsigned int i = 0; i < graph_msg_.size(); i++){
-      local_graph single_graph;
-      single_graph.graph_.buildGraph(graph_msg_[i].graph);
-      //single_graph.graph_ = cluster_graph_; // need to define operator = or copy constructor
-      single_graph.centroid_ = graph_msg_[i].centroid;
-      single_graph.index_ = i; // TODO: Cheap trick to rearrange the image mask but we can worry
-      //about that later once we figure out what the hell is going on
-      graph_list.push(single_graph);
-    }
+	for(unsigned int i = 0; i < graph_msg_.size(); i++){
+
+		local_graph single_graph;
+		single_graph.graph_.buildGraph(graph_msg_[i].graph);
+		single_graph.centroid_ = graph_msg_[i].centroid;
+		single_graph.index_ = i;
+		graph_list.push(single_graph);
+
+	}
+
+	ROS_DEBUG("Built graph from message of size %d",graph_list.size());
 
 }
 
-int active_segment::findNearestNeighbour(geometry_msgs::Point vert,std::vector<local_graph> new_graph_iter){
+int active_segment::findNearestNeighbour(geometry_msgs::Point vert, std::vector<local_graph> new_graph_iter){
 
 	ROS_INFO("Finding Nearest neighbour");
 	float min_dist = INFINITY;
 	int index = 0;
 	int count = 0;
 
-	ROS_INFO("Search centroid is %f %f",vert.x,vert.y);
+	ROS_DEBUG("Search centroid is %f %f",vert.x,vert.y);
 	for(std::vector<local_graph>::iterator node = new_graph_iter.begin();
 			node != new_graph_iter.end() ; ++node){
 
 		float dist = sqrt(((node->centroid_.x - vert.x)*(node->centroid_.x - vert.x))
 				+ ((node->centroid_.y - vert.y)*(node->centroid_.y - vert.y)));
 
-		ROS_INFO("Centroid %f %f distance is %f",node->centroid_.x,node->centroid_.y,dist);
+		ROS_DEBUG("Centroid %f %f distance is %f",node->centroid_.x,node->centroid_.y,dist);
 		if(dist < min_dist){
 			index = count;
 			min_dist = dist;
@@ -456,7 +461,7 @@ int active_segment::findNearestNeighbour(geometry_msgs::Point vert,std::vector<l
 
 		count++;
 	}
-	ROS_INFO("Minimum distance is %f",min_dist);
+	ROS_DEBUG("Minimum distance is %f",min_dist);
 	return index;
 
 }
@@ -479,7 +484,7 @@ cv::MatND active_segment::getFeatureVector(cv::Mat input, cv::Mat segment, int i
 }
 
 bool active_segment::matchEdges(std::pair<int,int> old_edge,std::pair<int,int> new_edge,
-		int index){
+		int index,bool &inverted){
 
 	ROS_INFO_STREAM("Matching Edges "<<old_edge.first<<","<<old_edge.second
 			<<" and "<<new_edge.first<<","<<new_edge.second);
@@ -487,32 +492,78 @@ bool active_segment::matchEdges(std::pair<int,int> old_edge,std::pair<int,int> n
     // because we always look at the top of the priority queue
 	print_tag_ = 1;
 	cv::MatND oe_first = getFeatureVector(prev_input_,prev_segment_,old_edge.first,prev_masks_[0]);
+	cv::normalize(oe_first,oe_first,255);
 
 	print_tag_ = 0;
 	cv::MatND oe_second = getFeatureVector(prev_input_,prev_segment_,old_edge.second,prev_masks_[0]);
+	cv::normalize(oe_second,oe_second,255);
 
 	print_tag_ = 1;
-	ROS_INFO("Computing third histogram %d",index);
+	ROS_DEBUG("Computing third histogram %d",index);
 	cv::MatND ne_first = getFeatureVector(input_,segment_,new_edge.first,masks_[index]);
+	cv::normalize(ne_first,ne_first,255);
 	print_tag_ = 0;
 	cv::MatND ne_second = getFeatureVector(input_,segment_,new_edge.second,masks_[index]);
+	cv::normalize(ne_second,ne_second,255);
 
 	// write huge dot product matching or normalized histogram matching difference
 	//here comparing for both cases of edges
 
-	double threshold = 0.10; // TODO:need to tune this threshold but how?? is 10% good enough
+	double threshold = 0.55; // TODO : need to tune this threshold but how?? is 10% good enough
 
-	ROS_INFO("Comparing Histograms Generic value :%f",cv::compareHist(oe_first,ne_first,CV_COMP_BHATTACHARYYA));
+	ROS_INFO("Comparing Histograms 1 - 1 value :%f",cv::compareHist(oe_first,ne_first,CV_COMP_BHATTACHARYYA));
+	ROS_INFO("Comparing Histograms 2 - 2 value :%f",cv::compareHist(oe_second,ne_second,CV_COMP_BHATTACHARYYA));
+	ROS_INFO("Comparing Histograms 2 - 1 value :%f",cv::compareHist(oe_second,ne_first,CV_COMP_BHATTACHARYYA));
+	ROS_INFO("Comparing Histograms 1 - 2 value :%f",cv::compareHist(oe_first,ne_second,CV_COMP_BHATTACHARYYA));
 
 	if(cv::compareHist(oe_first,ne_first,CV_COMP_BHATTACHARYYA) < threshold &&
-			cv::compareHist(oe_second,ne_second,CV_COMP_BHATTACHARYYA) < threshold)
+			cv::compareHist(oe_second,ne_second,CV_COMP_BHATTACHARYYA) < threshold){
+
+		inverted = false;
 		return true;
+	}
 	else if(cv::compareHist(oe_second,ne_first,CV_COMP_BHATTACHARYYA) < threshold &&
-			cv::compareHist(oe_first,ne_second,CV_COMP_BHATTACHARYYA) < threshold)
+			cv::compareHist(oe_first,ne_second,CV_COMP_BHATTACHARYYA) < threshold){
+
+		inverted = true;
 		return true;
+	}
 	else
 		return false;
 }
+
+void active_segment::drawCorrespondence(cv::Mat input_l,cv::Mat input_r,cv::Mat mask_l,	cv::Mat mask_r,
+		std::vector< std::pair< std::pair<float,float> , std::pair<float,float> > > correspondences){
+
+	cv::Mat img1,img2;
+	input_l.copyTo(img1,mask_l);
+	input_r.copyTo(img2,mask_r);
+
+	cv::Mat imgResult(img1.rows,2*img1.cols,img1.type()); // Your final image
+
+	cv::Mat roiImgResult_Left = imgResult(cv::Rect(0,0,img1.cols,img1.rows)); //Img1 will be on the left part
+	cv::Mat roiImgResult_Right = imgResult(cv::Rect(img1.cols,0,img2.cols,img2.rows)); //Img2 will be on the right part, we shift the roi of img1.cols on the right
+
+	cv::Mat roiImg1 = img1(cv::Rect(0,0,img1.cols,img1.rows));
+	cv::Mat roiImg2 = img2(cv::Rect(0,0,img2.cols,img2.rows));
+
+	roiImg1.copyTo(roiImgResult_Left); //Img1 will be on the left of imgResult
+	roiImg2.copyTo(roiImgResult_Right); //Img2 will be on the right of imgResult
+
+	for(unsigned int i=0 ; i < correspondences.size() ; i++){
+
+		cv::Point center_1(correspondences[i].first.first,correspondences[i].first.second);
+		// Second point
+		cv::Point center_2(correspondences[i].second.first+img1.cols,correspondences[i].second.second);
+		// Display shenanigans
+		cv::circle(imgResult,center_1, 5, cv::Scalar(128,0,128), -1);
+		cv::circle(imgResult,center_2, 5, cv::Scalar(128,0,128), -1);
+		cv::line(imgResult,center_1,center_2,cv::Scalar(0,128,0),1,0);
+	}
+
+	cv::imshow(correspondence_thread_.c_str(), imgResult);
+}
+
 
 bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 		int index){
@@ -529,6 +580,8 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 
 	std::vector<int> visited_index;
 
+	std::vector< std::pair< std::pair<float,float> , std::pair<float,float> > > correspondences;
+
 	int match_score = 0;
 
 	for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();
@@ -537,10 +590,10 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 		graph::Edge_ros edge = *iter_;
 
 		// Check if edge has been visited
-		if(std::find(visited_index.begin(), visited_index.end(), edge.edge_.first.index_) == visited_index.end()
-				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
+//		if(std::find(visited_index.begin(), visited_index.end(), edge.edge_.first.index_) == visited_index.end()
+//				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
 
-			ROS_INFO("Entered clause");
+			ROS_DEBUG("Entered clause");
 			visited_index.push_back(edge.edge_.first.index_);
 			visited_index.push_back(edge.edge_.second.index_);
 
@@ -553,21 +606,42 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 				graph::Edge_ros edge_test = *iter_new_;
 				std::pair<int,int> new_edge = make_pair(edge_test.edge_.first.index_,edge_test.edge_.second.index_);
 
-				if(matchEdges(org_edge,new_edge,index))
+				bool inverted;
+				if(matchEdges(org_edge,new_edge,index,inverted)){
 					matched = true;
+					if(inverted)
+					{
+						correspondences.push_back(make_pair(make_pair(edge.edge_.first.x_,edge.edge_.first.y_)
+								,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
+						correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
+								,make_pair(edge_test.edge_.first.x_,edge_test.edge_.first.y_)));
+					}
+					else
+					{
+						correspondences.push_back(make_pair(make_pair(edge.edge_.first.x_,edge.edge_.first.y_)
+								,make_pair(edge_test.edge_.first.x_,edge_test.edge_.first.y_)));
+						correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
+								,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
+					}
+
+				}
 			}
 
 			if(matched)
 				match_score++;
-
-		}
+		//}
 	}
 
-	ROS_INFO("Visited vertices %d \n	match score %d vertices %d",
+	drawCorrespondence(prev_input_,input_,prev_masks_[0],masks_[index],correspondences);
+	ROS_INFO("Visited vertices %d \n match score %d vertices %d",
 			visited_index.size(),match_score,(int)base_graph.graph_.number_of_vertices_/2);
 	// If the number of edges matched are half the number of vertices, because edges are unique
 	if(match_score >= (int)base_graph.graph_.number_of_vertices_/2)
+	{
+		//drawCorrespondence(prev_input_,input_,prev_masks_[0],masks_[index],correspondences);
 		return true;
+	}
+
 	else
 		return false;
 }
@@ -576,39 +650,46 @@ void active_segment::buildMaskList(std::vector<cv::Mat>& masks, std::vector<loca
 		std::vector<sensor_msgs::Image> images){
 
 	masks.clear();
-	ROS_INFO("image_list %d",images.size(),
-			masks.size());
+	ROS_DEBUG("image_list %d mask_list %d",images.size(),masks.size());
 
 	for(std::vector<local_graph>::iterator iter = graph_list.begin();iter != graph_list.end(); ++iter){
-			cv::Mat current_image = returnCVImage(images[(int)(iter->index_)]);
-			masks.push_back(current_image);
+		cv::Mat current_image = returnCVImage(images[(int)(iter->index_)]);
+		masks.push_back(current_image);
 	}
-	ROS_INFO("Confirmation call graph size %d image_list size %d",graph_list.size(),
-			masks.size());
+	ROS_DEBUG("Confirmation call graph size %d image_list size %d",graph_list.size(), masks.size());
 
+}
+
+void active_segment::convertGraphToIter(graph_queue graph_list, std::vector<local_graph>& graph_iter){
+
+	std::vector<local_graph> temp_graph = graph_list.getVector();
+	graph_iter.clear();
+	graph_iter.resize(temp_graph.size());
+	copy(temp_graph.begin(),temp_graph.end(),graph_iter.begin());
 }
 
 
 void active_segment::updateWithNewGraph(){
 
 	graph_queue new_graph;
-	std::vector<local_graph>& new_graph_iter(Container(new_graph));
+	std::vector<local_graph> new_graph_iter;
 	buildGraphFromMsg(new_graph);
+	new_graph_iter = new_graph.getVector();
 
-	prev_masks_.clear();
-	prev_masks_ = masks_;
+	prev_masks_.clear();prev_masks_.resize(masks_.size());
+	copy(masks_.begin(),masks_.end(),prev_masks_.begin());
 	buildMaskList(masks_,new_graph_iter,staticsegment_srv_.response.cluster_masks);
 	ROS_INFO("Updating the graph structure");
-
-	ROS_INFO("Graph iterator size %d",graph_iter_.size());
-
+	convertGraphToIter(graph_list_,graph_iter_);
 
 	if(new_graph.size() != cluster_iter_.size()){
 
 		ROS_INFO("Statisfied condition one");
 		graph_list_ = new_graph;
+		convertGraphToIter(graph_list_,graph_iter_);
 		ROS_INFO("Manipulation has changed graph structure");
-		cluster_iter_ = graph_iter_; // NOTE: this is not a iterator just a vector
+		cluster_iter_.clear();cluster_iter_.resize(graph_iter_.size());
+		copy(graph_iter_.begin(),graph_iter_.end(),cluster_iter_.begin());
 
 	}
 	else{
@@ -617,87 +698,83 @@ void active_segment::updateWithNewGraph(){
 		geometry_msgs::Point v1 = graph_iter_[0].centroid_;
 		//TODO: Making a big assumption here i.e that manipulating a subgraph only changes
 		// that graph does not have an effect on others
-		ROS_INFO_STREAM("Centroid "<<graph_iter_[0].centroid_);
-
 		int index = findNearestNeighbour(v1,new_graph_iter);
-		ROS_INFO("Returned match graph %d",index);
+
+		ROS_DEBUG("Returned match graph %d",index);
 		local_graph sub_graph = new_graph_iter[index];
+
+		ROS_INFO_STREAM("Original centroid :"<<v1<<std::endl<<" Returned Centroid :"<<sub_graph.centroid_);
 
 		std::vector<local_graph>::iterator node = graph_iter_.begin();
 		if(matchGraphs(*node,sub_graph,index)){
+
 			graph_list_.pop();
 			ROS_INFO("Manipulation hasn't changed graph structure");
+			convertGraphToIter(graph_list_,graph_iter_);
 		}
 		else{
-			if(node->graph_.number_of_vertices_ == sub_graph.graph_.number_of_vertices_)
-				*node = sub_graph;
-			else{
-				graph_list_.pop();
-				ROS_INFO("Replacing graph structure with new graph");
-				ROS_INFO("Iterator size %d",graph_iter_.size());
-				graph_list_.push(sub_graph);
-			}
+			graph_list_.pop();
+			ROS_INFO("Replacing graph structure with new graph");
+			graph_list_.push(sub_graph);
+			convertGraphToIter(graph_list_,graph_iter_);
 		}
 	}
 }
 
 bool active_segment::convertToGraph(){
 
-  //Call static segmentation service
-  bool call_succeeded = false;
+	//Call static segmentation service
+	bool call_succeeded = false;
 
-  staticsegment_srv_.request.call = staticsegment_srv_.request.EMPTY;
+	staticsegment_srv_.request.call = staticsegment_srv_.request.EMPTY;
 
-  while(!call_succeeded){
-    if(ros::service::call(static_service_,staticsegment_srv_)){
-      call_succeeded = true;
-      ROS_INFO("Service Call succeeded");
+	while(!call_succeeded){
+		if(ros::service::call(static_service_,staticsegment_srv_)){
+			call_succeeded = true;
+			ROS_INFO("Service Call succeeded");
 
-      //getting camera info
-      sensor_msgs::CameraInfo::ConstPtr cam_info =
-          ros::topic::waitForMessage<sensor_msgs::CameraInfo>(left_camera_topic_, nh_, ros::Duration(10.0));
+			//getting camera info
+			sensor_msgs::CameraInfo::ConstPtr cam_info =
+					ros::topic::waitForMessage<sensor_msgs::CameraInfo>(left_camera_topic_, nh_, ros::Duration(10.0));
 
-      sensor_msgs::Image::ConstPtr recent_color =
-            ros::topic::waitForMessage<sensor_msgs::Image>(rgb_topic_, nh_, ros::Duration(5.0));
+			sensor_msgs::Image::ConstPtr recent_color =
+					ros::topic::waitForMessage<sensor_msgs::Image>(rgb_topic_, nh_, ros::Duration(5.0));
 
-      left_cam_.fromCameraInfo(cam_info); // Getting left camera info
+			left_cam_.fromCameraInfo(cam_info); // Getting left camera info
+			cam_info_= *cam_info;
+			input_ = returnCVImage(*recent_color);
+			segment_ =  returnCVImage(staticsegment_srv_.response.graph_image);
+			graph_msg_ = staticsegment_srv_.response.graph_queue;
 
-      cam_info_= *cam_info;
+			cv::imwrite("/tmp/response_img.png",input_);
 
-      input_ = returnCVImage(*recent_color);
+			if(first_call_){
+				buildGraphFromMsg(graph_list_);
+				convertGraphToIter(graph_list_,graph_iter_);
+				cluster_iter_.clear(); cluster_iter_.resize(graph_iter_.size());
+				copy(graph_iter_.begin(),graph_iter_.end(),cluster_iter_.begin());
+				buildMaskList(masks_,graph_iter_,staticsegment_srv_.response.cluster_masks);
+			}
+			else
+				updateWithNewGraph();
+		}
+	}
 
-      segment_ =  returnCVImage(staticsegment_srv_.response.graph_image);
+	if (staticsegment_srv_.response.result == staticsegment_srv_.response.FAILURE)
+	{
+		ROS_ERROR("Segmentation service returned error");
+		return false;
+	}
 
-      graph_msg_ = staticsegment_srv_.response.graph_queue;
+	ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",staticsegment_srv_.response.result);
 
-      cv::imwrite("/tmp/response_img.png",input_);
+	// DEBUG of projection
+	if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
+		ROS_INFO("Static Segment service call succeeded");
+		return true;
+	}
 
-      if(first_call_){
-    	  buildGraphFromMsg(graph_list_);
-    	  cluster_iter_ = graph_iter_;
-    	  masks_.clear();
-    	  buildMaskList(masks_,graph_iter_,staticsegment_srv_.response.cluster_masks);
-      }
-      else
-    	  updateWithNewGraph();
-    }
-  }
-
-  if (staticsegment_srv_.response.result == staticsegment_srv_.response.FAILURE)
-  {
-    ROS_ERROR("Segmentation service returned error");
-    return false;
-  }
-
-  ROS_INFO("Segmentation service succeeded. Returned Segmented Graph %d",staticsegment_srv_.response.result);
-
-  // DEBUG of projection
-  if(staticsegment_srv_.response.result == staticsegment_srv_.response.SUCCESS){
-    ROS_INFO("Static Segment service call succeeded");
-    return true;
-  }
-
-  return false;
+	return false;
 }
 }
 
@@ -714,18 +791,18 @@ int run_active_segmentation(int argc, char **argv){
 		//visualize graph
 		ROS_INFO("Displaying Graph");
 		ss.constructVisGraph();
-//		if (!ss.head_joint_trajectory_client_.lookAt(0.0,
-//				0.0, ss.push_loc_))
-//		{
-//			ROS_ERROR("Problems when looking at stuff.");
-//			return 0;
-//		}
+		//		if (!ss.head_joint_trajectory_client_.lookAt(0.0,
+		//				0.0, ss.push_loc_))
+		//		{
+		//			ROS_ERROR("Problems when looking at stuff.");
+		//			return 0;
+		//		}
 
 		// This needs to happen in a separate thread
 		if(!ss.first_call_)
 			ss.TrackandUpdate();
 		else
-	    	ss.first_call_ = false;
+			ss.first_call_ = false;
 
 		ss.prev_input_ = ss.input_;
 		ss.prev_segment_= ss.segment_;
@@ -734,7 +811,7 @@ int run_active_segmentation(int argc, char **argv){
 		ros::spinOnce();
 	}
 
-  return 1;
+	return 1;
 }
 
 int main(int argc, char **argv){

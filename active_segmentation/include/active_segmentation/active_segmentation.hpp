@@ -44,6 +44,10 @@
 #include <vector>
 #include <functional>
 #include <queue>
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
+#include <iterator>
 // ROS includes
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -120,6 +124,19 @@ template <class T, class S, class C>
     return HackedQueue::Container(q);
 }
 
+template <class T, class S, class C> class PQV : public std::priority_queue<T, S, C> {
+public:
+	typedef std::vector<T> TVec;
+	TVec getVector() {
+		TVec r(this->c.begin(),this->c.end());
+		// c is already a heap
+		std::sort_heap(r.begin(), r.end(), this->comp);
+		// Put it into priority-queue order:
+		std::reverse(r.begin(), r.end());
+		return r;
+	}
+};
+
 
 class active_segment{
 
@@ -129,7 +146,7 @@ private:
 
 public:
 
-	typedef std::priority_queue<local_graph,std::vector<local_graph>,compare_graph> graph_queue;
+	typedef PQV <local_graph,std::vector<local_graph>,compare_graph> graph_queue;
 
 	geometry_msgs::Point push_loc_;
 
@@ -151,7 +168,8 @@ protected:
 
 	int number_of_vertices_;
 
-	std::string static_service_,rgb_topic_,camera_topic_,window_thread_,left_camera_topic_,tabletop_service_;
+	std::string static_service_,rgb_topic_,camera_topic_,window_thread_,left_camera_topic_,tabletop_service_,
+	correspondence_thread_;
 
 	tf::TransformListener listener_;
 
@@ -163,7 +181,7 @@ protected:
 
 	graph_queue graph_list_;
 
-	std::vector<local_graph> &graph_iter_;
+	std::vector<local_graph> graph_iter_;
 	std::vector<local_graph> cluster_iter_;
 
 	std::vector<static_segmentation::StaticSeg> graph_msg_;
@@ -225,11 +243,16 @@ public:
 
 	// Matches an edge from the old subgraph with an edge in the new subgraph
 	bool matchEdges(std::pair<int,int> old_edge,std::pair<int,int> new_edge,
-			int index);
+			int index, bool &inverted);
 
 	void updateWithNewGraph();
 
 	void buildGraphFromMsg(graph_queue& graph_list);
+
+	void drawCorrespondence(cv::Mat input_r,cv::Mat input_l,cv::Mat mask_l,	cv::Mat mask_r,
+			std::vector< std::pair< std::pair<float,float> , std::pair<float,float> > > correspondences);
+
+	void convertGraphToIter(graph_queue graph_list, std::vector<local_graph>& graph_iter);
 
 	void buildMaskList(std::vector<cv::Mat>& masks, std::vector<local_graph> graph_list,
 			std::vector<sensor_msgs::Image> images);
