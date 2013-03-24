@@ -58,7 +58,7 @@ active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGr
 
 active_segment::active_segment(ros::NodeHandle & nh):
 			    nh_(nh),nh_priv_("~"),//graph_iter_(Container(graph_list_)),
-			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true){
+			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true),queue_empty_(false){
 
   nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
   nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
@@ -406,8 +406,13 @@ void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
 void active_segment::controlGraph(){
 
 	// receive a new graph from
-	if(convertToGraph()){
+	if(convertToGraph() && !queue_empty_){
 
+		// Checking if priority queue is empty
+		if(graph_list_.empty()){
+			queue_empty_ = true;
+			return;
+		}
     	// find the max node
 		ROS_DEBUG("Pushing max vertex");
 		pcl::PointCloud<pcl::PointXYZ> push_3d_pcl;
@@ -486,24 +491,25 @@ cv::MatND active_segment::getFeatureVector(cv::Mat input, cv::Mat segment, int i
 bool active_segment::matchEdges(std::pair<int,int> old_edge,std::pair<int,int> new_edge,
 		int index,bool &inverted){
 
-	ROS_INFO_STREAM("Matching Edges "<<old_edge.first<<","<<old_edge.second
-			<<" and "<<new_edge.first<<","<<new_edge.second);
+	if(DEBUG)
+		ROS_INFO_STREAM("Matching Edges "<<old_edge.first<<","<<old_edge.second
+				<<" and "<<new_edge.first<<","<<new_edge.second);
 
     // because we always look at the top of the priority queue
 	print_tag_ = 1;
-	cv::MatND oe_first = getFeatureVector(prev_input_,prev_segment_,old_edge.first,prev_masks_[0]);
+	cv::MatND oe_first = getFeatureVector(prev_input_,prev_segment_,old_edge.first,masks_[0]);
 	cv::normalize(oe_first,oe_first,255);
 
 	print_tag_ = 0;
-	cv::MatND oe_second = getFeatureVector(prev_input_,prev_segment_,old_edge.second,prev_masks_[0]);
+	cv::MatND oe_second = getFeatureVector(prev_input_,prev_segment_,old_edge.second,masks_[0]);
 	cv::normalize(oe_second,oe_second,255);
 
 	print_tag_ = 1;
 	ROS_DEBUG("Computing third histogram %d",index);
-	cv::MatND ne_first = getFeatureVector(input_,segment_,new_edge.first,masks_[index]);
+	cv::MatND ne_first = getFeatureVector(input_,segment_,new_edge.first,new_masks_[index]);
 	cv::normalize(ne_first,ne_first,255);
 	print_tag_ = 0;
-	cv::MatND ne_second = getFeatureVector(input_,segment_,new_edge.second,masks_[index]);
+	cv::MatND ne_second = getFeatureVector(input_,segment_,new_edge.second,new_masks_[index]);
 	cv::normalize(ne_second,ne_second,255);
 
 	// write huge dot product matching or normalized histogram matching difference
@@ -511,10 +517,10 @@ bool active_segment::matchEdges(std::pair<int,int> old_edge,std::pair<int,int> n
 
 	double threshold = 0.55; // TODO : need to tune this threshold but how?? is 10% good enough
 
-	ROS_INFO("Comparing Histograms 1 - 1 value :%f",cv::compareHist(oe_first,ne_first,CV_COMP_BHATTACHARYYA));
-	ROS_INFO("Comparing Histograms 2 - 2 value :%f",cv::compareHist(oe_second,ne_second,CV_COMP_BHATTACHARYYA));
-	ROS_INFO("Comparing Histograms 2 - 1 value :%f",cv::compareHist(oe_second,ne_first,CV_COMP_BHATTACHARYYA));
-	ROS_INFO("Comparing Histograms 1 - 2 value :%f",cv::compareHist(oe_first,ne_second,CV_COMP_BHATTACHARYYA));
+	ROS_DEBUG("Comparing Histograms 1 - 1 value :%f",cv::compareHist(oe_first,ne_first,CV_COMP_BHATTACHARYYA));
+	ROS_DEBUG("Comparing Histograms 2 - 2 value :%f",cv::compareHist(oe_second,ne_second,CV_COMP_BHATTACHARYYA));
+	ROS_DEBUG("Comparing Histograms 2 - 1 value :%f",cv::compareHist(oe_second,ne_first,CV_COMP_BHATTACHARYYA));
+	ROS_DEBUG("Comparing Histograms 1 - 2 value :%f",cv::compareHist(oe_first,ne_second,CV_COMP_BHATTACHARYYA));
 
 	if(cv::compareHist(oe_first,ne_first,CV_COMP_BHATTACHARYYA) < threshold &&
 			cv::compareHist(oe_second,ne_second,CV_COMP_BHATTACHARYYA) < threshold){
@@ -632,7 +638,7 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 		//}
 	}
 
-	drawCorrespondence(prev_input_,input_,prev_masks_[0],masks_[index],correspondences);
+	drawCorrespondence(prev_input_,input_,masks_[0],new_masks_[index],correspondences);
 	ROS_INFO("Visited vertices %d \n match score %d vertices %d",
 			visited_index.size(),match_score,(int)base_graph.graph_.number_of_vertices_/2);
 	// If the number of edges matched are half the number of vertices, because edges are unique
@@ -660,6 +666,21 @@ void active_segment::buildMaskList(std::vector<cv::Mat>& masks, std::vector<loca
 
 }
 
+void active_segment::updateMaskList(std::vector<cv::Mat>& masks,std::vector<local_graph> graph_list){
+
+	std::vector<cv::Mat> mask_list;
+	mask_list.clear();
+	mask_list.resize(graph_list.size());
+
+	int i = 0;
+	for(std::vector<local_graph>::iterator iter = graph_list.begin();iter != graph_list.end(); ++iter){
+		mask_list[i] = masks[iter->index_];
+		i++;
+	}
+	masks.clear();masks.resize(mask_list.size());
+	copy(mask_list.begin(),mask_list.end(),masks.begin());
+}
+
 void active_segment::convertGraphToIter(graph_queue graph_list, std::vector<local_graph>& graph_iter){
 
 	std::vector<local_graph> temp_graph = graph_list.getVector();
@@ -676,16 +697,19 @@ void active_segment::updateWithNewGraph(){
 	buildGraphFromMsg(new_graph);
 	new_graph_iter = new_graph.getVector();
 
-	prev_masks_.clear();prev_masks_.resize(masks_.size());
-	copy(masks_.begin(),masks_.end(),prev_masks_.begin());
-	buildMaskList(masks_,new_graph_iter,staticsegment_srv_.response.cluster_masks);
+	buildMaskList(new_masks_,new_graph_iter,staticsegment_srv_.response.cluster_masks);
 	ROS_INFO("Updating the graph structure");
 	convertGraphToIter(graph_list_,graph_iter_);
+	//updateMaskList(new_masks_,graph_iter_);
+
+//	ss.prev_masks_.clear();ss.prev_masks_.resize(ss.masks_.size());
+//	copy(ss.masks_.begin(),ss.masks_.end(),ss.prev_masks_.begin());
 
 	if(new_graph.size() != cluster_iter_.size()){
 
 		ROS_INFO("Statisfied condition one");
 		graph_list_ = new_graph;
+		masks_ = new_masks_; // Updating masks_list_
 		convertGraphToIter(graph_list_,graph_iter_);
 		ROS_INFO("Manipulation has changed graph structure");
 		cluster_iter_.clear();cluster_iter_.resize(graph_iter_.size());
@@ -709,6 +733,7 @@ void active_segment::updateWithNewGraph(){
 		if(matchGraphs(*node,sub_graph,index)){
 
 			graph_list_.pop();
+			masks_.erase(masks_.begin()); // removing the front element
 			ROS_INFO("Manipulation hasn't changed graph structure");
 			convertGraphToIter(graph_list_,graph_iter_);
 		}
@@ -716,6 +741,7 @@ void active_segment::updateWithNewGraph(){
 			graph_list_.pop();
 			ROS_INFO("Replacing graph structure with new graph");
 			graph_list_.push(sub_graph);
+			masks_[0] = new_masks_[index];
 			convertGraphToIter(graph_list_,graph_iter_);
 		}
 	}
@@ -791,6 +817,14 @@ int run_active_segmentation(int argc, char **argv){
 		//visualize graph
 		ROS_INFO("Displaying Graph");
 		ss.constructVisGraph();
+
+		if(ss.queue_empty_){
+			ROS_INFO("Segmentation complete");
+			cv::waitKey();
+			return 1;
+		}
+
+
 		//		if (!ss.head_joint_trajectory_client_.lookAt(0.0,
 		//				0.0, ss.push_loc_))
 		//		{
@@ -804,14 +838,14 @@ int run_active_segmentation(int argc, char **argv){
 		else
 			ss.first_call_ = false;
 
+		// Updating the images and masks
 		ss.prev_input_ = ss.input_;
 		ss.prev_segment_= ss.segment_;
-
 
 		ros::spinOnce();
 	}
 
-	return 1;
+	return 0;
 }
 
 int main(int argc, char **argv){

@@ -80,7 +80,7 @@ namespace active_segmentation {
 struct graph_node{
 
 	int index_;
-	cv::MatND hist_;
+	cv::Mat mask_;
 	double x_,y_;
 };
 
@@ -152,11 +152,11 @@ public:
 
 	//arm_controller_interface::HeadJointTrajectoryClient head_joint_trajectory_client_;
 
-	bool first_call_;
+	bool first_call_,queue_empty_;
 
-	cv::Mat input_,prev_input_,segment_,prev_segment_;
+	cv::Mat input_,prev_input_,segment_,prev_segment_,prev_mask_;
 
-	std::vector<cv::Mat> prev_masks_,masks_;
+	std::vector<cv::Mat> masks_,new_masks_;
 
 protected:
 
@@ -262,6 +262,8 @@ public:
 	bool matchGraphs(local_graph base_graph,local_graph match_graph,int index);
 
 	void projectVertex3DBASE(graph::Vertex_ros point,pcl::PointCloud<pcl::PointXYZ> &ray);
+
+	void updateMaskList(std::vector<cv::Mat>& masks,std::vector<local_graph> graph_list);
 
 };
 
