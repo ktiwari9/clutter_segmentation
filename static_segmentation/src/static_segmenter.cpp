@@ -364,6 +364,8 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
   ROS_INFO_STREAM("Sanity Check:\n number of graphs registered :"<<graph_list_.size()
                   <<" Number of centroids registered: "<<graph_centroid_.size());
   // Convert to output message type
+
+  return_masks.clear();
   for(int i = 0; i < (int)graph_list_.size();i++)
   {
     StaticSeg single_seg;

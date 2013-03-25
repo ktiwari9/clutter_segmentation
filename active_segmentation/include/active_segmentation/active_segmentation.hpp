@@ -187,7 +187,7 @@ protected:
 	std::vector<static_segmentation::StaticSeg> graph_msg_;
 
 	bool tracking_,got_table_;
-	int print_tag_;
+	int print_tag_,global_counter_;
 
 	pcl::ModelCoefficients::Ptr table_coefficients_;
 

@@ -44,7 +44,7 @@
 #include "pcl_ros/transforms.h"
 #include <pcl/filters/extract_indices.h>
 
-#define DEBUG true
+#define DEBUG false
 
 namespace active_segmentation {
 
@@ -82,6 +82,7 @@ active_segment::active_segment(ros::NodeHandle & nh):
   of_iter_ = 5;
   poly_pixel_ = 6;
   poly_sigma_ = 1.25;
+  global_counter_ = 0;
   push_hand_pose_.header.frame_id = "/BASE";
 
 }
@@ -577,11 +578,19 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 	// Looping through edges
 	ROS_INFO("Matching Graphs");
 
-	if(DEBUG){
+	if(!DEBUG){
 		cv::imwrite("/tmp/new_color.jpg",input_);
 		cv::imwrite("/tmp/old_color.jpg",prev_input_);
 		cv::imwrite("/tmp/old_segment.jpg",prev_segment_);
 		cv::imwrite("/tmp/new_segment_color.jpg",segment_);
+
+		std::stringstream ss_1,ss_2;
+		ss_1<<"/tmp/input_mask_"<<global_counter_<<".jpg";
+		ss_2<<"/tmp/prev_mask_"<<global_counter_<<".jpg";
+		cv::imwrite(ss_1.str().c_str(),new_masks_[index]);
+		cv::imwrite(ss_2.str().c_str(),masks_[0]);
+
+		global_counter_++;
 	}
 
 	std::vector<int> visited_index;
@@ -638,18 +647,20 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 		//}
 	}
 
-	drawCorrespondence(prev_input_,input_,masks_[0],new_masks_[index],correspondences);
-	ROS_INFO("Visited vertices %d \n match score %d vertices %d",
-			visited_index.size(),match_score,(int)base_graph.graph_.number_of_vertices_/2);
+	// TODO: This ia very disgusting hack but let's see if it works
+	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
+			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
 	// If the number of edges matched are half the number of vertices, because edges are unique
-	if(match_score >= (int)base_graph.graph_.number_of_vertices_/2)
+	if(match_score >= std::floor((double)base_graph.graph_.number_of_vertices_/2) - 1)
 	{
-		//drawCorrespondence(prev_input_,input_,prev_masks_[0],masks_[index],correspondences);
+		drawCorrespondence(prev_input_,input_,masks_[0],new_masks_[index],correspondences);
 		return true;
 	}
 
-	else
+	else{
+		ROS_INFO(" No Correspondences ");
 		return false;
+	}
 }
 
 void active_segment::buildMaskList(std::vector<cv::Mat>& masks, std::vector<local_graph> graph_list,
@@ -657,12 +668,14 @@ void active_segment::buildMaskList(std::vector<cv::Mat>& masks, std::vector<loca
 
 	masks.clear();
 	ROS_DEBUG("image_list %d mask_list %d",images.size(),masks.size());
-
+	masks.resize(graph_list.size());
+    int i=0;
 	for(std::vector<local_graph>::iterator iter = graph_list.begin();iter != graph_list.end(); ++iter){
-		cv::Mat current_image = returnCVImage(images[(int)(iter->index_)]);
-		masks.push_back(current_image);
+		//cv::Mat current_image = returnCVImage(images[(int)(iter->index_)]);
+		//masks.push_back(current_image);
+		masks[i] = returnCVImage(images[(int)(iter->index_)]); i++;
 	}
-	ROS_DEBUG("Confirmation call graph size %d image_list size %d",graph_list.size(), masks.size());
+	ROS_DEBUG("Confirmation call graph size %d image_list size %d",graph_list.size(), images.size());
 
 }
 
