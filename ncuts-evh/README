@@ -1,0 +1,13 @@
+ncuts: a port of Jianbo Shi's implementation of Normalized Cuts, from the paper
+
+J. Shi, J. Malik, "Normalized Cuts and Image Segmentation", PAMI 2000
+
+, to c++ from MATLAB by Evan Herbst, eherbst@cs.washington.edu. This code is the clustering method, nothing specific to images.
+
+In addition to whatever licenses Shi has on his code, please include a statement that I wrote this code.
+
+For Shi's code see http://www.cis.upenn.edu/~jshi/software/.
+
+
+I installed boost, arpack and eigen from the ubuntu package repositories. I installed arpack++ from source so I could edit it to work with gcc-4.6. I've included the hacked copy in this distribution.
+
