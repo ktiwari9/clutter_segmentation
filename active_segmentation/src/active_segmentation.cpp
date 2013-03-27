@@ -568,6 +568,8 @@ void active_segment::drawCorrespondence(cv::Mat input_l,cv::Mat input_r,cv::Mat 
 		cv::line(imgResult,center_1,center_2,cv::Scalar(0,128,0),1,0);
 	}
 
+	if(!DEBUG)
+		cv::imwrite("/tmp/correspondence.jpg",imgResult);
 	cv::imshow(correspondence_thread_.c_str(), imgResult);
 }
 
