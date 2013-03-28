@@ -72,8 +72,16 @@
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
-// Arm trajectory client
+// Arm trajectory client and controller stuff
 #include <arm_controller_interface/joint_trajectory_client.h>
+#include <arm_manipulation_tools/arm_interface.h>
+#include <usc_utilities/rviz_marker_manager.h>
+#include <arm_motion_primitives/poke.h>
+#include <arm_world_state/world_state.h>
+
+using namespace arm_manipulation_tools;
+using namespace arm_motion_primitives;
+using namespace arm_world_state;
 
 namespace active_segmentation {
 
@@ -158,6 +166,12 @@ public:
 
 	std::vector<cv::Mat> masks_,new_masks_;
 
+	ArmInterface manipulation_object_;
+
+	Poke poke_object_;
+
+	WorldState world_state_;
+
 protected:
 
 	ros::NodeHandle nh_;
@@ -165,6 +179,8 @@ protected:
 	ros::Publisher pose_publisher_;
 
 	graph::ros_graph cluster_graph_;
+
+	usc_utilities::RvizMarkerManager marker_;
 
 	int number_of_vertices_;
 
@@ -229,10 +245,14 @@ public:
 
 	void controlGraph();
 
-	void TrackandUpdate();
+	void trackAndUpdate();
 
 	void getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
 			geometry_msgs::Point &push_loc);
+
+	bool pushNode(geometry_msgs::PoseStamped pose);
+
+	void getPushDirection(const geometry_msgs::Pose &start_direction,geometry_msgs::Pose &push_dir);
 
 	cv::MatND computePatchFeature(cv::Mat input, cv::Mat mask);
 

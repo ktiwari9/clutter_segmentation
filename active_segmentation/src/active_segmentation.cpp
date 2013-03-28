@@ -48,7 +48,8 @@
 
 namespace active_segmentation {
 
-active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph)
+active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph):
+		marker_("/rviz_segment"),manipulation_object_(2),poke_object_(),world_state_()
 	{//graph_iter_(Container(graph_list_)){
 
   segment_ = segment;
@@ -58,7 +59,8 @@ active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGr
 
 active_segment::active_segment(ros::NodeHandle & nh):
 			    nh_(nh),nh_priv_("~"),//graph_iter_(Container(graph_list_)),
-			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true),queue_empty_(false){
+			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true),queue_empty_(false),
+			    marker_("/rviz_segment"),manipulation_object_(2),poke_object_(),world_state_(){
 
   nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
   nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
@@ -321,7 +323,7 @@ void active_segment::updateGraphList(cv::Mat flow){
 	}
 }
 
-void active_segment::TrackandUpdate(){
+void active_segment::trackAndUpdate(){
 
   // track a set of points using openCV
 	cv::Mat flow;
@@ -371,13 +373,14 @@ void active_segment::getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
 		geometry_msgs::Point &push_loc){
 
     float t;
-    t = -(table_coefficients_->values[3] + table_coefficients_->values[0]*push_ray.points[0].x +
+    t = (table_coefficients_->values[3] + table_coefficients_->values[0]*push_ray.points[0].x +
     		table_coefficients_->values[1]*push_ray.points[0].y+ table_coefficients_->values[2]*push_ray.points[0].z);
     t /= (table_coefficients_->values[0]*push_ray.points[1].x +
     		table_coefficients_->values[1]*push_ray.points[1].y+ table_coefficients_->values[2]*push_ray.points[1].z);
 
     pcl::PointXYZ push_point;
-    push_loc.x = t*push_ray.points[1].x;push_loc.y = t*push_ray.points[1].y;push_loc.z = t*push_ray.points[1].z;
+    push_loc.x = t*push_ray.points[1].x;push_loc.y = t*push_ray.points[1].y; push_loc.z = t*push_ray.points[1].z;
+
 }
 
 void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
@@ -395,12 +398,84 @@ void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
 
 	ROS_DEBUG("Creating Ray in base frame");
 	ROS_VERIFY(listener_.waitForTransform("/BASE",cam_info_.header.frame_id,
-			cam_info_.header.stamp, ros::Duration(5.0)));
+			ros::Time::now(), ros::Duration(5.0)));
 
 	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
 			ray, listener_));
 	ROS_DEBUG("Converting cloud complete");
 
+}
+
+void active_segment::getPushDirection(const geometry_msgs::Pose &start_direction, geometry_msgs::Pose &push_dir){
+
+// TODO:think of a smart way to get the push direction
+
+}
+
+bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose){
+
+	tf::Pose push_tf;
+	tf::poseMsgToTF(push_pose.pose,push_tf);
+
+	manipulation_object_.goHome(); // Just to go home between runs
+
+	poke_object_.initialize(2);
+	// Moving to desired initial pose
+    world_state_.createTable();
+
+
+	geometry_msgs::Pose poke_pose;
+	poke_pose.position = push_pose.pose.position;
+	poke_pose.position.z = push_pose.pose.position.z - 0.15;
+	poke_pose.orientation = push_pose.pose.orientation;
+
+	if(DEBUG){
+		if(manipulation_object_.planAndMoveTo(push_tf)){
+
+			// Remove comment when running on robot
+			geometry_msgs::Pose poke_position;
+			bool poked, is_pose_relative;
+			if(poke_object_.run(poke_pose,3.0,3.0,poke_position,poked,is_pose_relative))
+			{
+				geometry_msgs::Pose push_position;
+				//TODO: Do something smarter
+				push_position = poke_position;
+				push_position.position.y += 0.05; // Push it 5cm away from the body
+				bool success;
+				manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+				success = manipulation_object_.cartesian_.moveTo(push_position,3.0);
+
+				if(success)
+					return manipulation_object_.goHome();
+				else
+					return false;
+			}
+			else
+				return false;
+		}
+		else
+			return false;
+	}
+	else{
+
+		if(manipulation_object_.planAndMoveTo(push_tf)){
+
+			geometry_msgs::Pose push_position;
+			//TODO: Do something smarter
+			push_position = push_pose.pose;
+			push_position.position.y += 0.05; // Push it 5cm away from the body
+			bool success;
+			manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			success = manipulation_object_.cartesian_.moveTo(push_position,3.0);
+
+			if(success)
+				return manipulation_object_.goHome();
+			else
+				return false;
+		}
+		else
+			return false;
+	}
 }
 
 
@@ -418,14 +493,41 @@ void active_segment::controlGraph(){
 		ROS_DEBUG("Pushing max vertex");
 		pcl::PointCloud<pcl::PointXYZ> push_3d_pcl;
 		projectVertex3DBASE(graph_iter_[0].graph_.findMaxVertex(),push_3d_pcl);
+//		geometry_msgs::PoseStamped view_pose;
 		ROS_INFO_STREAM("The 3D pushing location in BASE FRAME IS is "<<push_3d_pcl.points[0]<<" "<<
 				push_3d_pcl.points[1]);
 		getPushPoint(push_3d_pcl,push_loc_);
+
+//		view_pose.header.frame_id = "/BASE";
+//		view_pose.header.stamp = ros::Time::now();
+//		view_pose.pose.position.x = push_loc_.x;
+//		view_pose.pose.position.y = push_loc_.y;
+//		view_pose.pose.position.z = push_loc_.z;
+//		view_pose.pose.orientation.w = 1;
+//		view_pose.pose.orientation.z = 0;
+//		view_pose.pose.orientation.y = 0;
+//		view_pose.pose.orientation.x = 0;
+
+//		ROS_INFO_STREAM("The 3D pushing location in BASE FRAME IS is "<<push_loc_);
+//
+//		marker_.publishPose(view_pose,"active_segmentation",0.2);
+
+
 		push_hand_pose_.header.stamp = ros::Time::now();
 		push_hand_pose_.pose.position = push_loc_;
 		// TODO: get orientation from recorded hand pose
+		push_hand_pose_.pose.orientation.w = 1;
+		push_hand_pose_.pose.orientation.z = 0;
+		push_hand_pose_.pose.orientation.y = 0;
+		push_hand_pose_.pose.orientation.x = 0;
+		marker_.publishPose(push_hand_pose_,"active_segmentation",0.2);
 		pose_publisher_.publish(push_hand_pose_);
 		ROS_INFO("Published push hand pose location");
+		if(pushNode(push_hand_pose_))
+			ROS_INFO("Node push success");
+		else
+			ROS_WARN("Node push Failed");
+
 	}
 }
 
@@ -822,9 +924,12 @@ bool active_segment::convertToGraph(){
 int run_active_segmentation(int argc, char **argv){
 
 	ros::init(argc, argv, "active_segment");
+	arm_controller_interface::init();
 	ros::NodeHandle nh;
+	ros::AsyncSpinner mts(0);
 	active_segmentation::active_segment ss(nh);
 
+	mts.start();
 	ss.initGraphHelpers();
 	while(nh.ok()){
 
@@ -849,15 +954,13 @@ int run_active_segmentation(int argc, char **argv){
 
 		// This needs to happen in a separate thread
 		if(!ss.first_call_)
-			ss.TrackandUpdate();
+			ss.trackAndUpdate();
 		else
 			ss.first_call_ = false;
 
 		// Updating the images and masks
 		ss.prev_input_ = ss.input_;
 		ss.prev_segment_= ss.segment_;
-
-		ros::spinOnce();
 	}
 
 	return 0;
