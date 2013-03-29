@@ -417,6 +417,8 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose){
 	tf::Pose push_tf;
 	tf::poseMsgToTF(push_pose.pose,push_tf);
 
+	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
+
 	manipulation_object_.goHome(); // Just to go home between runs
 
 	poke_object_.initialize(2);
@@ -426,21 +428,23 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose){
 
 	geometry_msgs::Pose poke_pose;
 	poke_pose.position = push_pose.pose.position;
-	poke_pose.position.z = push_pose.pose.position.z - 0.15;
+	poke_pose.position.z = push_pose.pose.position.z - 0.10;
 	poke_pose.orientation = push_pose.pose.orientation;
 
-	if(DEBUG){
+	if(!DEBUG){
 		if(manipulation_object_.planAndMoveTo(push_tf)){
 
 			// Remove comment when running on robot
 			geometry_msgs::Pose poke_position;
 			bool poked, is_pose_relative;
-			if(poke_object_.run(poke_pose,3.0,3.0,poke_position,poked,is_pose_relative))
+			manipulation_object_.ft_sensor_.calibrate();
+			manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			if(poke_object_.run(poke_pose,5.0,3.0,poke_position,poked,is_pose_relative))
 			{
 				geometry_msgs::Pose push_position;
 				//TODO: Do something smarter
 				push_position = poke_position;
-				push_position.position.y += 0.05; // Push it 5cm away from the body
+				push_position.position.y += 0.15; // Push it 5cm away from the body
 				bool success;
 				manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 				success = manipulation_object_.cartesian_.moveTo(push_position,3.0);
