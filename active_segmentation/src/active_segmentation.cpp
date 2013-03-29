@@ -338,7 +338,7 @@ void active_segment::trackAndUpdate(){
 	cv::calcOpticalFlowFarneback(prev_gray,current_gray,flow,pyramid_scale_,levels_,win_size_,
 			of_iter_,poly_pixel_,poly_sigma_,1);
 
-	if(DEBUG){
+	if(!DEBUG){
 		cv::Mat xy[2];
 		cv::split(flow,xy);
 
@@ -454,7 +454,7 @@ double active_segment::getPushDirection(const geometry_msgs::Pose &start_directi
 	conversions::convert(start_direction,start_direction_tf);
 
 	tf::Vector3 local_z_axis = start_direction_tf.getBasis().inverse()*z_axis;
-	tf::Matrix3x3 m(tf::Quaternion(local_z_axis,theta));
+	tf::Matrix3x3 m(tf::Quaternion(local_z_axis,-theta));
 	tf::Transform pose_transform = tf::Transform::getIdentity();
 	pose_transform.setBasis(m);
 
