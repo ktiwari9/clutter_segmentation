@@ -43,6 +43,8 @@
 // PCL includes
 #include "pcl_ros/transforms.h"
 #include <pcl/filters/extract_indices.h>
+#include <conversions/ros_to_tf.h>
+#include <conversions/tf_to_ros.h>
 
 #define DEBUG false
 
@@ -406,17 +408,71 @@ void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
 
 }
 
-void active_segment::getPushDirection(const geometry_msgs::Pose &start_direction, geometry_msgs::Pose &push_dir){
+double active_segment::getPushDirection(const geometry_msgs::Pose &start_direction, geometry_msgs::Pose &push_dir){
 
-// TODO:think of a smart way to get the push direction
+	// TODO:think of a smart way to get the push direction
+	std::vector<local_graph>::iterator node = graph_iter_.begin();
+
+	geometry_msgs::Point start_point = start_direction.position;
+	geometry_msgs::Point mean_point;
+	mean_point.x = 0;mean_point.y = 0;mean_point.z = 0;
+	int count = 0;
+
+	for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
+			iter_!=node->graph_.graph_.end(); ++iter_){
+
+		pcl::PointCloud<pcl::PointXYZ> ray_1;
+		projectVertex3DBASE(iter_->edge_.first,ray_1);
+		geometry_msgs::Point push_loc_1;
+		getPushPoint(ray_1,push_loc_1);
+		mean_point.x += push_loc_1.x;
+		mean_point.y += push_loc_1.y;
+		mean_point.z += push_loc_1.z;
+
+
+		pcl::PointCloud<pcl::PointXYZ> ray_2;
+		projectVertex3DBASE(iter_->edge_.second,ray_2);
+		geometry_msgs::Point push_loc_2;
+		getPushPoint(ray_2,push_loc_2);
+		mean_point.x += push_loc_2.x;
+		mean_point.y += push_loc_2.y;
+		mean_point.z += push_loc_2.z;
+
+		count++;
+	}
+
+	mean_point.x /= (2*count); mean_point.y /= (2*count); mean_point.z /= (2*count);
+	// converting mean point into mean vector
+	mean_point.x -= start_direction.position.x; mean_point.y -= start_direction.position.y; mean_point.z -= start_direction.position.z;
+
+	// Computing the yaw
+	double theta = acos(mean_point.y/sqrt((mean_point.x*mean_point.x)
+			+ (mean_point.y*mean_point.y)+ (mean_point.z*mean_point.z)));
+
+	tf::Vector3 z_axis(0,0,1);
+	tf::Pose start_direction_tf;
+	conversions::convert(start_direction,start_direction_tf);
+
+	tf::Vector3 local_z_axis = start_direction_tf.getBasis().inverse()*z_axis;
+	tf::Matrix3x3 m(tf::Quaternion(local_z_axis,theta));
+	tf::Transform pose_transform = tf::Transform::getIdentity();
+	pose_transform.setBasis(m);
+
+	tf::Pose new_pose = start_direction_tf*pose_transform;
+	conversions::convert(new_pose,push_dir);
+
+	return theta;
+
 
 }
 
-bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose){
+bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir){
 
 	tf::Pose push_tf;
 	tf::poseMsgToTF(push_pose.pose,push_tf);
 
+	// Move to a position that is 10cm behind and 10cm above the desired location
+	push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.10);
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
 	manipulation_object_.goHome(); // Just to go home between runs
@@ -442,9 +498,11 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose){
 			if(poke_object_.run(poke_pose,5.0,3.0,poke_position,poked,is_pose_relative))
 			{
 				geometry_msgs::Pose push_position;
-				//TODO: Do something smarter
 				push_position = poke_position;
-				push_position.position.y += 0.15; // Push it 5cm away from the body
+				//y dir vector is [sin(t),cos(t),0]
+				push_position.position.x += 0.15*(sin(y_dir)); // Push it 5cm away from the body
+				push_position.position.y += 0.15*(cos(y_dir)); // Push it 5cm away from the body
+
 				bool success;
 				manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 				success = manipulation_object_.cartesian_.moveTo(push_position,3.0);
@@ -516,7 +574,6 @@ void active_segment::controlGraph(){
 //
 //		marker_.publishPose(view_pose,"active_segmentation",0.2);
 
-
 		push_hand_pose_.header.stamp = ros::Time::now();
 		push_hand_pose_.pose.position = push_loc_;
 		// TODO: get orientation from recorded hand pose
@@ -524,10 +581,15 @@ void active_segment::controlGraph(){
 		push_hand_pose_.pose.orientation.x = 0.560;
 		push_hand_pose_.pose.orientation.y = 0.556;
 		push_hand_pose_.pose.orientation.z = 0.452;
+
+		// Getting the correct push direction pose from the graph structure
+		// And pushing y axis
+		double y_dir = getPushDirection(push_hand_pose_.pose,push_hand_pose_.pose);
+
 		marker_.publishPose(push_hand_pose_,"active_segmentation",0.2);
 		pose_publisher_.publish(push_hand_pose_);
 		ROS_INFO("Published push hand pose location");
-		if(pushNode(push_hand_pose_))
+		if(pushNode(push_hand_pose_,y_dir))
 			ROS_INFO("Node push success");
 		else
 			ROS_WARN("Node push Failed");

@@ -250,9 +250,9 @@ public:
 	void getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
 			geometry_msgs::Point &push_loc);
 
-	bool pushNode(geometry_msgs::PoseStamped pose);
+	bool pushNode(geometry_msgs::PoseStamped pose, double y_dir);
 
-	void getPushDirection(const geometry_msgs::Pose &start_direction,geometry_msgs::Pose &push_dir);
+	double getPushDirection(const geometry_msgs::Pose &start_direction,geometry_msgs::Pose &push_dir);
 
 	cv::MatND computePatchFeature(cv::Mat input, cv::Mat mask);
 

@@ -29,7 +29,7 @@
   <depend package="arm_manipulation_tools"/>
   <depend package="arm_motion_primitives"/>
   <depend package="arm_world_state"/>
-  
+  <depend package="conversions"/>
   
    <export>
     <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
