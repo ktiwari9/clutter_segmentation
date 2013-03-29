@@ -520,10 +520,10 @@ void active_segment::controlGraph(){
 		push_hand_pose_.header.stamp = ros::Time::now();
 		push_hand_pose_.pose.position = push_loc_;
 		// TODO: get orientation from recorded hand pose
-		push_hand_pose_.pose.orientation.w = 1;
-		push_hand_pose_.pose.orientation.z = 0;
-		push_hand_pose_.pose.orientation.y = 0;
-		push_hand_pose_.pose.orientation.x = 0;
+		push_hand_pose_.pose.orientation.w = -0.416;
+		push_hand_pose_.pose.orientation.x = 0.560;
+		push_hand_pose_.pose.orientation.y = 0.556;
+		push_hand_pose_.pose.orientation.z = 0.452;
 		marker_.publishPose(push_hand_pose_,"active_segmentation",0.2);
 		pose_publisher_.publish(push_hand_pose_);
 		ROS_INFO("Published push hand pose location");
