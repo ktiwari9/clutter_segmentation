@@ -46,6 +46,10 @@
 #include <conversions/ros_to_tf.h>
 #include <conversions/tf_to_ros.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #define DEBUG false
 
 namespace active_segmentation {
@@ -769,14 +773,17 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 
 	int match_score = 0;
 
-	for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();
-			iter_!=base_graph.graph_.graph_.end(); ++iter_){
+	// Parallelizing the edge matching
+#pragma omp parallel
+	{
+		for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();
+				iter_!=base_graph.graph_.graph_.end(); ++iter_){
 
-		graph::Edge_ros edge = *iter_;
+			graph::Edge_ros edge = *iter_;
 
-		// Check if edge has been visited
-//		if(std::find(visited_index.begin(), visited_index.end(), edge.edge_.first.index_) == visited_index.end()
-//				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
+			// Check if edge has been visited
+			//		if(std::find(visited_index.begin(), visited_index.end(), edge.edge_.first.index_) == visited_index.end()
+			//				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
 
 			ROS_DEBUG("Entered clause");
 			visited_index.push_back(edge.edge_.first.index_);
@@ -814,8 +821,10 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 
 			if(matched)
 				match_score++;
-		//}
+			//}
+		}
 	}
+
 
 	// TODO: This ia very disgusting hack but let's see if it works
 	ROS_INFO("Visited vertices %d \n match score %d vertices %f",

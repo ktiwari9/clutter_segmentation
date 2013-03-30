@@ -17,6 +17,15 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 set(GRAPH_DIR ${PROJECT_SOURCE_DIR}/../graph_module)
 
+
+FIND_PACKAGE( OpenMP QUIET)
+if(OPENMP_FOUND)
+  message("Found OPENMP.")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 #uncomment if you have defined messages
 #rosbuild_genmsg()
 #uncomment if you have defined services
