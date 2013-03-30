@@ -45,6 +45,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <conversions/ros_to_tf.h>
 #include <conversions/tf_to_ros.h>
+#include <boost/timer.hpp>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -774,6 +775,7 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 	int match_score = 0;
 
 	// Parallelizing the edge matching
+	  boost::timer match_timer; // timer to measure graph matching time
 #pragma omp parallel
 	{
 		for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();
@@ -824,6 +826,8 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 			//}
 		}
 	}
+   double match_time = match_timer.elapsed();
+   ROS_INFO_STREAM("Graph Matching took "<<match_time<<" secs");
 
 
 	// TODO: This ia very disgusting hack but let's see if it works
