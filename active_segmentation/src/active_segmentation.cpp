@@ -843,7 +843,7 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 
 	// TODO: This ia very disgusting hack but let's see if it works
 	ROS_INFO_STREAM("Match Score is "<<std::accumulate(match_score.begin(), match_score.end(), 0));
-	exit(0);
+	//exit(0);
 	//	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
 	//			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
 	// If the number of edges matched are half the number of vertices, because edges are unique
