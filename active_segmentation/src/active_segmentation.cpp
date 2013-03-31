@@ -45,7 +45,8 @@
 #include <pcl/filters/extract_indices.h>
 #include <conversions/ros_to_tf.h>
 #include <conversions/tf_to_ros.h>
-#include <boost/timer.hpp>
+#include <time.h>
+#include <numeric>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -768,18 +769,23 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 		global_counter_++;
 	}
 
-	std::vector<int> visited_index;
+	//std::vector<int> visited_index;
 
 	std::vector< std::pair< std::pair<float,float> , std::pair<float,float> > > correspondences;
 
-	int match_score = 0;
-
+	std::vector<int> match_score;
+	//unsigned int graph_size = base_graph.graph_.graph_.size();
+	int iteration = 0;
+	match_score.resize(base_graph.graph_.graph_.size());
 	// Parallelizing the edge matching
-	  boost::timer match_timer; // timer to measure graph matching time
-#pragma omp parallel
-	{
-		for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();
-				iter_!=base_graph.graph_.graph_.end(); ++iter_){
+	 // timer to measure graph matching time
+	clock_t start, end;
+	start = clock();
+
+#pragma omp parallel for
+	//{
+		for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();iter_!=base_graph.graph_.graph_.end();
+				++iter_,iteration++){
 
 			graph::Edge_ros edge = *iter_;
 
@@ -788,12 +794,13 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 			//				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
 
 			ROS_DEBUG("Entered clause");
-			visited_index.push_back(edge.edge_.first.index_);
-			visited_index.push_back(edge.edge_.second.index_);
+			//visited_index.push_back(edge.edge_.first.index_);
+			//visited_index.push_back(edge.edge_.second.index_);
 
 			std::pair<int,int> org_edge = make_pair(edge.edge_.first.index_,edge.edge_.second.index_);
 
 			bool matched = false;
+
 			for(graph::ros_graph::IGraph_it iter_new_= match_graph.graph_.graph_.begin();
 					iter_new_!=match_graph.graph_.graph_.end(); ++iter_new_){
 
@@ -817,24 +824,25 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 						correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
 								,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
 					}
-
+					break; // If an edge is matched break out of the loop
 				}
 			}
 
 			if(matched)
-				match_score++;
-			//}
+				match_score[iteration] = 1;
 		}
-	}
-   double match_time = match_timer.elapsed();
-   ROS_INFO_STREAM("Graph Matching took "<<match_time<<" secs");
+	//}//std::distance(base_graph.graph_.graph_.begin(), iter_) takes more time than counting
+   end = clock();
+   double diff = (double(end-start)/CLOCKS_PER_SEC);
+   ROS_INFO_STREAM("Graph Matching took "<<diff<<" secs");
 
 
 	// TODO: This ia very disgusting hack but let's see if it works
-	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
-			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
+    ROS_INFO_STREAM("Match Score is "<<std::accumulate(match_score.begin(), match_score.end(), 0));
+//	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
+//			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
 	// If the number of edges matched are half the number of vertices, because edges are unique
-	if(match_score >= std::floor((double)base_graph.graph_.number_of_vertices_/2) - 1)
+	if(std::accumulate(match_score.begin(), match_score.end(), 0) >= std::floor((double)base_graph.graph_.number_of_vertices_/2) - 1)
 	{
 		drawCorrespondence(prev_input_,input_,masks_[0],new_masks_[index],correspondences);
 		return true;
