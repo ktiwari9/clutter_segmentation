@@ -39,6 +39,7 @@
 
 #include "graph_module/EGraph.h"
 #include "active_segmentation/active_segmentation.hpp"
+#include "active_segmentation/macros_time.hpp"
 #include "tabletop_segmenter/TabletopSegmentation.h"
 // PCL includes
 #include "pcl_ros/transforms.h"
@@ -775,72 +776,76 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 
 	std::vector<int> match_score;
 	//unsigned int graph_size = base_graph.graph_.graph_.size();
-	int iteration = 0;
+	//int iteration = 0;
 	match_score.resize(base_graph.graph_.graph_.size());
 	// Parallelizing the edge matching
-	 // timer to measure graph matching time
-	clock_t start, end;
-	start = clock();
+	// timer to measure graph matching time
+	INIT_PROFILING
+
+	std::vector<graph::ros_graph::IGraph_it > base_graph_iter;
+
+	for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();iter_!=base_graph.graph_.graph_.end();
+			++iter_)
+		base_graph_iter.push_back(iter_);
+
 
 #pragma omp parallel for
-	//{
-		for(graph::ros_graph::IGraph_it iter_= base_graph.graph_.graph_.begin();iter_!=base_graph.graph_.graph_.end();
-				++iter_,iteration++){
+	for(int iteration= 0; iteration< base_graph_iter.size(); iteration++){
 
-			graph::Edge_ros edge = *iter_;
+		graph::Edge_ros edge = *base_graph_iter[iteration]; //*iter_;
 
-			// Check if edge has been visited
-			//		if(std::find(visited_index.begin(), visited_index.end(), edge.edge_.first.index_) == visited_index.end()
-			//				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
+		// Check if edge has been visited
+		//		if(std::find(visited_index.begin(), visited_index.end(), edge.edge_.first.index_) == visited_index.end()
+		//				&& std::find(visited_index.begin(), visited_index.end(), edge.edge_.second.index_)== visited_index.end()){
 
-			ROS_DEBUG("Entered clause");
-			//visited_index.push_back(edge.edge_.first.index_);
-			//visited_index.push_back(edge.edge_.second.index_);
+		ROS_DEBUG("Entered clause");
+		//visited_index.push_back(edge.edge_.first.index_);
+		//visited_index.push_back(edge.edge_.second.index_);
 
-			std::pair<int,int> org_edge = make_pair(edge.edge_.first.index_,edge.edge_.second.index_);
+		std::pair<int,int> org_edge = make_pair(edge.edge_.first.index_,edge.edge_.second.index_);
 
-			bool matched = false;
+		bool matched = false;
 
-			for(graph::ros_graph::IGraph_it iter_new_= match_graph.graph_.graph_.begin();
-					iter_new_!=match_graph.graph_.graph_.end(); ++iter_new_){
+		for(graph::ros_graph::IGraph_it iter_new_= match_graph.graph_.graph_.begin();
+				iter_new_!=match_graph.graph_.graph_.end(); ++iter_new_){
 
-				graph::Edge_ros edge_test = *iter_new_;
-				std::pair<int,int> new_edge = make_pair(edge_test.edge_.first.index_,edge_test.edge_.second.index_);
+			graph::Edge_ros edge_test = *iter_new_;
+			std::pair<int,int> new_edge = make_pair(edge_test.edge_.first.index_,edge_test.edge_.second.index_);
 
-				bool inverted;
-				if(matchEdges(org_edge,new_edge,index,inverted)){
-					matched = true;
-					if(inverted)
-					{
-						correspondences.push_back(make_pair(make_pair(edge.edge_.first.x_,edge.edge_.first.y_)
-								,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
-						correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
-								,make_pair(edge_test.edge_.first.x_,edge_test.edge_.first.y_)));
-					}
-					else
-					{
-						correspondences.push_back(make_pair(make_pair(edge.edge_.first.x_,edge.edge_.first.y_)
-								,make_pair(edge_test.edge_.first.x_,edge_test.edge_.first.y_)));
-						correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
-								,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
-					}
-					break; // If an edge is matched break out of the loop
+			bool inverted;
+			if(matchEdges(org_edge,new_edge,index,inverted)){
+				matched = true;
+				if(inverted)
+				{
+					correspondences.push_back(make_pair(make_pair(edge.edge_.first.x_,edge.edge_.first.y_)
+							,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
+					correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
+							,make_pair(edge_test.edge_.first.x_,edge_test.edge_.first.y_)));
 				}
+				else
+				{
+					correspondences.push_back(make_pair(make_pair(edge.edge_.first.x_,edge.edge_.first.y_)
+							,make_pair(edge_test.edge_.first.x_,edge_test.edge_.first.y_)));
+					correspondences.push_back(make_pair(make_pair(edge.edge_.second.x_,edge.edge_.second.y_)
+							,make_pair(edge_test.edge_.second.x_,edge_test.edge_.second.y_)));
+				}
+				break; // If an edge is matched break out of the loop
 			}
-
-			if(matched)
-				match_score[iteration] = 1;
 		}
-	//}//std::distance(base_graph.graph_.graph_.begin(), iter_) takes more time than counting
-   end = clock();
-   double diff = (double(end-start)/CLOCKS_PER_SEC);
-   ROS_INFO_STREAM("Graph Matching took "<<diff<<" secs");
+
+		if(matched)
+			match_score[iteration] = 1;
+	}
+
+
+	MEASURE("graph matching")
 
 
 	// TODO: This ia very disgusting hack but let's see if it works
-    ROS_INFO_STREAM("Match Score is "<<std::accumulate(match_score.begin(), match_score.end(), 0));
-//	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
-//			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
+	ROS_INFO_STREAM("Match Score is "<<std::accumulate(match_score.begin(), match_score.end(), 0));
+	exit(0);
+	//	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
+	//			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
 	// If the number of edges matched are half the number of vertices, because edges are unique
 	if(std::accumulate(match_score.begin(), match_score.end(), 0) >= std::floor((double)base_graph.graph_.number_of_vertices_/2) - 1)
 	{
