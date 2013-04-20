@@ -58,7 +58,8 @@
 namespace active_segmentation {
 
 active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGraph graph):
-		marker_("/rviz_segment"),manipulation_object_(2),poke_object_(),world_state_()
+		marker_("/rviz_segment"),manipulation_object_l_(2),manipulation_object_r_(1),
+		poke_object_(),world_state_()
 	{//graph_iter_(Container(graph_list_)){
 
   segment_ = segment;
@@ -69,7 +70,8 @@ active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGr
 active_segment::active_segment(ros::NodeHandle & nh):
 			    nh_(nh),nh_priv_("~"),//graph_iter_(Container(graph_list_)),
 			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true),queue_empty_(false),
-			    marker_("/rviz_segment"),manipulation_object_(2),poke_object_(),world_state_(){
+			    marker_("/rviz_segment"),manipulation_object_l_(2),manipulation_object_r_(1),
+			    poke_object_(),world_state_(){
 
   nh_priv_.param<std::string>("static_service",static_service_,std::string("/static_segment_srv"));
   nh_priv_.param<std::string>("window_thread",window_thread_,std::string("Display window"));
@@ -473,18 +475,225 @@ double active_segment::getPushDirection(const geometry_msgs::Pose &start_directi
 
 }
 
-bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir){
+bool active_segment::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterface& manipulation_object){
+
+	ROS_INFO("Converting pose to TF");
+	tf::Pose push_tf;
+	tf::poseMsgToTF(push_pose.pose,push_tf);
+	ROS_INFO("Converting pose complete");
+
+	// Move to a position that is 10cm above the grasp point
+	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
+
+	// Moving to desired initial pose
+	poke_object_.initialize(manipulation_object.getEndEffectorId());
+	world_state_.createTable();
+	ROS_INFO("Creating table complete");
+
+	// opening hand
+	if(manipulation_object.openFingersAndVerify())
+	{
+		geometry_msgs::Pose poke_pose;
+		poke_pose.position = push_pose.pose.position;
+		poke_pose.position.z = push_pose.pose.position.z - 0.10;
+		poke_pose.orientation = push_pose.pose.orientation; // This would have to be 1,0,0,0
+		ROS_INFO("Fingers opened");
+
+
+		if(!DEBUG){
+			if(manipulation_object.planAndMoveTo(push_tf)){
+
+				// Move to poke position
+				geometry_msgs::Pose poke_position;
+				bool poked, is_pose_relative;
+				ROS_INFO("Planning and moved to positions");
+				manipulation_object.ft_sensor_.calibrate();
+				manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+				ROS_INFO("Switching controller stack complete");
+				if(poke_object_.run(poke_pose,5.0,3.0,poke_position,poked,is_pose_relative))
+				{
+					geometry_msgs::Pose pick_position;
+					pick_position = poke_position;
+					pick_position.position.z += 0.05;//Move  5cm above pick point
+					ROS_INFO("poke Successful");
+					bool success;
+					manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+					success = manipulation_object.cartesian_.moveTo(pick_position,3.0);
+					ROS_INFO("Moving Cartesian");
+					if(success){
+
+						// manipulation object closing Hand
+						double mypos[] = {0,2.4,2.4,2.4};
+						std::vector<double> hand_joint_positions (mypos, mypos + sizeof(mypos) / sizeof(double) );
+						double myforces[] = {-0.5,-0.5,-0.5};
+						std::vector<double> hand_joint_forces (myforces, myforces + sizeof(myforces) / sizeof(double) );
+						success = manipulation_object.hand_joints_.sendPositionsForces(hand_joint_positions,hand_joint_forces,5.0);
+						ROS_INFO("Closing Hands");
+						if(success)
+						{
+							// Now checking the joint angles to check if the Hand is completely closed
+							manipulation_object.getHandJointPositions(hand_joint_positions);
+							double joint_sum = 0;
+							for(int i = 1; i< hand_joint_positions.size() ;i++)
+								joint_sum+= hand_joint_positions[i];
+							if(joint_sum < 6.0)
+							{
+								bool place_success = false;
+								geometry_msgs::Pose place_position;
+								place_position.position = push_pose.pose.position;
+								place_position.orientation = push_pose.pose.orientation;
+								// Dropping from 5 cn above the ground
+								place_position.position.z += 0.05;
+								// Now move to a position that is 20 cm away
+								double move_x_increment;
+								if(manipulation_object.getEndEffectorId() == 2)
+									move_x_increment = -0.35;
+								else
+									move_x_increment = 0.35;
+								// Move to a position away from the object
+								place_position.position.x += move_x_increment;
+								ROS_INFO("Planning to place position");
+								do{
+									ROS_INFO("Trying to place again");
+									tf::Pose place_pose_tf;
+									tf::poseMsgToTF(place_position,place_pose_tf);
+									if(manipulation_object.planAndMoveTo(place_pose_tf))
+									{
+										manipulation_object.openFingers();
+										ROS_INFO("Dropping object");
+										place_success = true;
+									}
+									else
+										place_position.position.y += 0.05;
+
+								}while(!place_success);
+
+								return manipulation_object.goHome();
+							}
+							else
+							{
+								// Open fingers and go Home
+								ROS_WARN("Couldn't Grasp Object!");
+								manipulation_object.openFingers();
+								manipulation_object.goHome();
+								return false;
+							}
+						}
+						else{
+							ROS_WARN("Unable to close hands!");
+							manipulation_object.openFingers();
+							manipulation_object.goHome();
+							return false;
+						}
+					}
+					else
+						return false;
+				}
+				else
+					return false;
+			}
+			else
+				return false;
+		}
+		else{
+
+			if(manipulation_object.planAndMoveTo(push_tf)){
+
+				geometry_msgs::Pose pick_position;
+				//TODO: Do something smarter
+				pick_position = push_pose.pose;
+				pick_position.position.z += 0.05; // Go 5cm away above the body
+				bool success;
+				manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+				success = manipulation_object.cartesian_.moveTo(pick_position,3.0);
+
+				// Now do a blind Grasp
+
+				if(success){
+
+					// manipulation object closing Hand
+					double mypos[] = {0,2.4,2.4,2.4}; // Dont alter the spread just the other joint angles
+					std::vector<double> hand_joint_positions (mypos, mypos + sizeof(mypos) / sizeof(double) );
+					double myforces[] = {-0.5,-0.5,-0.5};
+					std::vector<double> hand_joint_forces (myforces, myforces + sizeof(myforces) / sizeof(double) );
+					success = manipulation_object.hand_joints_.sendPositionsForces(hand_joint_positions,hand_joint_forces,5.0);
+
+					if(success)
+					{
+						// Now checking the joint angles to check if the Hand is completely closed
+						manipulation_object.getHandJointPositions(hand_joint_positions);
+						double joint_sum = 0;
+						for(int i = 1; i< hand_joint_positions.size() ;i++)
+							joint_sum+= hand_joint_positions[i];
+						if(joint_sum < 6.0)
+						{
+							bool place_success = false;
+							geometry_msgs::Pose place_position;
+							place_position.position = push_pose.pose.position;
+							place_position.orientation = push_pose.pose.orientation;
+							// Now move to a position that is 20 cm away
+							double move_x_increment;
+							if(manipulation_object.getEndEffectorId() == 2)
+								move_x_increment = -0.25;
+							else
+								move_x_increment = 0.25;
+							// Move to a position away from the object
+							place_position.position.x += move_x_increment;
+							do{
+								tf::Pose place_pose_tf;
+								tf::poseMsgToTF(place_position,place_pose_tf);
+								if(manipulation_object.planAndMoveTo(place_pose_tf))
+								{
+									manipulation_object.openFingers();
+									place_success = true;
+								}
+								else
+									place_position.position.y += 0.05;
+
+							}while(!place_success);
+
+							return manipulation_object.goHome();
+						}
+						else
+						{
+							// Open fingers and go Home
+							ROS_WARN("Couldn't Grasp Object!");
+							manipulation_object.openFingers();
+							return manipulation_object.goHome();
+						}
+					}
+					else{
+						ROS_WARN("Unable to close hands!");
+						manipulation_object.openFingers();
+						manipulation_object.goHome();
+						return false;
+					}
+				}
+				else
+					return false;
+			}
+			else
+				return false;
+		}
+	}
+	else{
+		ROS_WARN("Unable to open hands!");
+		return false;
+	}
+}
+
+bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir, ArmInterface& manipulation_object){
 
 	tf::Pose push_tf;
 	tf::poseMsgToTF(push_pose.pose,push_tf);
-
+	manipulation_object.goHome();
 	// Move to a position that is 10cm behind and 10cm above the desired location
 	push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.10);
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
-	manipulation_object_.goHome(); // Just to go home between runs
+	manipulation_object.goHome(); // Just to go home between runs
 
-	poke_object_.initialize(2);
+	poke_object_.initialize(manipulation_object.getEndEffectorId());
 	// Moving to desired initial pose
     world_state_.createTable();
 
@@ -495,27 +704,31 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 	poke_pose.orientation = push_pose.pose.orientation;
 
 	if(!DEBUG){
-		if(manipulation_object_.planAndMoveTo(push_tf)){
+		if(manipulation_object.planAndMoveTo(push_tf)){
 
 			// Remove comment when running on robot
 			geometry_msgs::Pose poke_position;
 			bool poked, is_pose_relative;
-			manipulation_object_.ft_sensor_.calibrate();
-			manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			manipulation_object.ft_sensor_.calibrate();
+			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 			if(poke_object_.run(poke_pose,5.0,3.0,poke_position,poked,is_pose_relative))
 			{
 				geometry_msgs::Pose push_position;
 				push_position = poke_position;
 				//y dir vector is [sin(t),cos(t),0]
-				push_position.position.x += 0.15*(sin(y_dir)); // Push it 5cm away from the body
-				push_position.position.y += 0.15*(cos(y_dir)); // Push it 5cm away from the body
+				push_position.position.y += 0.20*(cos(y_dir)); // Push it 20cm away from the body
+
+				if(manipulation_object.getEndEffectorId() == 2)
+					push_position.position.x -= 0.20*(sin(y_dir)); // Push it 20cm away from the body
+				else
+					push_position.position.x += 0.20*(sin(y_dir)); // Push it 20cm away from the body
 
 				bool success;
-				manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
-				success = manipulation_object_.cartesian_.moveTo(push_position,3.0);
+				manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+				success = manipulation_object.cartesian_.moveTo(push_position,3.0);
 
 				if(success)
-					return manipulation_object_.goHome();
+					return manipulation_object.goHome();
 				else
 					return false;
 			}
@@ -527,24 +740,165 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 	}
 	else{
 
-		if(manipulation_object_.planAndMoveTo(push_tf)){
+		if(manipulation_object.planAndMoveTo(push_tf)){
 
 			geometry_msgs::Pose push_position;
 			//TODO: Do something smarter
 			push_position = push_pose.pose;
 			push_position.position.y += 0.05; // Push it 5cm away from the body
 			bool success;
-			manipulation_object_.switchControl(ArmInterface::CARTESIAN_CONTROL_);
-			success = manipulation_object_.cartesian_.moveTo(push_position,3.0);
+			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			success = manipulation_object.cartesian_.moveTo(push_position,3.0);
 
 			if(success)
-				return manipulation_object_.goHome();
+				return manipulation_object.goHome();
 			else
 				return false;
 		}
 		else
 			return false;
 	}
+}
+
+bool active_segment::manipulateNode(const geometry_msgs::Point &push_loc){
+
+	tf::Vector3 x_axis(1,0,0);
+	tf::Vector3 z_axis(0,0,1); // For grasp reorientation
+
+	// Computing the push pose, i.e rotating Hand around x axis by 90 degrees
+	geometry_msgs::PoseStamped push_pose;
+	push_pose.header.stamp = ros::Time::now();
+	push_pose.pose.position = push_loc;
+
+	// Recorded Hand pose
+//	push_hand_pose_.pose.orientation.w = -0.416;
+//	push_hand_pose_.pose.orientation.x = 0.560;
+//	push_hand_pose_.pose.orientation.y = 0.556;
+//	push_hand_pose_.pose.orientation.z = 0.452;
+
+	push_pose.pose.orientation.w = 1;
+	push_pose.pose.orientation.x = 0;
+	push_pose.pose.orientation.y = 0;
+	push_pose.pose.orientation.z = 0;
+
+	// Getting the correct push direction pose from the graph structure
+	// And pushing y axis
+	double y_dir = getPushDirection(push_pose.pose,push_pose.pose);
+
+	tf::Pose push_pose_tf;
+	tf::poseMsgToTF(push_pose.pose,push_pose_tf);
+
+	double push_theta = M_PI/2;
+	tf::Vector3 local_push_x_axis = push_pose_tf.getBasis().inverse()*x_axis;
+	tf::Matrix3x3 m_push(tf::Quaternion(local_push_x_axis,push_theta));
+	tf::Transform push_pose_transform = tf::Transform::getIdentity();
+	push_pose_transform.setBasis(m_push);
+	tf::Pose new_push_pose = push_pose_tf*push_pose_transform;
+	conversions::convert(new_push_pose,push_pose.pose);
+
+	marker_.publishPose(push_pose,"active_segmentation",0.2);
+	pose_publisher_.publish(push_pose);
+	ROS_INFO("Published push hand pose location");
+
+	// Now computing the GRASP Pose
+	geometry_msgs::PoseStamped grasp_pose;
+	grasp_pose = push_pose;
+	grasp_pose.pose.orientation.w = 1.0;
+	grasp_pose.pose.orientation.z = 0.0;
+	grasp_pose.pose.orientation.y = 0.0;
+	grasp_pose.pose.orientation.x = 0.0;
+
+	manipulation_object_l_.goHome(); // Just to go home between runs
+	manipulation_object_r_.goHome(); // Just to go home between runs
+	// First get the Hand positions
+	tf::Pose object_pose;
+	tf::poseMsgToTF(grasp_pose.pose,object_pose);
+
+	//Now rotate the hand (object_pose) by 180 degrees
+	// Computing the yaw
+	double theta = M_PI;
+	tf::Vector3 local_x_axis = object_pose.getBasis().inverse()*x_axis;
+	tf::Matrix3x3 m_x(tf::Quaternion(local_x_axis,theta));
+	tf::Transform grasp_x_pose_transform = tf::Transform::getIdentity();
+	grasp_x_pose_transform.setBasis(m_x);
+	tf::Pose new_object_pose = object_pose*grasp_x_pose_transform;
+	conversions::convert(new_object_pose,grasp_pose.pose);
+
+	// Now rotate the GRASP Pose in the local axis by z-dir
+	// TODO: Use to the local point cloud template based on the max
+	// radius of the hand and compute eigen values and align with the direction
+	// that does not correspond to the dominant eigen value i.e thinner cloud
+	double psi = -y_dir;
+	tf::Vector3 local_z_axis = object_pose.getBasis().inverse()*z_axis;
+	tf::Matrix3x3 m_z(tf::Quaternion(local_z_axis,psi));
+	tf::Transform grasp_z_pose_transform = tf::Transform::getIdentity();
+	grasp_z_pose_transform.setBasis(m_z);
+	new_object_pose = object_pose*grasp_z_pose_transform;
+	conversions::convert(new_object_pose,grasp_pose.pose);
+
+
+	// Checking which hand is closer to the manipulation point
+
+	tf::Pose l_tfhand_pose,r_tfhand_pose;
+	manipulation_object_l_.getHandPose(l_tfhand_pose);
+	manipulation_object_r_.getHandPose(r_tfhand_pose);
+
+	double distance_r = l_tfhand_pose.getOrigin().distance(new_object_pose.getOrigin());
+	double distance_l = r_tfhand_pose.getOrigin().distance(new_object_pose.getOrigin());
+	ROS_INFO_STREAM("Distance from Right Hand "<<distance_r<<" Distance from Left Hand "<<distance_l);
+	std::cin.ignore(std::numeric_limits<streamsize>::max(),'\n');
+
+	if(distance_r < distance_l)
+	{
+		ROS_INFO("Manipulating with Right hand");
+		// Manipulate with right hand/arm
+		if(graspNode(grasp_pose,manipulation_object_r_))
+		{
+			ROS_INFO("Grasping Succeeded ");
+			return true;
+
+
+		}
+		else{
+
+			ROS_INFO("Grasping with right hand failed, Attempting push");
+			if(pushNode(push_pose,y_dir,manipulation_object_r_)){
+				ROS_INFO("Pushing Failed too");
+				return false;
+			}
+			else{
+				ROS_INFO("Pushing Succeeded ");
+				return true;
+			}
+
+		}
+
+	}
+	else{
+		// Use the left hand for manipulation
+		ROS_INFO("Manipulating with Left hand");
+		if(graspNode(grasp_pose,manipulation_object_l_))
+		{
+			ROS_INFO("Grasping Succeeded ");
+			return true;
+
+
+		}
+		else{
+
+			ROS_INFO("Grasping with left hand failed, Attempting push");
+			if(pushNode(push_pose,y_dir,manipulation_object_l_)){
+				ROS_INFO("Pushing Failed too");
+				return false;
+			}
+			else{
+				ROS_INFO("Pushing Succeeded ");
+				return true;
+			}
+
+		}
+	}
+
 }
 
 
@@ -581,22 +935,8 @@ void active_segment::controlGraph(){
 //
 //		marker_.publishPose(view_pose,"active_segmentation",0.2);
 
-		push_hand_pose_.header.stamp = ros::Time::now();
-		push_hand_pose_.pose.position = push_loc_;
-		// TODO: get orientation from recorded hand pose
-		push_hand_pose_.pose.orientation.w = -0.416;
-		push_hand_pose_.pose.orientation.x = 0.560;
-		push_hand_pose_.pose.orientation.y = 0.556;
-		push_hand_pose_.pose.orientation.z = 0.452;
 
-		// Getting the correct push direction pose from the graph structure
-		// And pushing y axis
-		double y_dir = getPushDirection(push_hand_pose_.pose,push_hand_pose_.pose);
-
-		marker_.publishPose(push_hand_pose_,"active_segmentation",0.2);
-		pose_publisher_.publish(push_hand_pose_);
-		ROS_INFO("Published push hand pose location");
-		if(pushNode(push_hand_pose_,y_dir))
+		if(manipulateNode(push_loc_))
 			ROS_INFO("Node push success");
 		else
 			ROS_WARN("Node push Failed");
@@ -847,7 +1187,8 @@ bool active_segment::matchGraphs(local_graph base_graph,local_graph match_graph,
 	//	ROS_INFO("Visited vertices %d \n match score %d vertices %f",
 	//			visited_index.size(),match_score,std::floor((double)base_graph.graph_.number_of_vertices_/2));
 	// If the number of edges matched are half the number of vertices, because edges are unique
-	if(std::accumulate(match_score.begin(), match_score.end(), 0) >= std::floor((double)base_graph.graph_.number_of_vertices_/2) - 1)
+	if((std::accumulate(match_score.begin(), match_score.end(), 0) >= std::floor((double)base_graph.graph_.number_of_vertices_/2) - 1) &&
+			std::accumulate(match_score.begin(), match_score.end(), 0) > 0)
 	{
 		drawCorrespondence(prev_input_,input_,masks_[0],new_masks_[index],correspondences);
 		return true;
@@ -1037,12 +1378,12 @@ int run_active_segmentation(int argc, char **argv){
 		}
 
 
-		//		if (!ss.head_joint_trajectory_client_.lookAt(0.0,
-		//				0.0, ss.push_loc_))
-		//		{
-		//			ROS_ERROR("Problems when looking at stuff.");
-		//			return 0;
-		//		}
+		if (!ss.head_joint_trajectory_client_.lookAt(0.0,
+				0.0, ss.push_loc_))
+		{
+			ROS_ERROR("Problems when looking at stuff.");
+			return 0;
+		}
 
 		// This needs to happen in a separate thread
 		if(!ss.first_call_)

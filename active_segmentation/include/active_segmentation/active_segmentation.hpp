@@ -77,6 +77,7 @@
 #include <arm_manipulation_tools/arm_interface.h>
 #include <usc_utilities/rviz_marker_manager.h>
 #include <arm_motion_primitives/poke.h>
+#include <arm_motion_primitives/grasp.h>
 #include <arm_world_state/world_state.h>
 
 using namespace arm_manipulation_tools;
@@ -158,7 +159,7 @@ public:
 
 	geometry_msgs::Point push_loc_;
 
-	//arm_controller_interface::HeadJointTrajectoryClient head_joint_trajectory_client_;
+	arm_controller_interface::HeadJointTrajectoryClient head_joint_trajectory_client_;
 
 	bool first_call_,queue_empty_;
 
@@ -166,7 +167,7 @@ public:
 
 	std::vector<cv::Mat> masks_,new_masks_;
 
-	ArmInterface manipulation_object_;
+	ArmInterface manipulation_object_l_,manipulation_object_r_;
 
 	Poke poke_object_;
 
@@ -250,7 +251,11 @@ public:
 	void getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
 			geometry_msgs::Point &push_loc);
 
-	bool pushNode(geometry_msgs::PoseStamped pose, double y_dir);
+	bool pushNode(geometry_msgs::PoseStamped pose, double y_dir, ArmInterface& manipulation_object);
+
+	bool graspNode(geometry_msgs::PoseStamped pose, ArmInterface& manipulation_object);
+
+	bool manipulateNode(const geometry_msgs::Point &push_loc);
 
 	double getPushDirection(const geometry_msgs::Pose &start_direction,geometry_msgs::Pose &push_dir);
 
