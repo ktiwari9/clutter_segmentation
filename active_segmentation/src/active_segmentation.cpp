@@ -486,7 +486,7 @@ bool active_segment::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
 	// Moving to desired initial pose
-	poke_object_.initialize(manipulation_object.getEndEffectorId());
+	poke_object_.initialize(manipulation_object.getEndeffectorId());
 	world_state_.createTable();
 	ROS_INFO("Creating table complete");
 
@@ -546,7 +546,7 @@ bool active_segment::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 								place_position.position.z += 0.05;
 								// Now move to a position that is 20 cm away
 								double move_x_increment;
-								if(manipulation_object.getEndEffectorId() == 2)
+								if(manipulation_object.getEndeffectorId() == 2)
 									move_x_increment = -0.35;
 								else
 									move_x_increment = 0.35;
@@ -633,7 +633,7 @@ bool active_segment::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 							place_position.orientation = push_pose.pose.orientation;
 							// Now move to a position that is 20 cm away
 							double move_x_increment;
-							if(manipulation_object.getEndEffectorId() == 2)
+							if(manipulation_object.getEndeffectorId() == 2)
 								move_x_increment = -0.25;
 							else
 								move_x_increment = 0.25;
@@ -693,7 +693,7 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 
 	manipulation_object.goHome(); // Just to go home between runs
 
-	poke_object_.initialize(manipulation_object.getEndEffectorId());
+	poke_object_.initialize(manipulation_object.getEndeffectorId());
 	// Moving to desired initial pose
     world_state_.createTable();
 
@@ -718,7 +718,7 @@ bool active_segment::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 				//y dir vector is [sin(t),cos(t),0]
 				push_position.position.y += 0.20*(cos(y_dir)); // Push it 20cm away from the body
 
-				if(manipulation_object.getEndEffectorId() == 2)
+				if(manipulation_object.getEndeffectorId() == 2)
 					push_position.position.x -= 0.20*(sin(y_dir)); // Push it 20cm away from the body
 				else
 					push_position.position.x += 0.20*(sin(y_dir)); // Push it 20cm away from the body
