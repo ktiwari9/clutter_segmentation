@@ -18,7 +18,7 @@
 %  
 %   @b toy problem to test EKF and SARSA (lambda)
 %==========================================================================
-function [features reward_matrix] = toy_problem(X,A,A_org,cliques)
+function [features reward_matrix] = online_policy_gradient_with_action_policy(X,A,A_org,cliques,action_weights)
 %==========================================================================
 %
 % File: flocking_template.m
@@ -50,11 +50,7 @@ dx_dy= [0.1,-0.1,0.1,-0.1; 0.1,0.1,-0.1,-0.1]';
 %==========================================================================
 % Define simulation constants
 %==========================================================================
-CTRL_DT    = 0.01; % Control dt (100Hz)
 MAX_ITERS  = 10; % Maximum number of iterations
-
-MAX_VEL_R  = 0.1;  % Maximum translational velocity (m/s)
-MAX_ACC_R  = 2.5;  % Maximum translational acceleration (m/s^2)
 
 %==========================================================================
 % Generate figure for displaying results
@@ -80,13 +76,6 @@ Xv = zeros(size(X)); % initialize all agent velocities to zero
 
 [hp,hv] = draw_agent_pose(X,Xv,hp,hv);
 hg = draw_graph_embedding(X,A,hg);
-
-%ginput(1);
-
-%==========================================================================
-% Initializing the reinforcement (SARSA-Lambda) learning control loop
-%==========================================================================
-
 
 %==========================================================================
 % Initializing the Kalman Filter
@@ -120,10 +109,28 @@ features = zeros(4,MAX_ITERS,7);
 %==========================================================================
 mean_dist = sqrt(sum((repmat(mean(X),size(X,1),1) - X).^2,2));
 
+%==========================================================================
+% Initialization for policy gradient learning
+%==========================================================================
+
+theta = 0;
+
+H = 10; % Horizon for rollout
+
 while true
     
-    %%%% YOUR CONTROL FOR EACH AGENT! %%%%
+    %%%% Do max vertext and non max vertex manipulation %%%%
+    min_val = 0; max_val = 0.1;
+    del_theta = min_val + (max_val-min_val).*rand(100,1);
     
+    theta_vals = repmat(theta,size(del_theta,1),1) + del_theta;
+    
+    %integrating theta values upto horizom
+    increments = repmat(1:10,size(del_theta,1),1);
+    theta_vals = repmat(theta_vals,1,size(increments,2)) + repmat(del_theta,1,size(increments,2)).*increments;
+    
+    
+    %% METHOD 1 TRYING MAX VERTEX FOR CODE DEBUGGING %%
     %% Finding max vertex
     max_vertex = find(sum(A) == max(sum(A)));
     
@@ -132,29 +139,76 @@ while true
         max_vertex = max_vertex(1);
     end
     
-    %% Picking a random action
-    action = randperm(4); action = action(1);
-    fprintf('Current action selected in %d \n',action);
-    %waitforbuttonpress;
+    
+    
+    %% Computing features, i.e state
+    feature = compute_features(A,max_vertex,X);
+    
+    %% Computing reference action via forward differencing
+    mean_action = exp([[1;feature]'*action_weights{1}*theta,...
+            [1;feature]'*action_weights{2}*theta,...
+            [1;feature]'*action_weights{3}*theta,...
+            [1;feature]'*action_weights{4}*theta]);
+        
+    mean_action = mean_action./sum(mean_action);
+    mean_action = find(mean_action == max(mean_action));
+    mean_action = mean_action(1);
+    %mean([action_weights{1},action_weights{2},action_weights{3},action_weights{4}],2);
+    mean_reward = [1;feature]'*action_weights{mean_action};
+    
+    gradient = zeros(size(theta_vals)); 
+    for index = 1:size(theta_vals,2)
+        
+        exp_action = exp([repmat([1;feature]',size(theta_vals,1),1)*repmat(action_weights{1},1,size(theta_vals,1))*theta_vals(:,index),...
+            repmat([1;feature]',size(theta_vals,1),1)*repmat(action_weights{2},1,size(theta_vals,1))*theta_vals(:,index),...
+            repmat([1;feature]',size(theta_vals,1),1)*repmat(action_weights{3},1,size(theta_vals,1))*theta_vals(:,index),...
+            repmat([1;feature]',size(theta_vals,1),1)*repmat(action_weights{4},1,size(theta_vals,1))*theta_vals(:,index)]);        
+        
+        prob_action = exp_action./repmat(sum(exp_action,2),1,size(exp_action,2));
+        rollout_action = prob_action == repmat(max(prob_action,[],2),1,size(prob_action,2));
+        %rollout_action = rollout_action(rollout_action);        
+        
+        for rollout_count = 1:size(prob_action,1)
+            reward = (0.1^index)*[1;feature]'*action_weights{find(rollout_action(rollout_count,:) == 1)};
+            gradient(rollout_count,index) = reward - mean_reward;        
+        end
+        
+    end
+    gradient = sum(gradient,2);
+    
+    gradient_update = ((theta_vals(:,1)'*theta_vals(:,1))^-1)*theta_vals(:,1)'*gradient;
+    
+    % Updating the gradient
+    theta = theta + 0.01*gradient_update;
+    
+%% Now compute the optimal action from that reference and see the outcome      
     
     
     %%%% Log Computed Headings! %%%%
     tracking_error(k,1) = sqrt(mean(mean([X_state_vector(1:2:end),X_state_vector(2:2:end)]) - mean(X)).^2);
     tracking_error(k,2) = sqrt(mean((X_state_vector(1:2:end) - X(:,1)).^2));
     tracking_error(k,3) = sqrt(mean((X_state_vector(2:2:end) - X(:,2)).^2));
+    
     %%%% Update pose estimates! %%%%
-    %X = X + Xv*CTRL_DT;         
+    %X = X + Xv*CTRL_DT;             
     X = X + Xv;
     
-    if(mod(k,2) ~= 0)    
-        prev_adj = A;
-    end
+    %% Now execute the best possible action and observe an actual reward
+    actual_action = exp([[1;feature]'*action_weights{1}*theta,...
+            [1;feature]'*action_weights{2}*theta,...
+            [1;feature]'*action_weights{3}*theta,...
+            [1;feature]'*action_weights{4}*theta]); 
+        
+    actual_action = actual_action./sum(actual_action);
+    action = find(actual_action == max(actual_action));
+    action = action(1);
+        
+    fprintf('Current action selected is %d \n',action);
+    
+    %% Graph update based on manipulated node %%%      
     X_old_mean = mean(X);
-    
-    %%% Computing Features for Rank Learning %%%%%
-    features(action,k,:) = compute_features(A,max_vertex,X);
-    
-    %%% Graph update based on manipulated node %%%      
+    A_adj_old = A;
+
     [X, Xv, A] = update_manipulated_graph(X,Xv,A,max_vertex,action,cliques);
     
     %======================================================================
@@ -169,11 +223,9 @@ while true
     
     A(linear_index) = 0;
     
-    if((1/(norm(A) - norm(prev_adj))) > del_max)
-        
-        reward_matrix(action,k) = (del_max + ((norm(A) - norm(prev_adj))/del_max))*(norm(mean(X)) - norm(X_old_mean));
-    else
-        reward_matrix(action,k) = (1/(abs(norm(A) - norm(prev_adj))))*(norm(mean(X)) - norm(X_old_mean));
+    %% Checking the Termination criteria
+    if((1/(norm(A) - norm(A_adj_old))) > del_max)        
+        break; 
     end
     tracking_error(k,4) = norm((mean(X) - X_old_mean),2);
     
@@ -395,4 +447,4 @@ function ht = draw_agent_tails(X,k,ht)
        
     end   
     
-end % fu
+end 
