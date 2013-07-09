@@ -1,0 +1,15 @@
+<package>
+  <description brief="feature_learning">
+
+     feature_learning
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/feature_learning</url>
+  <depend package="roscpp"/>
+
+</package>
+
+
