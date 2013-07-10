@@ -10,6 +10,28 @@
   <url>http://ros.org/wiki/feature_learning</url>
   <depend package="roscpp"/>
 
-</package>
+  <depend package="tf"/>
 
+  <depend package="visualization_msgs" />
+  <depend package="sensor_msgs"/>
+  <depend package="geometry_msgs" />
+
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
+  <depend package="image_geometry" />
+  <depend package="static_segmentation" />
+  <depend package="graph_module" />
+
+  <depend package="graph_based_segmentation"/>
+  <depend package="learn_appearance"/>
+  
+  <export>
+    <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
+ </export>
+
+
+</package>
 
