@@ -39,6 +39,8 @@ std::vector<P>, bool> {
   }
 };
 
+static_segment::static_segment(){ }
+
 static_segment::static_segment(ros::NodeHandle &nh) :
 		            nh_(nh),nh_priv_("~"){
 

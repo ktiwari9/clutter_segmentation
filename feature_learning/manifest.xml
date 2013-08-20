@@ -24,7 +24,7 @@
   <depend package="image_geometry" />
   <depend package="static_segmentation" />
   <depend package="graph_module" />
-
+  <depend package="grasp_template"/>
   <depend package="graph_based_segmentation"/>
   <depend package="learn_appearance"/>
   

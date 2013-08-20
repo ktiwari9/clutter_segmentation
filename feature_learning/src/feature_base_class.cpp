@@ -40,10 +40,18 @@
 
 #include "feature_learning/feature_base_class.hpp"
 #include <learn_appearance/texton_hist.h>
+#include <pcl/surface/convex_hull.h>
+//Grasp Template Includes
+#include <grasp_template/heightmap_sampling.h>
+#include <pcl/features/usc.h> // Unique shape context feature
+#include <pcl/features/3dsc.h> // Unique shape context feature
+
+using namespace grasp_template;
 
 namespace feature_learning{
 
-feature_class::feature_class(){
+feature_class::feature_class():
+	local_cloud_(),initialized_(false){
 // Empty Constructor
 }
 
@@ -61,8 +69,102 @@ void feature_class::inputImage(cv::Mat input, cv::Mat segment){
 	local_segment_ = segment;
 }
 
+
+void feature_class::inputCloud(const PointCloudPtr &input_cloud_ptr){
+	local_cloud_->reset();
+	local_cloud_ = input_cloud_ptr;
+
+
+}
+
+bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud,
+		const geometry_msgs::PoseStamped &viewpoint,const geometry_msgs::Pose& surface,
+		const geometry_msgs::PoseStamped& gripper_pose){
+
+	// creating input for initial values
+	inputImage(image);
+	inputCloud(cloud);
+
+	bool verify = initializeGraspPatchParams(viewpoint,surface,gripper_pose);
+	if(verify)
+		return true;
+	else
+		return false;
+}
+
+bool feature_class::initializeGraspPatchParams(const geometry_msgs::PoseStamped &viewpoint,
+			const geometry_msgs::Pose &surface, const geometry_msgs::PoseStamped &gripper_pose){
+
+
+	// Getting view point translation
+	view_point_translation_.x() = viewpoint.pose.position.x;
+	view_point_translation_.y() = viewpoint.pose.position.y;
+	view_point_translation_.z() = viewpoint.pose.position.z;
+
+	// Getting view point rotation
+	view_point_rotation_.w() = viewpoint.pose.orientation.w;
+	view_point_rotation_.x() = viewpoint.pose.orientation.x;
+	view_point_rotation_.y() = viewpoint.pose.orientation.y;
+	view_point_rotation_.z() = viewpoint.pose.orientation.z;
+
+	gripper_pose_ = gripper_pose;
+	surface_ = surface;
+
+	return true;
+
+}
+
+void feature_class::computeRefPoint(Eigen::Vector3d& result, const geometry_msgs::PoseStamped& gripper_pose) const
+{
+  Eigen::Vector3d trans(gripper_pose.pose.position.x, gripper_pose.pose.position.y, gripper_pose.pose.position.z);
+  Eigen::Quaterniond rot(gripper_pose.pose.orientation.w, gripper_pose.pose.orientation.x,
+      gripper_pose.pose.orientation.y, gripper_pose.pose.orientation.z);
+
+  Eigen::Vector3d delta;
+  //Set Template extraction point to delta
+  //TODO: Load this from a Yaml file like in Alex's code???
+  delta << 0,0,0; // load this from a yaml file later
+  result = rot * delta + trans;
+}
+
 template <class Derived>
-void feature_class::computeColorHist(Eigen::MatrixBase<Derived> &out_mat){
+void feature_class::computeFeature(const Eigen::MatrixBase<Derived> &out_mat){
+
+	Eigen::MatrixBase<Derived> colorHist, textonMap, entropyMap, pushFeature, graspPatch;
+
+	if(initialized_)
+		{
+		  computeColorHist(colorHist);
+		  computeTextonMap(textonMap);
+		  computeEntropyMap(entropyMap);
+		  computePushFeature(pushFeature);
+		  computeGraspPatch(graspPatch);
+		  out_mat.resize(1,colorHist.cols()+textonMap.cols()+entropyMap.cols()+pushFeature.cols()+graspPatch.cols());
+		  //TODO: Do I need to normalize these features???
+		  out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch;
+		}
+
+}
+
+template <class Derived>
+void feature_class::computeGraspPatch(const Eigen::MatrixBase<Derived> &out_mat){
+
+	HeightmapSampling t_gen(view_point_translation_,view_point_rotation_);
+	t_gen.initialize(*local_cloud_,surface_);
+	Eigen::Vector3d ref_point;
+	computeRefPoint(ref_point, gripper_pose_);
+	GraspTemplate templt;
+	t_gen.generateTemplateOnHull(templt, ref_point);
+
+	// Now convert output to Eigen Matrix
+	std::vector<double> grasp_patch = templt.heightmap_.getGrid();
+	std::vector<float> grasp_patch_float(grasp_patch.begin(), grasp_patch.end());
+	// converting to float as all pcl types deal with float
+	Eigen::Map<Eigen::MatrixBase<Derived> >(grasp_patch_float.data(),1,grasp_patch_float.size()) = out_map; // Eigen map is used to convert std_vector to Eigen_Matrix
+}
+
+template <class Derived>
+void feature_class::computeColorHist(const Eigen::MatrixBase<Derived> &out_mat){
 
 	cv::MatND hist;
 	cv::Mat hsv;
@@ -90,11 +192,12 @@ void feature_class::computeColorHist(Eigen::MatrixBase<Derived> &out_mat){
 			false );
 
 	cv::cv2eigen(hist,out_mat);
+	int rows = out_mat.rows(),cols = out_mat.cols();
+	out_mat.conservativeResize(1,rows*cols);
 }
 
 template <class Derived>
-void feature_class::computeTextonMap(Eigen::MatrixBase<Derived> &out_mat){
-
+void feature_class::computeTextonMap(const Eigen::MatrixBase<Derived> &out_mat){
 
 	cv::Mat img_gray_float(local_image_.rows, local_image_.cols, CV_64F);
 	cv::Mat img_gray(local_image_.rows, local_image_.cols, CV_8U);
@@ -110,11 +213,54 @@ void feature_class::computeTextonMap(Eigen::MatrixBase<Derived> &out_mat){
 	thist.Train(img_gray_float, cv::Mat());
 	cv::MatND hist = thist.getTextonHist();
 	cv::cv2eigen(hist,out_mat);
+	int rows = out_mat.rows(),cols = out_mat.cols();
+	out_mat.conservativeResize(1,rows*cols);
 
 }
 
 template <class Derived>
-void feature_class::computeEntropyMap(Eigen::MatrixBase<Derived> &out_mat){
+	void feature_class::computePushFeature(const Eigen::MatrixBase<Derived> &out_mat ){
+
+	// TODO: try multiple features like USC and shape context to see what works
+	pcl::ShapeContext3DEstimation <PointType,PointNT,pcl::ShapeContext> shape_context;
+	pcl::PointCloud<pcl::ShapeContext>::Ptr descriptors (new pcl::PointCloud<pcl::SHOT>);
+
+
+	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
+
+	// Normal Estimation
+	pcl::NormalEstimation<PointType, PointNT> normalEstimation;
+	normalEstimation.setInputCloud (local_cloud_);
+	normalEstimation.setSearchMethod (tree);
+
+	pcl::PointCloud<PointNT>::Ptr cloudWithNormals (new	pcl::PointCloud<PointNT>);
+	normalEstimation.setRadiusSearch (0.03);
+	normalEstimation.compute (*cloudWithNormals);
+
+	shape_context.setInputCloud(local_cloud_);
+	shape_context.setInputNormals(cloudWithNormals);
+
+	// Use the same KdTree from the normal estimation
+	shape_context.setSearchMethod (tree);
+	shape_context.setRadiusSearch (0.2);
+
+	 // Actually compute the shape contexts
+	shape_context.initCompute();
+	shape_context.compute (*descriptors);
+
+	int histSize = descriptors->at(0).descriptor.size();
+	out_mat = descriptors->getMatrixXfMap (histSize, histSize + 9, 0); // use proper values
+		//for dim, stride and offset, look at documentation for reasoning
+
+	int rows = out_mat.rows(),cols = out_mat.cols();
+	out_mat.conservativeResize(1,rows*cols);
+	//shape_context.computeFeatureEigen(out_mat); // verify this later
+
+}
+
+
+template <class Derived>
+void feature_class::computeEntropyMap(const Eigen::MatrixBase<Derived> &out_mat){
 
 
 	// fix to compute entropy per cluster i.e entropy variance between mean entropy
@@ -192,6 +338,6 @@ float getFrequencyOfBin(cv::Mat channel)
    return frequency;
 }
 
-}
+} //namespace
 
 

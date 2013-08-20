@@ -61,19 +61,47 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_geometry/pinhole_camera_model.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/JointState.h>
+#include <tf/transform_broadcaster.h>
+#include <Eigen/Eigen>
+
+
+//PCL includes
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/pcl_base.h>
+#include <pcl/PointIndices.h>
+#include <pcl/ModelCoefficients.h>
 
 //Graph Module includes
 #include "graph_module/EGraph.h"
 #include <graph_module/graph_module.hpp>
 
-
 namespace feature_learning {
 
-class feature_class{
+template <typename PointT>
+class feature_class : public pcl::PCLBase<PointT> {
 
 protected:
 
+	typedef PointT PointType;
+	typedef pcl::Normal PointNT;
+	typedef pcl::PointCloud<PointT> PointCloud;
+	typedef typename PointCloud::Ptr PointCloudPtr;
+	//typedef typename PointCloud::ConstPtr PointCloudConstPtr;
+
 	cv::Mat local_image_,local_segment_;
+	PointCloudPtr local_cloud_;
+
+	geometry_msgs::PoseStamped gripper_pose_;
+	geometry_msgs::Pose surface_;
+	Eigen::Vector3d view_point_translation_;
+	Eigen::Quaterniond view_point_rotation_;
+
+	//PointCloudConstPtr local_cloud_;
 
 public:
 
@@ -83,27 +111,49 @@ public:
 	// destructor for the feature class
 	~feature_class();
 
+	// Initialize feature computation class
+	bool initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud, const geometry_msgs::PoseStamped &viewpoint,
+			const geometry_msgs::Pose& surface, const geometry_msgs::PoseStamped& gripper_pose);
+
 	// Getting the input from the user, function overloaded for
 	// raw color image and superpixel segment image
 	void inputImage(cv::Mat input);
 
 	void inputImage(cv::Mat input,cv::Mat segment);
 
+	// Getting input PointCloud from the user
+	void inputCloud(const PointCloudPtr &input_cloud_ptr);
+
 	// Computing the features required for learning
 	template <class Derived>
-	void computeColorHist(Eigen::MatrixBase<Derived> &out_mat );
+	void computeColorHist(const Eigen::MatrixBase<Derived> &out_mat );
 
 	template <class Derived>
-	void computeTextonMap(Eigen::MatrixBase<Derived> &out_mat );
+	void computeTextonMap(const Eigen::MatrixBase<Derived> &out_mat );
 
 	template <class Derived>
-	void computeEntropyMap(Eigen::MatrixBase<Derived> &out_mat );
+	void computeEntropyMap(const Eigen::MatrixBase<Derived> &out_mat );
 
 	template <class Derived>
-	void computePushFeature(Eigen::MatrixBase<Derived> &out_mat );
+	void computePushFeature(const Eigen::MatrixBase<Derived> &out_mat );
 
 	template <class Derived>
-	void computeGraspPatch(Eigen::MatrixBase<Derived> &out_mat );
+	void computeGraspPatch(const Eigen::MatrixBase<Derived> &out_mat );
+
+	template <class Derived>
+	void computeFeature(const Eigen::MatrixBase<Derived> &out_mat);
+
+protected:
+
+
+	bool initializeGraspPatchParams(const geometry_msgs::PoseStamped &viewpoint,
+			const geometry_msgs::Pose& surface, const geometry_msgs::PoseStamped& gripper_pose);
+
+	void computeRefPoint(Eigen::Vector3d& result, const geometry_msgs::PoseStamped& gripper_pose) const;
+
+public:
+
+	bool initialized_;
 
 	// Code snippet example
 	//	cv::Mat_<float> a = Mat_<float>::ones(2,2);

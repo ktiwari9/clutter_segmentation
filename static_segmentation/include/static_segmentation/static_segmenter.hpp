@@ -121,6 +121,8 @@ public:
 
 	static_segment(ros::NodeHandle &nh);
 
+	static_segment();
+
 	~static_segment();
 
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
