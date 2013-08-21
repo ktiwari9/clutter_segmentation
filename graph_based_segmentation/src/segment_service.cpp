@@ -55,6 +55,8 @@ graph_segment::graph_segment(ros::NodeHandle& nh):
 
 }
 
+graph_segment::graph_segment(){}
+
 graph_segment::~graph_segment(){}
 
 cv::Mat graph_segment::convertNativetocvMat(image<rgb>* input){

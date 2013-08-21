@@ -1,0 +1,14 @@
+# request contains gripper pose, table/surface pose and viewpoint
+geometry_msgs/PoseStamped view_point
+geometry_msgs/PoseStamped gripper_pose
+geometry_msgs/Pose surface_pose
+
+---
+
+# Return with the point of action execution
+geometry_msgs/PointStamped action_location
+
+# Whether feature extraction failed or succeeded
+int32 FAILURE = 1
+int32 SUCCESS = 2
+int32 result

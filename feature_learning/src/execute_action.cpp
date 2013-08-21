@@ -1,6 +1,6 @@
 /*********************************************************************
 *
-*  Copyright (c) 2012, Computational Learning and Motor Control Laboratory
+*  Copyright (c) 2013, Computational Learning and Motor Control Laboratory
 *  University of Southern California
 *  All rights reserved.
 *
@@ -34,74 +34,14 @@
 /**
  * \author Bharath Sankaran
  *
- * @b OpenCV wrapper for Pedro felzenbswalb's Graph based Segmentation
+ * @b source file for the executing various actions while testing the feature selection pipeline
  */
-#pragma once
-#ifndef SEGMENT
-#define SEGMENT
 
-#include <ros/ros.h>
-#include <opencv2/opencv.hpp>
-#include <vector>
-#include <graph_based_segmentation/image.h>
-#include <graph_based_segmentation/misc.h>
-#include <graph_based_segmentation/pnmfile.h>
-#include "graph_based_segmentation/segment-image.h"
-#include "graph_based_segmentation/GraphSegment.h"
-#include <sensor_msgs/Image.h>
-#include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
+#include "feature_learning/extract_features.hpp"
+#include "feature_learning/ExtractFeatures.h"
 
-using namespace std;
+namespace feature_learning {
 
-typedef struct {
-    int x;
-    int y;
-}Pixel;
 
-namespace graph_based_segmentation {
-
-class graph_segment{
-
-protected:
-
-	ros::NodeHandle nh_;
-
-	cv::Mat input_;
-
-	double sigma_,k_;
-
-	int min_size_,num_ccs_;
-
-public:
-
-	graph_segment();
-
-	graph_segment(ros::NodeHandle &nh);
-
-	~graph_segment();
-
-	cv::Mat convertNativetocvMat(image<rgb>* input);
-
-	image<rgb>* convertcvMattoNative(cv::Mat input);
-
-	cv::Mat getSegmentedImage();
-
-	bool serviceCallback(GraphSegment::Request &request, GraphSegment::Response& response);
-
-	cv::Mat returnCVImage(const sensor_msgs::Image & img);
-
-	sensor_msgs::ImagePtr returnRosImage(const sensor_msgs::Image rgb_image);
-
-private:
-
-	ros::NodeHandle nh_priv_;
-
-	ros::ServiceServer graph_segment_srv_;
-
-};
 
 }
-
-#endif
-

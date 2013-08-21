@@ -91,7 +91,6 @@ protected:
 	typedef pcl::Normal PointNT;
 	typedef pcl::PointCloud<PointT> PointCloud;
 	typedef typename PointCloud::Ptr PointCloudPtr;
-	//typedef typename PointCloud::ConstPtr PointCloudConstPtr;
 
 	cv::Mat local_image_,local_segment_;
 	PointCloudPtr local_cloud_;

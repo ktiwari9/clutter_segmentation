@@ -37,41 +37,31 @@
  * @b source file for the feature_class definition for feature learning via MaxEnt
  */
 
-#include <string>
-#include <vector>
-#include <opencv2/highgui/highgui.hpp>
 
-#include "feature_learning/feature_base_class.hpp"
-#include <learn_appearance/texton_hist.h>
-#include <pcl/surface/convex_hull.h>
-#include <sensor_msgs/CameraInfo.h>
-//Grasp Template Includes
-#include <grasp_template/heightmap_sampling.h>
-#include <pcl/features/usc.h> // Unique shape context feature
-#include <pcl/features/3dsc.h> // Unique shape context feature
-#include <pcl/filters/crop_box.h>
 
-// Other includes
-#include <static_segmentation/static_segmenter.hpp>
-#include <rosbag/bag.h>
+#include "feature_learning/extract_features.hpp"
+#include <usc_utilities/assert.h>
 
 
 using namespace grasp_template;
-using namespace static_segmentation;
+using namespace graph_based_segmentation;
 
 namespace feature_learning{
 
-static const double BOX_WIDTH_X = 0.30; // in m
-static const double BOX_LENGTH_Y = 0.30; // in m
-static const double BOX_HEIGHT_Z = 0.15; // in m
+extract_features::extract_features(ros::NodeHandle& nh):
+		nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>){
 
-std::string topicFeatureInputCloud() const {return "/grasp_demo_events";};
-std::string topicFeatureCameraInfo() const {return "'/Honeybee/left/camera_info'";};
-std::string topicFeatureTable() const {return "/grasp_demo_table";};
-std::string topicFeatureGripperPose() const {return "/grasp_demo_gripper_pose";};
-std::string topicFeatureViewpoint() const {return "/grasp_demo_viewpoint_transform";};
+	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
+}
 
-std::vector<std::vector<cv::Point> > getHoles(cv::Mat input){
+extract_features::extract_features(std::string filename){
+
+	filename_ = filename;
+}
+
+extract_features::~extract_features(){}
+
+std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 
 	// first find contours aka holes
 	std::vector<std::vector<cv::Point> > contours_unordered;
@@ -104,14 +94,11 @@ std::vector<std::vector<cv::Point> > getHoles(cv::Mat input){
 	return holes;
 }
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr preProcessCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
-		cv::Mat input_segment,const image_geometry::PinholeCameraModel& model){
-
-	// Transform listener
-	tf::TransformListener listener;
+void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
 
 	// Local Declarations
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+	processed_cloud.clear();
 	pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
 	// Mean and covariance declarations
@@ -119,14 +106,13 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr preProcessCloud(pcl::PointCloud<pcl::PointXY
 	Eigen::Vector4f cloud_mean;
 
 	// Now transform point cloud base frame
-	ROS_VERIFY(listener.waitForTransform("/BASE",input_cloud->header.frame_id,
+	ROS_VERIFY(listener_.waitForTransform("/BASE",input_cloud_->header.frame_id,
 					ros::Time::now(), ros::Duration(5.0)));
 
-	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", *input_cloud,
-			*input_cloud, listener));
+	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE",*input_cloud_,*input_cloud_,listener_));
 
-	// Getting mean of pointcloud to estimate the nominal cutting plane
-	pcl::computeMeanAndCovarianceMatrix(*input_cloud,covariance,cloud_mean);
+	// Getting mean of point cloud to estimate the nominal cutting plane
+	pcl::computeMeanAndCovarianceMatrix(*input_cloud_,covariance,cloud_mean);
 
 	// Now compute an xy plane with the mean point and height
 	pcl::ModelCoefficients::Ptr plane_coefficients (new pcl::ModelCoefficients);
@@ -152,11 +138,11 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr preProcessCloud(pcl::PointCloud<pcl::PointXY
 		ray.push_back(pcl::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
 
 		ROS_DEBUG("Creating Ray in base frame");
-		ROS_VERIFY(listener.waitForTransform("/BASE",model.cam_info_.header.frame_id,
+		ROS_VERIFY(listener_.waitForTransform("/BASE",model.cam_info_.header.frame_id,
 				ros::Time::now(), ros::Duration(5.0)));
 
 		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
-					ray, listener));
+					ray, listener_));
 
 		// Now get intersection of Ray and cloud XY plane
 		/*
@@ -185,7 +171,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr preProcessCloud(pcl::PointCloud<pcl::PointXY
 
 		// Creating Box filter
 		pcl::CropBox cropBox;
-		cropBox.setInputCloud(input_cloud);
+		cropBox.setInputCloud(input_cloud_);
 		// TODO: Do I use the centroid as reference or should I use the table height like Peter does??
 		Eigen::Vector4f bag_min(-(BOX_WIDTH_X/(double)2.0),
 				template_center_transform.getOrigin().getY() -(BOX_LENGTH_Y/(double)2.0),
@@ -199,27 +185,28 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr preProcessCloud(pcl::PointCloud<pcl::PointXY
 		Eigen::Vector3f eigen_translation(push_point.x,push_point.y,0.0);
 		cropBox.setRotation(eigen_rotation);
 		cropBox.setTranslation(eigen_translation);
-		cropBox.setInputCloud(input_cloud);
+		cropBox.setInputCloud(input_cloud_);
 		filtered_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 		cropBox.filter(*filtered_cloud);
 
 		if(max_size < filtered_cloud->size())
 		{
 			max_size = filtered_cloud->size();
-			cloud->swap(*filtered_cloud);
+			processed_cloud.swap(*filtered_cloud);
+			action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
+			action_point_.header = "/BASE";
 		}
 	}
 
-	return cloud;
 }
 
-void testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
+void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
 		const geometry_msgs::PoseStamped &viewpoint,const geometry_msgs::Pose& surface,
 		const geometry_msgs::PoseStamped& gripper_pose, const image_geometry::PinholeCameraModel& model,
 		const std::string filename){
 
-	//preprocessing input_cloud
-	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud = preProcessCloud(cloud,image,model);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud;
+	preProcessCloud(image,model,*processed_cloud);
 
 	feature_class<pcl::PointXYZ> feature;
 	Eigen::MatrixXf final_feature;
@@ -230,11 +217,11 @@ void testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &
 	std::stringstream eigen_filename;
 	eigen_filename<<filename<<".txt";
 	ofstream ofs(eigen_filename.str().c_str(),ios::out | ios::trunc);
-	if(ofs)  // si l'ouverture a réussi
+	if(ofs)
 	{
 		// instructions
 		ofs << final_feature;
-		ofs.close();  // on referme le fichier
+		ofs.close();
 	}
 	else  // sinon
 	{
@@ -242,6 +229,82 @@ void testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &
 	}
 
 
+}
+
+bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
+
+	view_point_pose_ = request.view_point;
+	gripper_pose_ = request.gripper_pose;
+	surface_pose_ = request.gripper_pose;
+
+	if(initialized_){
+
+		testfeatureClass(input_image_,input_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
+
+		action_point_.header.stamp = ros::Time::now();
+
+		sensor_msgs::PointCloud2Ptr ros_cloud;
+		pcl::toROSMsg(*input_cloud_,*ros_cloud);
+		try
+		{
+			bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
+			bag_.write(topicFeatureCameraInput(), ros::Time::now(), ros_image_);
+			bag_.write(topicFeatureCameraInfo(), ros::Time::now(), left_cam_);
+			bag_.write(topicFeatureTable(), ros::Time::now(), surface_pose_);
+			bag_.write(topicFeatureGripperPose(), ros::Time::now(), gripper_pose_);
+			bag_.write(topicFeatureViewpoint(), ros::Time::now(), view_point_pose_);
+		}
+		catch (rosbag::BagIOException ex)
+		{
+			ROS_DEBUG("grasp_template_planning::DemoWriter: Problem when writing demonstration to file >%s< : %s.",
+					bag_.getFileName().c_str(), ex.what());
+
+		}
+
+		response.action_location = action_point_;
+		response.result = ExtractFeatures::Response::SUCCESS;
+		return true;
+	}
+	else{
+
+		response.result = ExtractFeatures::Response::FAILURE;
+		return false;
+	}
+
+
+}
+
+bool extract_features::initialized(std::string filename){
+
+	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh_, ros::Duration(5.0));
+	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/Honeybee/left/image_rect_color",nh_, ros::Duration(5.0));
+	pcl::fromROSMsg (*ros_cloud, *input_cloud_);
+
+	graph_segment convertor;
+	input_image_ = convertor.returnCVImage(*input_image);
+	convertor.input_ = input_image_;
+	ros_image_ = convertor.returnRosImage(*input_image);
+
+	// getting camera info
+	sensor_msgs::CameraInfo::ConstPtr cam_info =
+			ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/Honeybee/left/camera_info", nh_, ros::Duration(10.0));
+	left_cam_.fromCameraInfo(cam_info);
+
+	try
+	{
+		bag_.open(filename, rosbag::bagmode::Write);
+
+	}
+	catch (rosbag::BagIOException ex)
+	{
+		ROS_DEBUG("grasp_template_planning::DemoWriter: Problem when opening demo file >%s< : %s.",
+				filename.c_str(), ex.what());
+	}
+
+	if(left_cam_.D_.empty() || input_image_.empty() || input_cloud_->empty())
+		return false;
+	else
+		return true;
 }
 
 } //namespace
@@ -256,60 +319,8 @@ int main(int argc, char **argv) {
 	}
 	std::string filename(argv[1]);
 
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
-
-	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh, ros::Duration(5.0));
-	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/Honeybee/left/image_rect_color", nh, ros::Duration(5.0));
-	pcl::fromROSMsg (*ros_cloud, *pcl_cloud);
-
-	geometry_msgs::PoseStampedConstPtr view_point = ros::topic::waitForMessage<geometry_msgs::PoseStamped>("/ViewPoint", nh, ros::Duration(5.0));
-	geometry_msgs::PoseConstPtr surface = ros::topic::waitForMessage<geometry_msgs::Pose>("/ViewPoint", nh, ros::Duration(5.0));
-	geometry_msgs::PoseStampedConstPtr gripper_pose = ros::topic::waitForMessage<geometry_msgs::PoseStamped>("/ViewPoint", nh, ros::Duration(5.0));
-
-	static_segment convertor;
-	cv::Mat cv_color_image = convertor.returnCVImage(*input_image);
-	image_geometry::PinholeCameraModel left_cam;
-
-
-	// getting camera info
-	sensor_msgs::CameraInfo::ConstPtr cam_info =
-			ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/Honeybee/left/camera_info", nh, ros::Duration(10.0));
-	left_cam.fromCameraInfo(cam_info);
-
-	// Getting kinect rgb image
-	sensor_msgs::Image::ConstPtr kinect_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Kinect/rgb/image", nh, ros::Duration(5.0));
-	cv::Mat cv_kinect_image = convertor.returnCVImage(*kinect_image);
-
-	rosbag::Bag bag_;
-
-	try
-	  {
-	    bag_.open(filename, rosbag::bagmode::Write);
-
-	  }
-	  catch (rosbag::BagIOException ex)
-	  {
-	    ROS_DEBUG("grasp_template_planning::DemoWriter: Problem when opening demo file >%s< : %s.",
-	        filename.c_str(), ex.what());
-	  }
-
-	  try
-	    {
-	      bag_.write(feature_learning::topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
-	      bag_.write(feature_learning::topicFeatureCameraInfo(), ros::Time::now(), *cam_info);
-	      bag_.write(feature_learning::topicFeatureTable(), ros::Time::now(), *surface);
-	      bag_.write(feature_learning::topicFeatureGripperPose(), ros::Time::now(), *gripper_pose);
-	      bag_.write(feature_learning::topicFeatureViewpoint(), ros::Time::now(), *view_point);
-	    }
-	    catch (rosbag::BagIOException ex)
-	    {
-	      ROS_DEBUG("grasp_template_planning::DemoWriter: Problem when writing demonstration to file >%s< : %s.",
-	          bag_.getFileName().c_str(), ex.what());
-
-	    }
-	feature_learning::testfeatureClass(cv_color_image,pcl_cloud,*view_point,*surface,*gripper_pose,left_cam,filename);
-
+	feature_learning::extract_features feature(nh);
+	feature.initialized_ = feature.initialized(filename);
 
 	ros::spin();
 	return 0;
