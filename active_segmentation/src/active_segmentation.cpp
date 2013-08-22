@@ -863,12 +863,12 @@ bool active_segment::manipulateNode(const geometry_msgs::Point &push_loc){
 
 			ROS_INFO("Grasping with right hand failed, Attempting push");
 			if(pushNode(push_pose,y_dir,manipulation_object_r_)){
-				ROS_INFO("Pushing Failed too");
-				return false;
-			}
-			else{
 				ROS_INFO("Pushing Succeeded ");
 				return true;
+			}
+			else{
+				ROS_INFO("Pushing Failed too");
+				return false;
 			}
 
 		}
@@ -888,12 +888,12 @@ bool active_segment::manipulateNode(const geometry_msgs::Point &push_loc){
 
 			ROS_INFO("Grasping with left hand failed, Attempting push");
 			if(pushNode(push_pose,y_dir,manipulation_object_l_)){
-				ROS_INFO("Pushing Failed too");
-				return false;
-			}
-			else{
 				ROS_INFO("Pushing Succeeded ");
 				return true;
+			}
+			else{
+				ROS_INFO("Pushing Failed too");
+				return false;
 			}
 
 		}

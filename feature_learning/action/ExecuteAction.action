@@ -1,0 +1,11 @@
+#goal definition
+# action 1 = Grasp, 2 = Push-Front, 3 = Pull-Back, 4 = Push-Right, 5 = Push-Left
+int32 action_number
+# Hand : number 1 = right hand, number 2 = left hand
+int32 hand_number
+---
+#result
+bool success
+float32 reward
+---
+#feedback

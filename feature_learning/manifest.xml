@@ -18,7 +18,8 @@
 
   <depend package="pcl"/>
   <depend package="pcl_ros"/>
-
+  <depend package="actionlib"/>
+  <depend package="actionlib_msgs"/>
   <depend package="opencv2"/>
   <depend package="cv_bridge"/>
   <depend package="image_geometry" />
@@ -27,6 +28,11 @@
   <depend package="grasp_template"/>
   <depend package="graph_based_segmentation"/>
   <depend package="learn_appearance"/>
+  <depend package="arm_head_behaviors"/>
+  <depend package="arm_manipulation_tools"/>
+  <depend package="arm_motion_primitives"/>
+  <depend package="arm_world_state"/>
+  <depend package="conversions"/>
   
   <export>
     <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>

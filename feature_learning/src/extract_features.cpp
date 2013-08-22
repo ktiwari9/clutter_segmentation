@@ -235,7 +235,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 	view_point_pose_ = request.view_point;
 	gripper_pose_ = request.gripper_pose;
-	surface_pose_ = request.gripper_pose;
+	surface_pose_ = request.surface_pose;
 
 	if(initialized_){
 
@@ -310,7 +310,7 @@ bool extract_features::initialized(std::string filename){
 } //namespace
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "learn_feature");
+	ros::init(argc, argv, "extract_feature_srv");
 	ros::NodeHandle nh;
 	if(argc < 2)
 	{
