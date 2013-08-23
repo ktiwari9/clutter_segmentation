@@ -220,6 +220,7 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 	if(ofs)
 	{
 		// instructions
+		ofs << std::endl;
 		ofs << final_feature;
 		ofs.close();
 	}

@@ -1,0 +1,4 @@
+<launch>
+	<node pkg="feature_learning" type="execute_action" name="execute_action" output="screen">		
+	</node>
+</launch>
