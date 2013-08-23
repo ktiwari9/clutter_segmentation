@@ -77,6 +77,8 @@ public:
 
 	graph_segment();
 
+	graph_segment(cv::Mat input);
+
 	graph_segment(ros::NodeHandle &nh);
 
 	~graph_segment();
@@ -86,6 +88,8 @@ public:
 	image<rgb>* convertcvMattoNative(cv::Mat input);
 
 	cv::Mat getSegmentedImage();
+
+	void setCVImage(cv::Mat input){input_ = input;}
 
 	bool serviceCallback(GraphSegment::Request &request, GraphSegment::Response& response);
 

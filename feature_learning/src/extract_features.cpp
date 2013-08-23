@@ -138,7 +138,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		ray.push_back(pcl::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
 
 		ROS_DEBUG("Creating Ray in base frame");
-		ROS_VERIFY(listener_.waitForTransform("/BASE",model.cam_info_.header.frame_id,
+		ROS_VERIFY(listener_.waitForTransform("/BASE",model.tfFrame(),
 				ros::Time::now(), ros::Duration(5.0)));
 
 		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
@@ -170,7 +170,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		//template_center_transform.getOrigin().setY() //--> I don't think I need this
 
 		// Creating Box filter
-		pcl::CropBox cropBox;
+		pcl::CropBox<pcl::PointXYZ> cropBox;
 		cropBox.setInputCloud(input_cloud_);
 		// TODO: Do I use the centroid as reference or should I use the table height like Peter does??
 		Eigen::Vector4f bag_min(-(BOX_WIDTH_X/(double)2.0),
@@ -194,7 +194,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 			max_size = filtered_cloud->size();
 			processed_cloud.swap(*filtered_cloud);
 			action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
-			action_point_.header = "/BASE";
+			action_point_.header.frame_id = "/BASE";
 		}
 	}
 
@@ -208,7 +208,7 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud;
 	preProcessCloud(image,model,*processed_cloud);
 
-	feature_class<pcl::PointXYZ> feature;
+	feature_class feature;
 	Eigen::MatrixXf final_feature;
 	feature.initialized_ = feature.initializeFeatureClass(image,processed_cloud,viewpoint,surface,gripper_pose);
 
@@ -249,7 +249,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		{
 			bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
 			bag_.write(topicFeatureCameraInput(), ros::Time::now(), ros_image_);
-			bag_.write(topicFeatureCameraInfo(), ros::Time::now(), left_cam_);
+			bag_.write(topicFeatureCameraInfo(), ros::Time::now(), cam_info_);
 			bag_.write(topicFeatureTable(), ros::Time::now(), surface_pose_);
 			bag_.write(topicFeatureGripperPose(), ros::Time::now(), gripper_pose_);
 			bag_.write(topicFeatureViewpoint(), ros::Time::now(), view_point_pose_);
@@ -282,13 +282,14 @@ bool extract_features::initialized(std::string filename){
 
 	graph_segment convertor;
 	input_image_ = convertor.returnCVImage(*input_image);
-	convertor.input_ = input_image_;
+	convertor.setCVImage(input_image_);
 	ros_image_ = convertor.returnRosImage(*input_image);
 
 	// getting camera info
 	sensor_msgs::CameraInfo::ConstPtr cam_info =
 			ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/Honeybee/left/camera_info", nh_, ros::Duration(10.0));
 	left_cam_.fromCameraInfo(cam_info);
+	cam_info_ = *cam_info;
 
 	try
 	{
@@ -301,7 +302,7 @@ bool extract_features::initialized(std::string filename){
 				filename.c_str(), ex.what());
 	}
 
-	if(left_cam_.D_.empty() || input_image_.empty() || input_cloud_->empty())
+	if(left_cam_.distortionCoeffs().empty() || input_image_.empty() || input_cloud_->empty())
 		return false;
 	else
 		return true;
@@ -320,7 +321,7 @@ int main(int argc, char **argv) {
 	std::string filename(argv[1]);
 
 	feature_learning::extract_features feature(nh);
-	feature.initialized_ = feature.initialized(filename);
+	feature.setInitialized(feature.initialized(filename));
 
 	ros::spin();
 	return 0;

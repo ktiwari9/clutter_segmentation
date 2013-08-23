@@ -49,6 +49,7 @@
 #include <learn_appearance/texton_hist.h>
 #include <pcl/surface/convex_hull.h>
 #include <sensor_msgs/CameraInfo.h>
+#include "pcl_ros/transforms.h"
 //Grasp Template Includes
 #include <grasp_template/heightmap_sampling.h>
 #include <pcl/features/usc.h> // Unique shape context feature
@@ -93,6 +94,8 @@ public:
 
 	~extract_features();
 
+	void setInitialized(bool initialized){initialized_ = initialized;}
+
 	bool initialized(std::string filename);
 
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
@@ -121,6 +124,7 @@ private:
 	geometry_msgs::PoseStamped view_point_pose_, gripper_pose_;
 	geometry_msgs::Pose surface_pose_;
 	image_geometry::PinholeCameraModel left_cam_;
+	sensor_msgs::CameraInfo cam_info_;
 	sensor_msgs::ImagePtr ros_image_;
 
 	geometry_msgs::PointStamped action_point_;

@@ -123,6 +123,10 @@ public:
 
 	void getGraspPose(const geometry_msgs::PoseStamped &start_pose, geometry_msgs::PoseStamped &end_pose, double direction);
 
+	bool graspNode(geometry_msgs::PoseStamped grasp_pose, ArmInterface& manipulation_object);
+
+	bool pushNode(geometry_msgs::PoseStamped push_pose, double y_direction, ArmInterface& manipulation_object);
+
 };
 
 }
