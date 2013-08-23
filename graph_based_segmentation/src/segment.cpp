@@ -53,6 +53,7 @@ graph_segment::graph_segment(cv::Mat input):
 
 
 }
+graph_segment::graph_segment(){}
 
 graph_segment::~graph_segment(){}
 
@@ -97,6 +98,34 @@ image<rgb>* graph_segment::convertcvMattoNative(cv::Mat input){
 	    }
 	    return im;
 }
+
+cv::Mat graph_segment::returnCVImage(const sensor_msgs::Image & img) {
+
+	cv_bridge::CvImagePtr cv_ptr;
+	try {
+		cv_ptr = cv_bridge::toCvCopy(img);
+	} catch (cv_bridge::Exception &e) {
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+		exit(0);
+	}
+
+	return cv_ptr->image;
+}
+
+sensor_msgs::ImagePtr graph_segment::returnRosImage(const sensor_msgs::Image rgb_image){
+
+	cv_bridge::CvImage out_msg;
+
+	//Get header and encoding from your input image
+	out_msg.header   = rgb_image.header;
+	out_msg.encoding = rgb_image.encoding;
+	out_msg.image    = input_;
+
+	ROS_INFO("Populating response with type sensor_msgs/Image");
+	return out_msg.toImageMsg();
+}
+
+
 
 cv::Mat graph_segment::getSegmentedImage(){return input_;}
 }

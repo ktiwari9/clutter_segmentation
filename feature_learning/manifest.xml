@@ -26,6 +26,7 @@
   <depend package="static_segmentation" />
   <depend package="graph_module" />
   <depend package="grasp_template"/>
+  <depend package="grasp_template_planning"/>
   <depend package="graph_based_segmentation"/>
   <depend package="learn_appearance"/>
   <depend package="arm_head_behaviors"/>
@@ -33,7 +34,7 @@
   <depend package="arm_motion_primitives"/>
   <depend package="arm_world_state"/>
   <depend package="conversions"/>
-  <depend package="learn_appearance"/>  
+  <depend package="usc_utilities"/>  
   <export>
     <cpp cflags="-I${prefix}/include " lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
  </export>

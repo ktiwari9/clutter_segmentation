@@ -125,12 +125,12 @@ int main(int argc, char **argv){
 
 		// Storing the adjacency matrix
 		std::string eigen_before_filename(filename+"_before_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
-		ofstream ofs(eigen_before_filename.c_str(),ios::out | ios::trunc);
-		if(ofs)
+		ofstream ofs_before(eigen_before_filename.c_str(),ios::out | ios::trunc);
+		if(ofs_before)
 		{
 			// instructions
-			ofs << adjacency;
-			ofs.close();
+			ofs_before << adjacency;
+			ofs_before.close();
 		}
 		else  // sinon
 		{
@@ -176,12 +176,12 @@ int main(int argc, char **argv){
 
 		// Storing the adjacency matrix
 		std::string eigen_after_filename(filename+"_after_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
-		ofstream ofs(eigen_after_filename.c_str(),ios::out | ios::trunc);
-		if(ofs)
+		ofstream ofs_after(eigen_after_filename.c_str(),ios::out | ios::trunc);
+		if(ofs_after)
 		{
 			// instructions
-			ofs << adjacency;
-			ofs.close();
+			ofs_after << adjacency;
+			ofs_after.close();
 		}
 		else  // sinon
 		{

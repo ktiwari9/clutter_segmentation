@@ -40,6 +40,7 @@
 #include "feature_learning/execute_action.hpp"
 // To get gripper frame
 #include <grasp_template_planning/grasp_planning_params.h>
+#define DEBUG false
 
 namespace feature_learning {
 
@@ -52,7 +53,7 @@ execute_action::execute_action(ros::NodeHandle & nh):
 	// Start the action server
 	action_server_.start();
 	tabletop_client_ = nh_priv_.serviceClient<tabletop_segmenter::TabletopSegmentation>("/tabletop_segmentation");
-	extract_feature_client_ = nh_priv_.serviceClient<ExtractFeatures>("/extract_features_srv")
+	extract_feature_client_ = nh_priv_.serviceClient<ExtractFeatures>("/extract_features_srv");
 }
 
 execute_action::~execute_action(){}
@@ -101,7 +102,7 @@ geometry_msgs::PoseStamped execute_action::getSurfacePose(){
 		if (!tabletop_client_.call(tabletop_service))
 		{
 			ROS_INFO("feature_learning::execute_action: Could not get object cluster from tabletop_segmenter.");
-			return false;
+			return table_pose;
 		}
 
 		tf::StampedTransform base_to_tableworld;
@@ -142,7 +143,7 @@ geometry_msgs::PoseStamped execute_action::getGripperPose(){
 			{
 				ROS_ERROR_STREAM("Waiting for transform, from " << params.frameBase()
 						<< " to " << plan_params.frameGripper() << " timed out.");
-				return -1;
+				return gripper_pose;
 			}
 			listener.lookupTransform(params.frameBase(), plan_params.frameGripper(),
 					ros::Time(0), transform);
@@ -182,7 +183,7 @@ geometry_msgs::PoseStamped execute_action::getViewpointPose(){
 			{
 				ROS_ERROR_STREAM("Waiting for transform, from " << params.frameBase()
 						<< " to " << params.frameViewPoint() << " timed out.");
-				return -1;
+				return viewpoint_pose;
 			}
 			else
 			{
@@ -266,7 +267,7 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 	if (!extract_feature_client_.call(extract_feature_service))
 	{
 		ROS_INFO("feature_learning::execute_action: Could not get feature extraction response");
-		return -1;
+		return;
 	}
 
 	geometry_msgs::Point action_point;

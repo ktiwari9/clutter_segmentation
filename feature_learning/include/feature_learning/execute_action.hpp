@@ -61,6 +61,10 @@
 //Tabletop Server includes
 #include <tabletop_segmenter/TabletopSegmentation.h>
 
+// Conversions header file
+#include<conversions/tf_to_ros.h>
+#include<conversions/ros_to_tf.h>
+
 using namespace arm_manipulation_tools;
 using namespace arm_motion_primitives;
 using namespace arm_world_state;

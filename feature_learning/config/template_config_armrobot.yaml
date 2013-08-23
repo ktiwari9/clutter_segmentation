@@ -1,0 +1,37 @@
+hand_architecture: 'armrobot'
+fingerspread_joint: 'R_FR'
+fingerpos1_joint: 'R_RF'
+fingerpos2_joint: 'R_MF'
+fingerpos3_joint: 'R_LF'
+
+frame_base: '/BASE'
+frame_view_point: '/XTION_IR'
+service_name_image_poll: ''
+rostopic_colored_image: '/Honeybee/left/image_color'
+rostopic_pickup_status: ''
+frame_gripper: 'R_PALM'
+template_width: 0.25
+
+gripper_bounding_corner1_x: -0.12
+gripper_bounding_corner1_y: -0.12
+gripper_bounding_corner1_z: -0.07
+
+gripper_bounding_corner2_x: 0.09
+gripper_bounding_corner2_y: 0.12
+gripper_bounding_corner2_z: 0.15
+
+template_extraction_offset_x: 0.0
+template_extraction_offset_y: 0.0
+template_extraction_offset_z: 0.0
+
+default_viewpoint_x: 0.0
+default_viewpoint_y: 0.0
+default_viewpoint_z: 2.0
+
+use_table_for_extraction: true
+
+occlusion_punishment_fac: 0.0
+learning_lib_qual_factor: 1.0
+learning_fail_distance_factor: 1.0
+
+learning_success_add_dist: 0.0
