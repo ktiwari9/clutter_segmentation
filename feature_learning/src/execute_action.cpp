@@ -47,8 +47,8 @@ namespace feature_learning {
 execute_action::execute_action(ros::NodeHandle & nh):
 		nh_(nh),nh_priv_("~"),
 		action_server_(nh_,"execute_action",boost::bind(&execute_action::executeCallBack,this,_1),false),
-		poke_object_(),world_state_(),
-		manipulation_object_l_(2),manipulation_object_r_(1){
+		manipulation_object_l_(2),manipulation_object_r_(1),
+		poke_object_(),world_state_(){
 
 	// Start the action server
 	action_server_.start();
@@ -141,7 +141,7 @@ geometry_msgs::PoseStamped execute_action::getGripperPose(){
 			if (!listener.waitForTransform(params.frameBase(), plan_params.frameGripper(),
 					ros::Time(0), ros::Duration(2)))
 			{
-				ROS_ERROR_STREAM("Waiting for transform, from " << params.frameBase()
+				ROS_ERROR_STREAM("feature_learning::execute_action: Waiting for transform, from " << params.frameBase()
 						<< " to " << plan_params.frameGripper() << " timed out.");
 				return gripper_pose;
 			}
@@ -181,7 +181,7 @@ geometry_msgs::PoseStamped execute_action::getViewpointPose(){
 			if (!listener.waitForTransform(params.frameBase(),
 					params.frameViewPoint(), ros::Time(0), ros::Duration(1)))
 			{
-				ROS_ERROR_STREAM("Waiting for transform, from " << params.frameBase()
+				ROS_ERROR_STREAM("feature_learning::execute_action: Waiting for transform, from " << params.frameBase()
 						<< " to " << params.frameViewPoint() << " timed out.");
 				return viewpoint_pose;
 			}
@@ -223,9 +223,10 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 
 
 	char input = 'p';
-	ROS_INFO("Note: Only demonstrations with the right arm are recorded.");
+	// TODO: Is this true??
+	ROS_INFO("feature_learning::execute_action: Note: Only demonstrations with the right arm are recorded.");
 
-	ROS_INFO("Please, free the robot's view on the object "
+	ROS_INFO("feature_learning::execute_action: Please, free the robot's view on the object "
 			"and enter an arbitrary character followed by enter.");
 	std::cin >> input;
 	// Now first get the topics we were looking for
@@ -236,17 +237,20 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 
 	geometry_msgs::PoseStamped viewpoint_pose = getViewpointPose();
 
-	ROS_INFO("Please, place the gripper at the object without displacing "
+	ROS_INFO("feature_learning::execute_action: Please, place the gripper at the object without displacing "
 			"it and enter an arbitrary character followed by enter.");
 
+	std::cin >> input;
+	std::cout<<controller_prefix<<"GravityCompensation"<<" is the controller stack being run"<<std::endl;
 	//Now place the hand in gravity comp
 	ROS_VERIFY(switch_controller_stack_.switchControllerStack(controller_prefix + "GravityCompensation"));
-	std::cin >> input;
 
-	ROS_INFO("Please, Verify if hand has been placed in appropriate location and move out of the way "
+	std::cin >> input;
+	ROS_INFO("feature_learning::execute_action: Please, Verify if hand has been placed in appropriate location and move out of the way "
 			"and enter an arbitrary character followed by enter.");
 	std::cin >> input;
 
+	ROS_INFO("feature_learning::execute_action: Verifying right hand now %d",right_hand);
 	if(right_hand)
 		manipulation_object_r_.switchControl(ArmInterface::JOINT_CONTROL_);
 	else
@@ -292,16 +296,24 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 			action_succeeded = doActionOnPoint(action_point,action,manipulation_object_l_);
 		if(action_succeeded)
 		{
-			ROS_INFO("%s: Action Succeeded", getName().c_str ());
+			ROS_INFO("feature_learning::execute_action: %s: Action Succeeded", getName().c_str ());
 			// Send both hands home
 			manipulation_object_l_.switchStackToJointControl();
 			manipulation_object_l_.goHome();
 			manipulation_object_r_.switchStackToJointControl();
 			manipulation_object_r_.goHome();
 			// set the action state to succeeded
+			ROS_INFO("feature_learning::execute_action: Extract Feature Service and Action succeeded");
 			action_server_.setSucceeded(result_);
 		}
-
+		else{
+			ROS_INFO("feature_learning::execute_action: Extract Feature Service succeeded but execute action failed");
+			action_server_.setAborted(result_);
+		}
+	}
+	else{
+		ROS_INFO("feature_learning::execute_action: Extract Feature Service failed, check for errors");
+		action_server_.setAborted(result_);
 	}
 
 }
@@ -728,6 +740,7 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 int main(int argc, char** argv){
 
 	ros::init (argc, argv, "execute_action");
+	arm_controller_interface::init();
 	ros::NodeHandle nh;
 	feature_learning::execute_action action (nh);
 	ros::spin ();

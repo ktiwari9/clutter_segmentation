@@ -1,0 +1,10 @@
+<launch>
+
+  <include file="$(find arm_launch)/launch/perception_sensors.launch" />
+  <include file="$(find arm_launch)/launch/planning.launch" />
+  <include file="$(find arm_wirecut_behaviors)/launch/wire_cut_objects_tracker.launch" />
+  <include file="$(find arm_fiducial_tracker)/launch/fiducial_tracker.launch" />
+  <include file="$(find arm_head_behaviors)/launch/look_at.launch" />
+  <include file="$(find static_segmentation)/launch/static_segmenter.launch" />
+
+</launch>

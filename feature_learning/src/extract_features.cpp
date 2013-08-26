@@ -257,7 +257,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		}
 		catch (rosbag::BagIOException ex)
 		{
-			ROS_DEBUG("grasp_template_planning::DemoWriter: Problem when writing demonstration to file >%s< : %s.",
+			ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
 					bag_.getFileName().c_str(), ex.what());
 
 		}
@@ -278,7 +278,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 bool extract_features::initialized(std::string filename){
 
 	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh_, ros::Duration(5.0));
-	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/Honeybee/left/image_rect_color",nh_, ros::Duration(5.0));
+	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/XTION/rgb/points",nh_, ros::Duration(5.0));
 	pcl::fromROSMsg (*ros_cloud, *input_cloud_);
 
 	graph_segment convertor;
@@ -299,7 +299,7 @@ bool extract_features::initialized(std::string filename){
 	}
 	catch (rosbag::BagIOException ex)
 	{
-		ROS_DEBUG("grasp_template_planning::DemoWriter: Problem when opening demo file >%s< : %s.",
+		ROS_DEBUG("feature_learning::extract_features: Problem when opening demo file >%s< : %s.",
 				filename.c_str(), ex.what());
 	}
 

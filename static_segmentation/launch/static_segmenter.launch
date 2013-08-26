@@ -35,7 +35,7 @@
   <node pkg="graph_based_segmentation" name="segment_service" type="segment_service" respawn="true" output="screen">
    </node>
 
- <!--  <node pkg="static_segmentation" name="static_segmenter" type="static_segmenter" respawn="true" output="screen">
-   </node> -->
+  <node pkg="static_segmentation" name="static_segmenter" type="static_segmenter" respawn="true" output="screen">
+   </node>
 
 </launch>

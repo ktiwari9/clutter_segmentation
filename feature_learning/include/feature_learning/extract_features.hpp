@@ -79,7 +79,7 @@ protected:
 	static const double BOX_LENGTH_Y = 0.30; // in m
 	static const double BOX_HEIGHT_Z = 0.15; // in m
 
-	std::string topicFeatureInputCloud() const {return "/grasp_demo_events";};
+	std::string topicFeatureInputCloud() const {return "/XTION/rgb/points";};
 	std::string topicFeatureCameraInfo() const {return "/Honeybee/left/camera_info'";};
 	std::string topicFeatureCameraInput() const {return "/Honeybee/left/image_rect_color";};
 	std::string topicFeatureTable() const {return "/grasp_demo_table";};
