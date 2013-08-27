@@ -167,13 +167,19 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 
 	if(initialized_)
 	{
+		ROS_INFO("feature_learning::feature_class: Getting color histogram of input image");
 		computeColorHist(colorHist);
+		ROS_INFO("feature_learning::feature_class: Getting texton histogram of input image");
 		computeTextonMap(textonMap);
+		ROS_INFO("feature_learning::feature_class: Getting entropy map of input image");
 		computeEntropyMap(entropyMap);
+		ROS_INFO("feature_learning::feature_class: Getting push features of input image");
 		computePushFeature(pushFeature);
+		ROS_INFO("feature_learning::feature_class: Getting grasp patch in input image");
 		computeGraspPatch(graspPatch);
 		out_mat.resize(1,colorHist.cols()+textonMap.cols()+entropyMap.cols()+pushFeature.cols()+graspPatch.cols());
 		//TODO: Do I need to normalize these features???
+		ROS_INFO("feature_learning::feature_class: Resized features for input image");
 		out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch;
 	}
 
@@ -242,10 +248,15 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 	ROS_DEBUG("Computing Texton Feature");
 
 	int n_textons = 32;
+	ROS_INFO("Initializing Texton Feature");
+
 	learn_appearance::TextonHistogram thist(n_textons);
 
-	thist.Train(img_gray_float, cv::Mat());
+	ROS_INFO("Training texton Feature");
+	//thist.Train(img_gray_float, cv::Mat());
+	thist.InitializeCodebookFromImage(img_gray_float);
 	cv::MatND hist = thist.getTextonHist();
+	ROS_INFO("Converting Texton Feature");
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);

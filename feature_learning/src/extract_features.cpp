@@ -78,7 +78,8 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	// Now find the holes
 
 	cv::Mat singleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
-	 cv::Mat multipleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
+	cv::Mat multipleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
+	ROS_INFO("feature_learning::extract_features: drawing contours in input image");
 	for(std::vector<cv::Vec4i>::size_type i = 0; i < contours_unordered.size();i++)
 	{
 		if(hierarchy[i][3] != -1)
@@ -91,6 +92,7 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	// Now get the final holes
 	std::vector<std::vector<cv::Point> > holes;
 	cv::findContours(multipleLevelHoles.clone(), holes, CV_RETR_LIST,CV_CHAIN_APPROX_NONE);
+	ROS_INFO("feature_learning::extract_features: returning contours in input image");
 	return holes;
 }
 
@@ -106,10 +108,10 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 	Eigen::Vector4f cloud_mean;
 
 	// Now transform point cloud base frame
-	ROS_VERIFY(listener_.waitForTransform("/BASE",input_cloud_->header.frame_id,
-					ros::Time::now(), ros::Duration(5.0)));
-
-	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE",*input_cloud_,*input_cloud_,listener_));
+//	ROS_INFO("feature_learning::extract_features: Pre-processing cloud");
+//	listener_.waitForTransform("/BASE",input_cloud_->header.frame_id,
+//				input_cloud_->header.stamp, ros::Duration(5.0));
+//	std::cout<<input_cloud_->header.stamp<<std::endl << "Timestamp"<<std::endl;
 
 	// Getting mean of point cloud to estimate the nominal cutting plane
 	pcl::computeMeanAndCovarianceMatrix(*input_cloud_,covariance,cloud_mean);
@@ -122,24 +124,38 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 	plane_coefficients->values[3] = 0;
 
 	// Getting holes in the image
+	ROS_INFO("feature_learning::extract_features: Getting holes in input image");
 	std::vector<std::vector<cv::Point> > hole_contours = getHoles(input_segment);
-
+	cv::Mat contour_mask = cv::Mat::zeros(input_segment.size(), CV_8UC1);
+	cv::drawContours(contour_mask, hole_contours, -1, cv::Scalar::all(255), CV_FILLED,8);
+	cv::imwrite("/tmp/countour_image.jpg",contour_mask);
 	// Computing means around contour points
 	size_t max_size = 0;
+	ROS_INFO("Number of contours returned %d",hole_contours.size());
 	for(size_t i = 0; i < hole_contours.size(); i++)
 	{
-		cv::Mat mean_value;
-		cv::reduce(hole_contours[i], mean_value, CV_REDUCE_AVG, 1);
-		cv::Point2d mean_point(mean_value.at<float>(0,0), mean_value.at<float>(0,1));
+		if(hole_contours[i].size() < 100)
+			continue;
+		cv::Mat sub_contour_mask = cv::Mat::zeros(input_segment.size(), CV_8UC1);
+		std::vector<std::vector<cv::Point> > temp_contours;
+		temp_contours.push_back(hole_contours[i]);
+		ROS_DEBUG("feature_learning::extract_features: Computing the mean of every contour");
+		cv::drawContours(sub_contour_mask, temp_contours, -1, cv::Scalar::all(255), CV_FILLED,8);
+	    cv::Moments m_c = cv::moments(sub_contour_mask, false);
+	    cv::Point2f sub_mask_center(m_c.m10/m_c.m00, m_c.m01/m_c.m00);
+		cv::Point2d mean_point(sub_mask_center.x, sub_mask_center.y);
+		ROS_DEBUG("feature_learning::extract_features: Projecting pixel to 3D");
 		cv::Point3d push_3d = model.projectPixelTo3dRay(mean_point);
 
 		pcl::PointCloud<pcl::PointXYZ> ray;
 		ray.push_back(pcl::PointXYZ(0,0,0));
 		ray.push_back(pcl::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
+		ray.header.frame_id =  model.tfFrame();
+		ray.header.stamp = ros::Time::now();
 
-		ROS_DEBUG("Creating Ray in base frame");
+		ROS_DEBUG("feature_learning::extract_features: Creating Ray in base frame");
 		ROS_VERIFY(listener_.waitForTransform("/BASE",model.tfFrame(),
-				ros::Time::now(), ros::Duration(5.0)));
+				ray.header.stamp, ros::Duration(5.0)));
 
 		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
 					ray, listener_));
@@ -195,8 +211,12 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 			processed_cloud.swap(*filtered_cloud);
 			action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
 			action_point_.header.frame_id = "/BASE";
+			ROS_INFO("feature_learning::extract_features: Found a actionable point cloud");
+
 		}
 	}
+
+	ROS_INFO("feature_learning::extract_features: Got an action point");
 
 }
 
@@ -205,14 +225,15 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 		const geometry_msgs::PoseStamped& gripper_pose, const image_geometry::PinholeCameraModel& model,
 		const std::string filename){
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	preProcessCloud(image,model,*processed_cloud);
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
 	feature.initialized_ = feature.initializeFeatureClass(image,processed_cloud,viewpoint,surface,gripper_pose);
 
-	feature.computeFeature(final_feature); // TODO: Write this feature to disk?? How??
+	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
+	feature.computeFeature(final_feature);
 	// Use bag writer to write before and after bags with topics and name the Eigen matrix as the same thing
 	std::stringstream eigen_filename;
 	eigen_filename<<filename<<".txt";
@@ -234,18 +255,20 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
+	ROS_INFO("feature_learning::extract_features: Executing service, initialized %d",initialized_);
 	view_point_pose_ = request.view_point;
 	gripper_pose_ = request.gripper_pose;
 	surface_pose_ = request.surface_pose;
-
+	ROS_INFO("feature_learning::extract_features: Got gripper pose, surface pose and viewpoint");
 	if(initialized_){
-
+		ROS_INFO("feature_learning::extract_features: Computing features");
 		testfeatureClass(input_image_,input_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
 
 		action_point_.header.stamp = ros::Time::now();
 
 		sensor_msgs::PointCloud2Ptr ros_cloud;
 		pcl::toROSMsg(*input_cloud_,*ros_cloud);
+		ROS_INFO("feature_learning::extract_features: Writing bag");
 		try
 		{
 			bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
@@ -262,12 +285,14 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 		}
 
+		ROS_INFO("feature_learning::extract_features: returning success");
 		response.action_location = action_point_;
 		response.result = ExtractFeatures::Response::SUCCESS;
 		return true;
 	}
 	else{
 
+		ROS_INFO("feature_learning::extract_features: returning failed");
 		response.result = ExtractFeatures::Response::FAILURE;
 		return false;
 	}
@@ -277,20 +302,30 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 bool extract_features::initialized(std::string filename){
 
+	ROS_INFO("feature_learning::extract_features: Initializing extract features");
 	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh_, ros::Duration(5.0));
 	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/XTION/rgb/points",nh_, ros::Duration(5.0));
 	pcl::fromROSMsg (*ros_cloud, *input_cloud_);
+	ROS_INFO("feature_learning::extract_features: Got input image and pointcloud");
+
+	ROS_VERIFY(listener_.waitForTransform("/BASE",input_cloud_->header.frame_id,
+			input_cloud_->header.stamp, ros::Duration(5.0)));
+
+	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE",*input_cloud_,*input_cloud_,listener_));
 
 	graph_segment convertor;
 	input_image_ = convertor.returnCVImage(*input_image);
 	convertor.setCVImage(input_image_);
 	ros_image_ = convertor.returnRosImage(*input_image);
+	ROS_INFO("feature_learning::extract_features: Converted image into ros image");
+
 
 	// getting camera info
 	sensor_msgs::CameraInfo::ConstPtr cam_info =
 			ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/Honeybee/left/camera_info", nh_, ros::Duration(10.0));
 	left_cam_.fromCameraInfo(cam_info);
 	cam_info_ = *cam_info;
+	ROS_INFO("feature_learning::extract_features: got camera info");
 
 	try
 	{

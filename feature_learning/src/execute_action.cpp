@@ -263,7 +263,7 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 	extract_feature_service.request.view_point = viewpoint_pose;
 	extract_feature_service.request.surface_pose = surface_pose.pose;
 
-	while (!extract_feature_client_.waitForExistence(ros::Duration(1.0)) && ros::ok())
+	while (!extract_feature_client_.waitForExistence(ros::Duration(10.0)) && ros::ok())
 	{
 		ros::Rate r(1);
 		r.sleep();
@@ -271,6 +271,8 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 	if (!extract_feature_client_.call(extract_feature_service))
 	{
 		ROS_INFO("feature_learning::execute_action: Could not get feature extraction response");
+		result_.success = false;
+		action_server_.setAborted(result_);
 		return;
 	}
 
@@ -742,8 +744,9 @@ int main(int argc, char** argv){
 	ros::init (argc, argv, "execute_action");
 	arm_controller_interface::init();
 	ros::NodeHandle nh;
+	ros::MultiThreadedSpinner mts(0);
 	feature_learning::execute_action action (nh);
-	ros::spin ();
+	mts.spin ();
 }
 
 
