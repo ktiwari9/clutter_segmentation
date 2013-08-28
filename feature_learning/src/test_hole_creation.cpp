@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 	cv::imwrite("/tmp/holesBW.jpg",image_bw);
 
 	cv::Mat new_canny = cv::Mat::zeros(image_gray.size(), CV_8UC1);
-	new_canny.
+	//new_canny.
 
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(canny_output.clone(), contours_unordered, hierarchy, CV_RETR_TREE,CV_CHAIN_APPROX_NONE);
