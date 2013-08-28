@@ -55,6 +55,8 @@
 #include <pcl/features/usc.h> // Unique shape context feature
 #include <pcl/features/3dsc.h> // Unique shape context feature
 #include <pcl/filters/crop_box.h>
+//Tabletopsegmenter includes
+#include "tabletop_segmenter/TabletopSegmentation.h"
 
 // Other includes
 #include <graph_based_segmentation/segment.h>
@@ -74,6 +76,9 @@ protected:
 	tf::TransformListener listener_;
 
 	bool initialized_;
+
+	std::string tabletop_service_;
+	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 
 	static const double BOX_WIDTH_X = 0.30; // in m
 	static const double BOX_LENGTH_Y = 0.30; // in m
@@ -110,6 +115,9 @@ public:
 
 	bool serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response);
 
+	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
+            const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks);
+
 private:
 
 	rosbag::Bag bag_;
@@ -120,7 +128,7 @@ private:
 
 	// Data required for feature extraction
 	pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud_;
-	cv::Mat input_image_;
+	cv::Mat input_image_, mask_image_;
 	geometry_msgs::PoseStamped view_point_pose_, gripper_pose_;
 	geometry_msgs::Pose surface_pose_;
 	image_geometry::PinholeCameraModel left_cam_;

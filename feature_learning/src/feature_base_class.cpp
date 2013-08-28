@@ -115,6 +115,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
 
 	// Normal Estimation
+	ROS_INFO("Size of input cloud %d ",local_cloud_->size());
 	pcl::NormalEstimation<PointType, PointNT> normalEstimation;
 	normalEstimation.setInputCloud (local_cloud_);
 	normalEstimation.setSearchMethod (tree);
@@ -245,6 +246,8 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 	img_gray.convertTo(img_gray_float, CV_64F);
 	img_gray_float/=255.0f;
 
+	cv::imwrite("/tmp/input_gray.jpg",img_gray);
+	cv::imwrite("/tmp/input_color.jpg",local_image_);
 	ROS_DEBUG("Computing Texton Feature");
 
 	int n_textons = 32;

@@ -51,6 +51,7 @@ namespace feature_learning{
 extract_features::extract_features(ros::NodeHandle& nh):
 		nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>){
 
+	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 }
 
@@ -65,20 +66,19 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 
 	// first find contours aka holes
 	std::vector<std::vector<cv::Point> > contours_unordered;
-	cv::Mat image_gray;
-	cv::cvtColor( input, image_gray, CV_BGR2GRAY );
 
-	// convert to BW
-	cv::Mat image_bw = image_gray > 128;
 	int thresh = 100;
 	cv::Mat canny_output;
-	cv::Canny(image_bw, canny_output, thresh, thresh*2, 3 );
+	cv::Canny(mask_image_, canny_output, thresh, thresh*2, 3 );
+	cv::imwrite("/tmp/canny.jpg",canny_output);
+	cv::imwrite("/tmp/holesBW.jpg",mask_image_);
+
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(canny_output.clone(), contours_unordered, hierarchy, CV_RETR_TREE,CV_CHAIN_APPROX_NONE);
 	// Now find the holes
 
-	cv::Mat singleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
-	cv::Mat multipleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
+	cv::Mat singleLevelHoles = cv::Mat::zeros(mask_image_.size(), mask_image_.type());
+	cv::Mat multipleLevelHoles = cv::Mat::zeros(mask_image_.size(), mask_image_.type());
 	ROS_INFO("feature_learning::extract_features: drawing contours in input image");
 	for(std::vector<cv::Vec4i>::size_type i = 0; i < contours_unordered.size();i++)
 	{
@@ -86,9 +86,10 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 			cv::drawContours(singleLevelHoles, contours_unordered, i, cv::Scalar::all(255), CV_FILLED, 8, hierarchy);
 	}
 
-	cv::bitwise_not(image_bw, image_bw);
-	cv::bitwise_and(image_bw, singleLevelHoles, multipleLevelHoles);
-
+	cv::bitwise_not(mask_image_, mask_image_);
+	cv::bitwise_and(mask_image_, singleLevelHoles, multipleLevelHoles);
+	cv::imwrite("/tmp/singleLevelHoles.jpg",singleLevelHoles);
+	cv::imwrite("/tmp/multipleLevelHoles.jpg",multipleLevelHoles);
 	// Now get the final holes
 	std::vector<std::vector<cv::Point> > holes;
 	cv::findContours(multipleLevelHoles.clone(), holes, CV_RETR_LIST,CV_CHAIN_APPROX_NONE);
@@ -114,6 +115,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 //	std::cout<<input_cloud_->header.stamp<<std::endl << "Timestamp"<<std::endl;
 
 	// Getting mean of point cloud to estimate the nominal cutting plane
+	ROS_INFO("feature_learning::extract_features: Input cloud size %d ",input_cloud_->size());
 	pcl::computeMeanAndCovarianceMatrix(*input_cloud_,covariance,cloud_mean);
 
 	// Now compute an xy plane with the mean point and height
@@ -126,6 +128,8 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 	// Getting holes in the image
 	ROS_INFO("feature_learning::extract_features: Getting holes in input image");
 	std::vector<std::vector<cv::Point> > hole_contours = getHoles(input_segment);
+	if(hole_contours.empty())
+		return;
 	cv::Mat contour_mask = cv::Mat::zeros(input_segment.size(), CV_8UC1);
 	cv::drawContours(contour_mask, hole_contours, -1, cv::Scalar::all(255), CV_FILLED,8);
 	cv::imwrite("/tmp/countour_image.jpg",contour_mask);
@@ -204,14 +208,14 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		cropBox.setInputCloud(input_cloud_);
 		filtered_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 		cropBox.filter(*filtered_cloud);
-
+		ROS_INFO("Filtered cloud size %d",filtered_cloud->size());
 		if(max_size < filtered_cloud->size())
 		{
 			max_size = filtered_cloud->size();
 			processed_cloud.swap(*filtered_cloud);
 			action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
 			action_point_.header.frame_id = "/BASE";
-			ROS_INFO("feature_learning::extract_features: Found a actionable point cloud");
+			ROS_INFO("feature_learning::extract_features: Found a actionable point cloud with size %d",processed_cloud.size());
 
 		}
 	}
@@ -227,6 +231,12 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	preProcessCloud(image,model,*processed_cloud);
+
+	if(processed_cloud->size() < 10)
+	{
+		ROS_ERROR("feature_learning::extract_features: FEATURE COMPUTATION FAILED");
+		return;
+	}
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
@@ -300,6 +310,66 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 }
 
+void extract_features::getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
+                                          const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks) {
+
+  masks.resize(clusters.size());
+
+  Eigen::Matrix4f P;
+  int rows = 3, cols = 4;
+  for (int r = 0; r < rows; ++r)
+    for (int c = 0; c < cols; ++c)
+      P(r, c) = cam_info.P[r * cols + c];
+
+  P(3, 0) = 0;
+  P(3, 1) = 0;
+  P(3, 2) = 0;
+  P(3, 3) = 1;
+
+  //std::cout << "Transformation Matrix " << std::endl << P << std::endl;
+
+  for (size_t i = 0; i < clusters.size(); ++i) {
+
+    sensor_msgs::PointCloud2 cloud_proj;
+
+    sensor_msgs::Image mask;
+    mask.height = cam_info.height;
+    mask.width = cam_info.width;
+    //mask.encoding = enc::TYPE_32FC1;
+    mask.encoding = sensor_msgs::image_encodings::MONO8;
+    mask.is_bigendian = false;
+    mask.step = mask.width;
+    size_t size = mask.step * mask.height;
+    mask.data.resize(size);
+
+    pcl_ros::transformPointCloud(P, clusters[i], cloud_proj);
+
+    for (unsigned int j = 0; j < cloud_proj.width; j++) {
+
+      float x, y, z;
+
+      memcpy(&x,
+             &cloud_proj.data[j * cloud_proj.point_step
+                              + cloud_proj.fields[0].offset], sizeof(float));
+      memcpy(&y,
+             &cloud_proj.data[j * cloud_proj.point_step
+                              + cloud_proj.fields[1].offset], sizeof(float));
+      memcpy(&z,
+             &cloud_proj.data[j * cloud_proj.point_step
+                              + cloud_proj.fields[2].offset], sizeof(float));
+
+      if (round(y / z) >= 0 && round(y / z) < mask.height
+          && round(x / z) >= 0 && round(x / z) < mask.width) {
+        int i = round(y / z) * mask.step + round(x / z);
+        mask.data[i] = 255;
+      }
+    }
+
+    masks[i] = mask;
+  }
+}
+
+
 bool extract_features::initialized(std::string filename){
 
 	ROS_INFO("feature_learning::extract_features: Initializing extract features");
@@ -326,6 +396,57 @@ bool extract_features::initialized(std::string filename){
 	left_cam_.fromCameraInfo(cam_info);
 	cam_info_ = *cam_info;
 	ROS_INFO("feature_learning::extract_features: got camera info");
+
+	// Now getting the table top info
+
+	// Calling tabletop segmentation service
+	if (!ros::service::call(tabletop_service_, tabletop_srv_)) {
+		ROS_ERROR("Call to tabletop segmentation service failed");
+		return false;
+	}
+	if (tabletop_srv_.response.result != tabletop_srv_.response.SUCCESS
+			&& tabletop_srv_.response.result != tabletop_srv_.response.SUCCESS_NO_RGB) {
+
+		ROS_ERROR("Segmentation service returned error %d", tabletop_srv_.response.result);
+		return false;
+	}
+
+	//convert clusters to honeybee frame
+	ROS_INFO("Transforming clusters to bumblebee frame");
+
+	std::vector<sensor_msgs::PointCloud2> clusters;
+	for (int i = 0; i < (int) tabletop_srv_.response.clusters.size(); i++) {
+
+		// transforming every cluster in the service
+		sensor_msgs::PointCloud2 transform_cloud;
+
+		try {
+			tabletop_srv_.response.clusters[i].header.stamp = ros::Time(0);// TODO: <---- Change this later
+			pcl_ros::transformPointCloud(input_image->header.frame_id,
+					tabletop_srv_.response.clusters[i], transform_cloud,
+					listener_);
+		} catch (tf::TransformException& ex) {
+			ROS_ERROR("Failed to transform cloud from frame %s into frame %s", tabletop_srv_.response.clusters[0].header.frame_id.c_str(),
+					input_image->header.frame_id.c_str());
+		}
+
+		clusters.push_back(transform_cloud);
+	}
+
+	// Now getting transformed masks from transformed clusters
+	std::vector<sensor_msgs::Image> bbl_masks;
+	getMasksFromClusters(clusters, cam_info_, bbl_masks);
+
+	// Now combine masks and add to static segmenter
+	cv::Mat init = convertor.returnCVImage(bbl_masks[0]);
+	mask_image_ = cv::Mat::zeros(init.size(), CV_8UC1);
+
+	for (int i = 0; i < (int) bbl_masks.size(); i++) {
+
+		cv::Mat mask = convertor.returnCVImage(bbl_masks[i]);
+		cv::add(mask, mask_image_, mask_image_);
+	}
+
 
 	try
 	{

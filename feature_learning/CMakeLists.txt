@@ -57,3 +57,9 @@ rosbuild_add_executable(execute_action src/execute_action.cpp)
 target_link_libraries(execute_action feature_base arm_motion_primitives)
 rosbuild_add_executable(action_client src/action_client.cpp)
 target_link_libraries(action_client learn_appearance graph_module)
+rosbuild_add_executable(test_texton src/test_texton.cpp)
+target_link_libraries(test_texton learn_appearance)
+rosbuild_add_executable(test_holes src/test_hole_creation.cpp)
+
+
+
