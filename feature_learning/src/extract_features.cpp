@@ -447,7 +447,7 @@ bool extract_features::initialized(std::string filename){
 
 	preProcessCloud(input_image_,left_cam_,*processed_cloud_);
 
-	if(processed_cloud->size() < 10)
+	if(processed_cloud_->size() < 10)
 	{
 		ROS_ERROR("feature_learning::extract_features: FEATURE COMPUTATION FAILED");
 		return;
