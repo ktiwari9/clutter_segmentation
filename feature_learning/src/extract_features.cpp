@@ -64,35 +64,41 @@ extract_features::~extract_features(){}
 
 std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 
-	// first find contours aka holes
+	cv::Mat img_gray;
+	cv::cvtColor(mask_image_,img_gray,CV_BGR2GRAY);
 	std::vector<std::vector<cv::Point> > contours_unordered;
+	// closing all contours via dialation
+	cv::Mat bw_new;
+	// to fill cluster masks
+	cv::Mat element = cv::getStructuringElement(2, cv::Size(5,5));
 
-	int thresh = 100;
-	cv::Mat canny_output;
-	cv::Canny(mask_image_, canny_output, thresh, thresh*2, 3 );
-	cv::imwrite("/tmp/canny.jpg",canny_output);
-	cv::imwrite("/tmp/holesBW.jpg",mask_image_);
+	/// Apply the dilation operation
+	cv::dilate(img_gray.clone(), bw_new, element);
+	cv::imwrite("/tmp/holesBW.jpg",bw_new);
+
+	cv::Mat new_canny = cv::Mat::zeros(bw_new.size(), CV_8UC1);
+	new_canny = ~(bw_new > 0);
 
 	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(canny_output.clone(), contours_unordered, hierarchy, CV_RETR_TREE,CV_CHAIN_APPROX_NONE);
+	cv::findContours(new_canny.clone(), contours_unordered, hierarchy, CV_RETR_TREE,CV_CHAIN_APPROX_NONE);
 	// Now find the holes
-
-	cv::Mat singleLevelHoles = cv::Mat::zeros(mask_image_.size(), mask_image_.type());
-	cv::Mat multipleLevelHoles = cv::Mat::zeros(mask_image_.size(), mask_image_.type());
-	ROS_INFO("feature_learning::extract_features: drawing contours in input image");
+	cv::Mat singleLevelHoles = cv::Mat::zeros(new_canny.size(), new_canny.type());
+	cv::Mat multipleLevelHoles = cv::Mat::zeros(new_canny.size(), new_canny.type());
+	std::cout<<"feature_learning::extract_features: drawing contours in input image"<<std::endl;
 	for(std::vector<cv::Vec4i>::size_type i = 0; i < contours_unordered.size();i++)
 	{
 		if(hierarchy[i][3] != -1)
 			cv::drawContours(singleLevelHoles, contours_unordered, i, cv::Scalar::all(255), CV_FILLED, 8, hierarchy);
 	}
 
-	cv::bitwise_not(mask_image_, mask_image_);
-	cv::bitwise_and(mask_image_, singleLevelHoles, multipleLevelHoles);
+	cv::bitwise_not(new_canny, new_canny);
+	cv::bitwise_and(new_canny, singleLevelHoles, multipleLevelHoles);
 	cv::imwrite("/tmp/singleLevelHoles.jpg",singleLevelHoles);
 	cv::imwrite("/tmp/multipleLevelHoles.jpg",multipleLevelHoles);
+
 	// Now get the final holes
 	std::vector<std::vector<cv::Point> > holes;
-	cv::findContours(multipleLevelHoles.clone(), holes, CV_RETR_LIST,CV_CHAIN_APPROX_NONE);
+	cv::findContours(singleLevelHoles.clone(), holes, CV_RETR_LIST,CV_CHAIN_APPROX_NONE);
 	ROS_INFO("feature_learning::extract_features: returning contours in input image");
 	return holes;
 }

@@ -55,10 +55,16 @@ int main(int argc, char** argv)
 		exit(-1);
 	}
 
-
+	cv::Mat img_gray;
+	cv::cvtColor(img,img_gray,CV_BGR2GRAY);
 	std::vector<std::vector<cv::Point> > contours_unordered;
-	cv::Mat image_gray;
-	cv::cvtColor( img, image_gray, CV_BGR2GRAY );
+	// closing all contours via dialation
+	cv::Mat bw_new;
+	// to fill cluster masks
+	cv::Mat element = cv::getStructuringElement(2, cv::Size(5,5));
+
+	/// Apply the dilation operation
+	cv::dilate(img_gray.clone(), bw_new, element);
 
 	//get center of image and put a bounding box around it
 	int center_x = floor(img.rows/2);
@@ -66,25 +72,28 @@ int main(int argc, char** argv)
 
 	std::cout<<"Center point x:"<<center_x<<" y:"<<center_y<<std::endl;
 
-	cv::Rect myROI(center_x-100, center_y-100,center_x+100,center_y+100);
-	cv::Mat croppedImage = image_gray(myROI);
+	//cv::Rect myROI(center_y-100, center_x-100,center_y+100,center_x+100);
+	//cv::Mat croppedImage = bw_new(myROI);
 	// convert to BW
-	cv::Mat image_bw = croppedImage > 50;
+	cv::Mat image_bw = bw_new;//croppedImage > 50;
 	int thresh = 100;
 	cv::Mat canny_output;
 	cv::Canny(image_bw, canny_output, thresh, thresh*2, 3 );
 	cv::imwrite("/tmp/canny.jpg",canny_output);
-	cv::imwrite("/tmp/holesBW.jpg",image_bw);
+	cv::imwrite("/tmp/holesBW.jpg",bw_new);
 
-	cv::Mat new_canny = cv::Mat::zeros(image_gray.size(), CV_8UC1);
-	//new_canny.
+	cv::Mat new_canny = cv::Mat::zeros(bw_new.size(), CV_8UC1);
+	new_canny = ~(bw_new > 0);
+	//bw_new.convertTo(bw_new,CV_8UC1);
 
+	std::cerr<<"Did I get till here "<<bw_new.type()<<" "<<bw_new.channels()<<std::endl;
 	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(canny_output.clone(), contours_unordered, hierarchy, CV_RETR_TREE,CV_CHAIN_APPROX_NONE);
+	cv::findContours(new_canny.clone(), contours_unordered, hierarchy, CV_RETR_TREE,CV_CHAIN_APPROX_NONE);
+	std::cout<<"what about till here "<<std::endl;
 	// Now find the holes
 
-	cv::Mat singleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
-	cv::Mat multipleLevelHoles = cv::Mat::zeros(image_bw.size(), image_bw.type());
+	cv::Mat singleLevelHoles = cv::Mat::zeros(new_canny.size(), new_canny.type());
+	cv::Mat multipleLevelHoles = cv::Mat::zeros(new_canny.size(), new_canny.type());
 	std::cout<<"feature_learning::extract_features: drawing contours in input image"<<std::endl;
 	for(std::vector<cv::Vec4i>::size_type i = 0; i < contours_unordered.size();i++)
 	{
@@ -92,14 +101,14 @@ int main(int argc, char** argv)
 			cv::drawContours(singleLevelHoles, contours_unordered, i, cv::Scalar::all(255), CV_FILLED, 8, hierarchy);
 	}
 
-	cv::bitwise_not(image_bw, image_bw);
-	cv::bitwise_and(image_bw, singleLevelHoles, multipleLevelHoles);
+	cv::bitwise_not(new_canny, new_canny);
+	cv::bitwise_and(new_canny, singleLevelHoles, multipleLevelHoles);
 	cv::imwrite("/tmp/singleLevelHoles.jpg",singleLevelHoles);
 	cv::imwrite("/tmp/multipleLevelHoles.jpg",multipleLevelHoles);
 
 
 	// show colour coded texture map
-	cv::imshow("Image Gray", croppedImage);
+	cv::imshow("Image Gray", new_canny);
 	cv::waitKey();
 
 
