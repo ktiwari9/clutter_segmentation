@@ -49,7 +49,8 @@ using namespace graph_based_segmentation;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-		nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>){
+		nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
+		processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
@@ -235,18 +236,9 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 		const geometry_msgs::PoseStamped& gripper_pose, const image_geometry::PinholeCameraModel& model,
 		const std::string filename){
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr processed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	preProcessCloud(image,model,*processed_cloud);
-
-	if(processed_cloud->size() < 10)
-	{
-		ROS_ERROR("feature_learning::extract_features: FEATURE COMPUTATION FAILED");
-		return;
-	}
-
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
-	feature.initialized_ = feature.initializeFeatureClass(image,processed_cloud,viewpoint,surface,gripper_pose);
+	feature.initialized_ = feature.initializeFeatureClass(image,cloud,viewpoint,surface,gripper_pose);
 
 	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
 	feature.computeFeature(final_feature);
@@ -278,7 +270,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 	ROS_INFO("feature_learning::extract_features: Got gripper pose, surface pose and viewpoint");
 	if(initialized_){
 		ROS_INFO("feature_learning::extract_features: Computing features");
-		testfeatureClass(input_image_,input_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
+		testfeatureClass(input_image_,processed_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
 
 		action_point_.header.stamp = ros::Time::now();
 
@@ -452,6 +444,15 @@ bool extract_features::initialized(std::string filename){
 		cv::Mat mask = convertor.returnCVImage(bbl_masks[i]);
 		cv::add(mask, mask_image_, mask_image_);
 	}
+
+	preProcessCloud(input_image_,left_cam_,*processed_cloud_);
+
+	if(processed_cloud->size() < 10)
+	{
+		ROS_ERROR("feature_learning::extract_features: FEATURE COMPUTATION FAILED");
+		return;
+	}
+
 
 
 	try

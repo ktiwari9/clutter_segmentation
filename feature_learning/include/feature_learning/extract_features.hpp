@@ -127,7 +127,7 @@ private:
 	ros::ServiceServer extract_feature_srv_;
 
 	// Data required for feature extraction
-	pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud_;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud_,processed_cloud_;
 	cv::Mat input_image_, mask_image_;
 	geometry_msgs::PoseStamped view_point_pose_, gripper_pose_;
 	geometry_msgs::Pose surface_pose_;
