@@ -107,45 +107,44 @@ bool feature_class::initializeGraspPatchParams(const geometry_msgs::PoseStamped 
 
 void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 
-	// TODO: try multiple features like USC and shape context to see what works
-	pcl::ShapeContext3DEstimation <PointType,PointNT,pcl::SHOT> shape_context;
+	// TODO: Check effect of aggregation on features
+	pcl::UniqueShapeContext<PointType,pcl::SHOT> unique_context;
 	pcl::PointCloud<pcl::SHOT>::Ptr descriptors (new pcl::PointCloud<pcl::SHOT>);
-
-
 	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
 
+	ROS_INFO("Writing PCD Files");
+	pcl::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
 	// Normal Estimation
-	ROS_INFO("Size of input cloud %d ",local_cloud_->size());
-	pcl::NormalEstimation<PointType, PointNT> normalEstimation;
-	normalEstimation.setInputCloud (local_cloud_);
-	normalEstimation.setSearchMethod (tree);
 
-	pcl::PointCloud<PointNT>::Ptr cloudWithNormals (new	pcl::PointCloud<PointNT>);
-	normalEstimation.setRadiusSearch (0.03);
-	normalEstimation.compute (*cloudWithNormals);
+	pcl::VoxelGrid<pcl::PointXYZ> sor;
+	sor.setInputCloud (local_cloud_);
+	sor.setLeafSize (0.01f, 0.01f, 0.01f);
+	sor.filter (*local_cloud_);
 
-	shape_context.setInputCloud(local_cloud_);
-	shape_context.setInputNormals(cloudWithNormals);
+	float model_ss_ (0.05f); // make it 0.25 if too slow
+	pcl::PointCloud<int> keypoint_indices;
+	pcl::UniformSampling<PointType> uniform_sampling;
+	uniform_sampling.setInputCloud (local_cloud_);
+	uniform_sampling.setRadiusSearch (model_ss_);
+	uniform_sampling.compute (keypoint_indices);
+	pcl::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
 
+	ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
+	unique_context.setInputCloud(local_cloud_);
+	unique_context.setSearchMethod(tree);
+	unique_context.setRadiusSearch(0.5);
 	// Use the same KdTree from the normal estimation
-	shape_context.setSearchMethod (tree);
-	shape_context.setRadiusSearch (0.2);
+	unique_context.compute(*descriptors);
 
-	// Actually compute the shape contexts
-	//shape_context.initCompute();
-	shape_context.compute (*descriptors);
-
+	ROS_INFO("feature_learning::feature_class: getting descriptors ");
 	int histSize = descriptors->at(0).descriptor.size();
-	out_mat = descriptors->getMatrixXfMap (histSize, histSize + 9, 0); // use proper values
+	Eigen::MatrixXf feature_mat;
+	feature_mat = descriptors->getMatrixXfMap (histSize, histSize + 9, 0); // use proper values
 	//for dim, stride and offset, look at documentation for reasoning
 
-	long int rows = out_mat.rows(),cols = out_mat.cols();
-	out_mat.conservativeResize(1,rows*cols);
-	//shape_context.computeFeatureEigen(out_mat); // verify this later
+	out_mat<<feature_mat.colwise().mean();
 
 }
-
-
 
 void feature_class::computeRefPoint(Eigen::Vector3d& result, const geometry_msgs::PoseStamped& gripper_pose) const
 {

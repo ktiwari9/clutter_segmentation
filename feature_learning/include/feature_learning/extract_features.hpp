@@ -55,12 +55,19 @@
 #include <pcl/features/usc.h> // Unique shape context feature
 #include <pcl/features/3dsc.h> // Unique shape context feature
 #include <pcl/filters/crop_box.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
 //Tabletopsegmenter includes
 #include "tabletop_segmenter/TabletopSegmentation.h"
 
 // Other includes
 #include <graph_based_segmentation/segment.h>
 #include <rosbag/bag.h>
+#include <visualization_msgs/Marker.h>
 
 namespace feature_learning {
 
@@ -75,14 +82,18 @@ protected:
 	ros::NodeHandle nh_;
 	tf::TransformListener listener_;
 
+	ros::Publisher vis_pub_;
+	// Visualization Markers
+	visualization_msgs::Marker marker_;
+
 	bool initialized_;
 
 	std::string tabletop_service_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 
-	static const double BOX_WIDTH_X = 0.30; // in m
-	static const double BOX_LENGTH_Y = 0.30; // in m
-	static const double BOX_HEIGHT_Z = 0.15; // in m
+	static const double BOX_WIDTH_X = 0.50; // in m
+	static const double BOX_LENGTH_Y = 0.50; // in m
+	static const double BOX_HEIGHT_Z = 0.35; // in m
 
 	std::string topicFeatureInputCloud() const {return "/XTION/rgb/points";};
 	std::string topicFeatureCameraInfo() const {return "/Honeybee/left/camera_info'";};
@@ -134,6 +145,7 @@ private:
 	image_geometry::PinholeCameraModel left_cam_;
 	sensor_msgs::CameraInfo cam_info_;
 	sensor_msgs::ImagePtr ros_image_;
+	pcl::ModelCoefficients::Ptr table_coefficients_;
 
 	geometry_msgs::PointStamped action_point_;
 

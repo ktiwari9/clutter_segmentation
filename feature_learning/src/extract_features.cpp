@@ -50,10 +50,28 @@ namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
 		nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
-		processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>){
+		processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>),table_coefficients_(new pcl::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
+	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 0);
+
+	marker_.header.stamp = ros::Time();
+	marker_.ns = "extract_features";
+	marker_.id = 0;
+	marker_.type = visualization_msgs::Marker::SPHERE;
+	marker_.action = visualization_msgs::Marker::ADD;
+	marker_.scale.x = 0.05;
+	marker_.scale.y = 0.05;
+	marker_.scale.z = 0.05;
+	marker_.color.a = 1.0;
+	marker_.color.r = 0.0;
+	marker_.color.g = 1.0;
+	marker_.color.b = 0.0;
+	marker_.pose.orientation.x = 0.0;
+	marker_.pose.orientation.y = 0.0;
+	marker_.pose.orientation.z = 0.0;
+	marker_.pose.orientation.w = 1.0;
 }
 
 extract_features::extract_features(std::string filename){
@@ -65,8 +83,9 @@ extract_features::~extract_features(){}
 
 std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 
-	cv::Mat img_gray;
-	cv::cvtColor(mask_image_,img_gray,CV_BGR2GRAY);
+	cv::Mat img_gray = mask_image_;
+	//ROS_INFO("Image type: %d",mask_image_.type());
+	//cv::cvtColor(mask_image_,img_gray,CV_BGR2GRAY);
 	std::vector<std::vector<cv::Point> > contours_unordered;
 	// closing all contours via dialation
 	cv::Mat bw_new;
@@ -110,27 +129,15 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 	// Local Declarations
 	processed_cloud.clear();
 	pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PassThrough<pcl::PointXYZ> pass;
 
 	// Mean and covariance declarations
 	Eigen::Matrix3f covariance;
 	Eigen::Vector4f cloud_mean;
 
-	// Now transform point cloud base frame
-//	ROS_INFO("feature_learning::extract_features: Pre-processing cloud");
-//	listener_.waitForTransform("/BASE",input_cloud_->header.frame_id,
-//				input_cloud_->header.stamp, ros::Duration(5.0));
-//	std::cout<<input_cloud_->header.stamp<<std::endl << "Timestamp"<<std::endl;
-
 	// Getting mean of point cloud to estimate the nominal cutting plane
 	ROS_INFO("feature_learning::extract_features: Input cloud size %d ",input_cloud_->size());
 	pcl::computeMeanAndCovarianceMatrix(*input_cloud_,covariance,cloud_mean);
-
-	// Now compute an xy plane with the mean point and height
-	pcl::ModelCoefficients::Ptr plane_coefficients (new pcl::ModelCoefficients);
-	plane_coefficients->values.resize (4);
-	plane_coefficients->values[0] = plane_coefficients->values[1] = 0;
-	plane_coefficients->values[2] = cloud_mean(2) ;
-	plane_coefficients->values[3] = 0;
 
 	// Getting holes in the image
 	ROS_INFO("feature_learning::extract_features: Getting holes in input image");
@@ -143,6 +150,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 	// Computing means around contour points
 	size_t max_size = 0;
 	ROS_INFO("Number of contours returned %d",hole_contours.size());
+	pcl::PointXYZ push_point;
 	for(size_t i = 0; i < hole_contours.size(); i++)
 	{
 		if(hole_contours[i].size() < 100)
@@ -165,6 +173,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		ray.header.stamp = ros::Time::now();
 
 		ROS_DEBUG("feature_learning::extract_features: Creating Ray in base frame");
+		ROS_INFO_STREAM("Model frame "<<model.tfFrame());
 		ROS_VERIFY(listener_.waitForTransform("/BASE",model.tfFrame(),
 				ray.header.stamp, ros::Duration(5.0)));
 
@@ -177,45 +186,36 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		 */
 
 		float t;
-		t = (plane_coefficients->values[3] + plane_coefficients->values[0]*ray.points[0].x +
-				plane_coefficients->values[1]*ray.points[0].y+ plane_coefficients->values[2]*ray.points[0].z);
-		t /= (plane_coefficients->values[0]*ray.points[1].x +
-				plane_coefficients->values[1]*ray.points[1].y+ plane_coefficients->values[2]*ray.points[1].z);
+//		t = (plane_coefficients->values[3] + plane_coefficients->values[0]*ray.points[0].x +
+//				plane_coefficients->values[1]*ray.points[0].y+ plane_coefficients->values[2]*ray.points[0].z);
+//		t /= (plane_coefficients->values[0]*ray.points[1].x +
+//				plane_coefficients->values[1]*ray.points[1].y+ plane_coefficients->values[2]*ray.points[1].z);
+//		t = (table_coefficients_->values[3] + table_coefficients_->values[0]*ray.points[0].x +
+//				table_coefficients_->values[1]*ray.points[0].y+ table_coefficients_->values[2]*ray.points[0].z);
+//		t /= (table_coefficients_->values[0]*ray.points[1].x +
+//				table_coefficients_->values[1]*ray.points[1].y+ table_coefficients_->values[2]*ray.points[1].z);
 
-		pcl::PointXYZ push_point;
-		push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
 
-		/*-----------------------------------------------------------------------------------------------*/
-		// Now compute the box filter around this centroid and count the number of points.
-		// TODO: This is a hack but how do I justify it?? Why the most number of points and not the least
-		// number of points.
-		/*-----------------------------------------------------------------------------------------------*/
-
-		// Getting the transform offsets
-		tf::Transform template_center_transform;
-		template_center_transform.setIdentity();
-		//template_center_transform.getOrigin().setY() //--> I don't think I need this
-
-		// Creating Box filter
-		pcl::CropBox<pcl::PointXYZ> cropBox;
-		cropBox.setInputCloud(input_cloud_);
-		// TODO: Do I use the centroid as reference or should I use the table height like Peter does??
-		Eigen::Vector4f bag_min(-(BOX_WIDTH_X/(double)2.0),
-				template_center_transform.getOrigin().getY() -(BOX_LENGTH_Y/(double)2.0),
-				0.0,
-				1.0);
-		Eigen::Vector4f bag_max((BOX_WIDTH_X/(double)2.0),
-				template_center_transform.getOrigin().getY() +(BOX_LENGTH_Y/(double)2.0),
-				0.0 + BOX_HEIGHT_Z,
-				1.0);
-		Eigen::Vector3f eigen_rotation(0.0, 0.0, 0.0);
-		Eigen::Vector3f eigen_translation(push_point.x,push_point.y,0.0);
-		cropBox.setRotation(eigen_rotation);
-		cropBox.setTranslation(eigen_translation);
-		cropBox.setInputCloud(input_cloud_);
+		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
+		push_point.x = ray.points[1].x;push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
+		// Trying a pass through filter
 		filtered_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
-		cropBox.filter(*filtered_cloud);
-		ROS_INFO("Filtered cloud size %d",filtered_cloud->size());
+		pass.setInputCloud (input_cloud_);
+		pass.setFilterFieldName ("z");
+		pass.setFilterLimits (push_point.z - (BOX_HEIGHT_Z/2), push_point.z + (BOX_HEIGHT_Z/2));
+		pass.filter (*filtered_cloud);
+
+		pass.setInputCloud (filtered_cloud);
+		pass.setFilterFieldName ("y");
+		pass.setFilterLimits (push_point.y - (BOX_LENGTH_Y/2), push_point.y + (BOX_LENGTH_Y/2));
+		pass.filter (*filtered_cloud);
+
+		pass.setInputCloud (filtered_cloud);
+		pass.setFilterFieldName ("x");
+		pass.setFilterLimits (push_point.x - (BOX_WIDTH_X/2), push_point.x + (BOX_WIDTH_X/2));
+		pass.filter (*filtered_cloud);
+
+		ROS_INFO_STREAM("Filtered cloud size "<<filtered_cloud->size());
 		if(max_size < filtered_cloud->size())
 		{
 			max_size = filtered_cloud->size();
@@ -227,6 +227,18 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		}
 	}
 
+
+
+    ROS_INFO_STREAM("feature_learning::extract_features: Position of Marker :x "<<action_point_.point.x<<" y:"<<action_point_.point.y<<" z: "<<action_point_.point.z);
+
+    // Populating Marker
+	marker_.header.frame_id = action_point_.header.frame_id;
+    marker_.pose.position.x = action_point_.point.x;
+    marker_.pose.position.y = action_point_.point.y;
+    marker_.pose.position.z = action_point_.point.z;
+	vis_pub_.publish(marker_);
+
+	pcl::io::savePCDFileASCII ("/tmp/processed_cloud.pcd", processed_cloud);
 	ROS_INFO("feature_learning::extract_features: Got an action point");
 
 }
@@ -431,6 +443,40 @@ bool extract_features::initialized(std::string filename){
 		clusters.push_back(transform_cloud);
 	}
 
+	// Getting table points
+	sensor_msgs::PointCloud2 transform_table_cloud;
+	tf::Transform table_tf;
+
+	pcl_ros::transformPointCloud(tabletop_srv_.response.table.pose.header.frame_id,
+			table_tf,tabletop_srv_.response.table.table_points,
+			transform_table_cloud);
+
+	ROS_VERIFY(listener_.waitForTransform("/BASE", transform_table_cloud.header.frame_id,
+			transform_table_cloud.header.stamp, ros::Duration(5.0)));
+	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", transform_table_cloud,
+			transform_table_cloud, listener_));
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr table_cloud_pcl(new pcl::PointCloud<pcl::PointXYZ>());
+	pcl::fromROSMsg(transform_table_cloud, *table_cloud_pcl);
+
+	pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+	// Create the segmentation object
+	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	// Optional
+	seg.setOptimizeCoefficients (true);
+	// Mandatory
+	seg.setModelType (pcl::SACMODEL_PLANE);
+	seg.setMethodType (pcl::SAC_RANSAC);
+	seg.setMaxIterations (1000);
+	seg.setDistanceThreshold (0.01);
+
+	// Create the filtering object
+	pcl::ExtractIndices<pcl::PointXYZ> extract;
+
+	// Segment the largest planar component from the remaining cloud
+	seg.setInputCloud (table_cloud_pcl);
+	seg.segment (*inliers, *table_coefficients_);
+
 	// Now getting transformed masks from transformed clusters
 	std::vector<sensor_msgs::Image> bbl_masks;
 	getMasksFromClusters(clusters, cam_info_, bbl_masks);
@@ -450,7 +496,7 @@ bool extract_features::initialized(std::string filename){
 	if(processed_cloud_->size() < 10)
 	{
 		ROS_ERROR("feature_learning::extract_features: FEATURE COMPUTATION FAILED");
-		return;
+		return false;
 	}
 
 

@@ -71,10 +71,13 @@
 //PCL includes
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/pcl_base.h>
 #include <pcl/PointIndices.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/keypoints/uniform_sampling.h>
 
 //Graph Module includes
 #include "graph_module/EGraph.h"
@@ -86,7 +89,6 @@
 //Grasp Template Includes
 #include <grasp_template/heightmap_sampling.h>
 #include <pcl/features/usc.h> // Unique shape context feature
-#include <pcl/features/3dsc.h> // Unique shape context feature
 
 using namespace grasp_template;
 
