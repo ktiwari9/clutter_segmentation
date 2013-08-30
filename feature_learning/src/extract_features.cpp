@@ -46,6 +46,8 @@
 using namespace grasp_template;
 using namespace graph_based_segmentation;
 
+int writer_counter = 1;
+
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
@@ -256,7 +258,7 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 	feature.computeFeature(final_feature);
 	// Use bag writer to write before and after bags with topics and name the Eigen matrix as the same thing
 	std::stringstream eigen_filename;
-	eigen_filename<<filename<<".txt";
+	eigen_filename<<filename<<"_"<<writer_counter<<".txt";
 	ofstream ofs(eigen_filename.str().c_str(),ios::out | ios::trunc);
 	if(ofs)
 	{
@@ -269,6 +271,8 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 	{
 		std::cerr << "Erreur à l'ouverture !" << std::endl;
 	}
+	writer_counter++;
+	ROS_INFO_STREAM("feature_learning::extract_features: Updated counter number "<< writer_counter<<" written to "<<eigen_filename.str());
 
 
 }
@@ -286,8 +290,9 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 		action_point_.header.stamp = ros::Time::now();
 
-		sensor_msgs::PointCloud2Ptr ros_cloud;
+		sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
 		pcl::toROSMsg(*input_cloud_,*ros_cloud);
+		ros_cloud->header = input_cloud_->header;
 		ROS_INFO("feature_learning::extract_features: Writing bag");
 		try
 		{
@@ -382,6 +387,7 @@ void extract_features::getMasksFromClusters(const std::vector<sensor_msgs::Point
 
 bool extract_features::initialized(std::string filename){
 
+	filename_ = filename;
 	ROS_INFO("feature_learning::extract_features: Initializing extract features");
 	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh_, ros::Duration(5.0));
 	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/XTION/rgb/points",nh_, ros::Duration(5.0));
@@ -441,41 +447,35 @@ bool extract_features::initialized(std::string filename){
 		}
 
 		clusters.push_back(transform_cloud);
+
 	}
 
 	// Getting table points
-	sensor_msgs::PointCloud2 transform_table_cloud;
 	tf::Transform table_tf;
 
-	pcl_ros::transformPointCloud(tabletop_srv_.response.table.pose.header.frame_id,
-			table_tf,tabletop_srv_.response.table.table_points,
-			transform_table_cloud);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_clouds(new pcl::PointCloud<pcl::PointXYZ>());
 
-	ROS_VERIFY(listener_.waitForTransform("/BASE", transform_table_cloud.header.frame_id,
-			transform_table_cloud.header.stamp, ros::Duration(5.0)));
-	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", transform_table_cloud,
-			transform_table_cloud, listener_));
+	for(size_t cloud_count = 0;cloud_count< tabletop_srv_.response.clusters.size(); cloud_count++)
+	{
+		sensor_msgs::PointCloud2 cluster_points;
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr table_cloud_pcl(new pcl::PointCloud<pcl::PointXYZ>());
-	pcl::fromROSMsg(transform_table_cloud, *table_cloud_pcl);
+		pcl_ros::transformPointCloud(tabletop_srv_.response.clusters[cloud_count].header.frame_id,
+						table_tf,tabletop_srv_.response.clusters[cloud_count],
+						cluster_points);
 
-	pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
-	// Create the segmentation object
-	pcl::SACSegmentation<pcl::PointXYZ> seg;
-	// Optional
-	seg.setOptimizeCoefficients (true);
-	// Mandatory
-	seg.setModelType (pcl::SACMODEL_PLANE);
-	seg.setMethodType (pcl::SAC_RANSAC);
-	seg.setMaxIterations (1000);
-	seg.setDistanceThreshold (0.01);
+		ROS_VERIFY(listener_.waitForTransform("/BASE",cluster_points.header.frame_id,
+				cluster_points.header.stamp, ros::Duration(5.0)));
+		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", cluster_points,
+				cluster_points, listener_));
+		pcl::PointCloud<pcl::PointXYZ>::Ptr temp_clouds(new pcl::PointCloud<pcl::PointXYZ>());
 
-	// Create the filtering object
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
+		pcl::fromROSMsg(cluster_points, *temp_clouds);
+		*cluster_clouds += *temp_clouds;
+	}
 
-	// Segment the largest planar component from the remaining cloud
-	seg.setInputCloud (table_cloud_pcl);
-	seg.segment (*inliers, *table_coefficients_);
+	*input_cloud_ = *cluster_clouds;
+
+	pcl::io::savePCDFileASCII ("/tmp/converted_cluster_clouds.pcd", *cluster_clouds);
 
 	// Now getting transformed masks from transformed clusters
 	std::vector<sensor_msgs::Image> bbl_masks;
@@ -499,11 +499,12 @@ bool extract_features::initialized(std::string filename){
 		return false;
 	}
 
-
+	std::stringstream bag_name;
+	bag_name<<filename<<"_"<<writer_counter<<".bag";
 
 	try
 	{
-		bag_.open(filename, rosbag::bagmode::Write);
+		bag_.open(bag_name.str(), rosbag::bagmode::Write);
 
 	}
 	catch (rosbag::BagIOException ex)

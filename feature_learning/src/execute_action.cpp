@@ -139,7 +139,7 @@ geometry_msgs::PoseStamped execute_action::getGripperPose(){
 		try
 		{
 			if (!listener.waitForTransform(params.frameBase(), plan_params.frameGripper(),
-					ros::Time(0), ros::Duration(2)))
+					ros::Time(0), ros::Duration(5.0)))
 			{
 				ROS_ERROR_STREAM("feature_learning::execute_action: Waiting for transform, from " << params.frameBase()
 						<< " to " << plan_params.frameGripper() << " timed out.");
@@ -211,7 +211,7 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 
 	int action = goal->action_number;
     std::string controller_prefix;
-
+    ROS_INFO("Action selected is %d",action);
     //Finding out Hand : TODO: Add a failsafe for no number??
     bool right_hand = true;
     if(goal->hand_number == 1)
@@ -251,10 +251,17 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 	std::cin >> input;
 
 	ROS_INFO("feature_learning::execute_action: Verifying right hand now %d",right_hand);
+
+	ROS_VERIFY(switch_controller_stack_.switchControllerStack(controller_prefix + "HandJointPDControl"));
 	if(right_hand)
+	{
 		manipulation_object_r_.switchControl(ArmInterface::JOINT_CONTROL_);
+	}
 	else
+	{
 		manipulation_object_l_.switchControl(ArmInterface::JOINT_CONTROL_);
+	}
+
 
 	geometry_msgs::PoseStamped gripper_pose = getGripperPose();
 
@@ -382,6 +389,7 @@ void execute_action::getGraspPose(const geometry_msgs::PoseStamped &start_pose, 
 
 bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, int action, ArmInterface& manipulation_object){
 
+	ROS_INFO("feature_learning::execute_action: Starting doAction function");
 	// Computing the manipulation pose, i.e rotating Hand around x axis by 90 degrees
 	geometry_msgs::PoseStamped manipulation_pose;
 	manipulation_pose.header.stamp = ros::Time::now();
@@ -412,9 +420,11 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 		break;
 	}
 
-	if(isinf(y_direction))
+	ROS_INFO_STREAM("Selected Action is "<<action<<" Selected direction is "<<y_direction);
+	if(isinf(y_direction) && action != 1)
 		return false;
 
+	ROS_INFO("feature_learning::execute_action: getting push Pose");
 	getPushPose(manipulation_pose,manipulation_pose,y_direction);
 
 	ROS_INFO("Manipulating at Location");
@@ -436,7 +446,7 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 			return true;
 		}
 		else{
-			ROS_INFO("Pushing Failed too");
+			ROS_INFO("Grasping Failed");
 			return false;
 		}
 	}

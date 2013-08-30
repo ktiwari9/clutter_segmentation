@@ -112,22 +112,21 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	pcl::PointCloud<pcl::SHOT>::Ptr descriptors (new pcl::PointCloud<pcl::SHOT>);
 	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
 
-	ROS_INFO("Writing PCD Files");
-	pcl::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
 	// Normal Estimation
+    //pcl::VoxelGrid<pcl::PointXYZ> sor;
+	//sor.setInputCloud (local_cloud_);
+	//sor.setLeafSize (0.01f, 0.01f, 0.01f);
+	//sor.filter (*local_cloud_);
 
-	pcl::VoxelGrid<pcl::PointXYZ> sor;
-	sor.setInputCloud (local_cloud_);
-	sor.setLeafSize (0.01f, 0.01f, 0.01f);
-	sor.filter (*local_cloud_);
-
-	float model_ss_ (0.05f); // make it 0.25 if too slow
+	float model_ss_ (0.02f); // make it 0.25 if too slow
 	pcl::PointCloud<int> keypoint_indices;
 	pcl::UniformSampling<PointType> uniform_sampling;
 	uniform_sampling.setInputCloud (local_cloud_);
 	uniform_sampling.setRadiusSearch (model_ss_);
 	uniform_sampling.compute (keypoint_indices);
 	pcl::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
+	ROS_INFO("Writing PCD Files");
+	pcl::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
 
 	ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
 	unique_context.setInputCloud(local_cloud_);
@@ -140,8 +139,10 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	int histSize = descriptors->at(0).descriptor.size();
 	Eigen::MatrixXf feature_mat;
 	feature_mat = descriptors->getMatrixXfMap (histSize, histSize + 9, 0); // use proper values
+	ROS_INFO("feature_learning::feature_class: sending descriptors ");
 	//for dim, stride and offset, look at documentation for reasoning
 
+	out_mat.resize(1,feature_mat.cols());
 	out_mat<<feature_mat.colwise().mean();
 
 }
@@ -188,17 +189,24 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 //template <class Derived>
 void feature_class::computeGraspPatch(Eigen::MatrixXf &out_mat){
 
+	ROS_INFO("feature_learning::feature_class: setting up height sampling");
 	HeightmapSampling t_gen(view_point_translation_,view_point_rotation_);
 	t_gen.initialize(*local_cloud_,surface_);
 	Eigen::Vector3d ref_point;
+	ROS_INFO("feature_learning::feature_class: Computing reference point");
 	computeRefPoint(ref_point, gripper_pose_);
+	ROS_INFO("feature_learning::feature_class: Creating grasp template");
 	GraspTemplate templt;
 	t_gen.generateTemplateOnHull(templt, ref_point);
 
 	// Now convert output to Eigen Matrix
+	ROS_INFO("feature_learning::feature_class: getting grid");
 	std::vector<double> grasp_patch = templt.heightmap_.getGrid();
+	ROS_INFO("feature_learning::feature_class: getting grasp patch");
 	std::vector<float> grasp_patch_float(grasp_patch.begin(), grasp_patch.end());
 	// converting to float as all pcl types deal with float
+	ROS_INFO("feature_learning::feature_class: Converting eigen map");
+	out_mat.resize(1,grasp_patch_float.size());
 	Eigen::Map<Eigen::MatrixXf >(grasp_patch_float.data(),1,grasp_patch_float.size()) = out_mat; // Eigen map is used to convert std_vector to Eigen_Matrix
 }
 
