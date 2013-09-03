@@ -755,22 +755,19 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 				geometry_msgs::Pose push_position;
 				push_position = poke_position;
 				//y dir vector is [sin(t),cos(t),0]
-				switch (y_dir){
-				case (M_PI/2): // Push Front
-						push_position.position.y += 0.20;
-				        break;
-				case (M_PI/2 + M_PI): //Push back
-						push_position.position.y -= 0.10;
-						break;
-				case M_PI: //Push Right
-					    push_position.position.x += 0.20;
-					    break;
-				case 0.0: //Push Left
-				    	push_position.position.x -= 0.20;
-				        break;
-				default:
-					    break;
-				}
+
+				if(y_dir == (M_PI/2))
+					push_position.position.y += 0.20;
+
+				if(y_dir == (M_PI/2 + M_PI)) //Push back
+					push_position.position.y -= 0.10;
+
+				if(y_dir == M_PI)
+					push_position.position.x += 0.20; //Push Right
+
+				if(y_dir == 0.0) // Push Left
+					push_position.position.x -= 0.20;
+
 				//				push_position.position.y += 0.20*(cos(y_dir)); // Push it 20cm away from the body
 				//
 				//				if(manipulation_object.getEndeffectorId() == 2)
