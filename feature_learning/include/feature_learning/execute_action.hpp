@@ -88,6 +88,8 @@ protected:
 
 	ros::NodeHandle nh_;
 	tf::TransformListener listener_;
+	geometry_msgs::PoseStamped manipulation_pose_;
+	ros::Publisher pose_publisher_;
 
 private:
 

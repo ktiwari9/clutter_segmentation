@@ -54,6 +54,7 @@ execute_action::execute_action(ros::NodeHandle & nh):
 	action_server_.start();
 	tabletop_client_ = nh_priv_.serviceClient<tabletop_segmenter::TabletopSegmentation>("/tabletop_segmentation");
 	extract_feature_client_ = nh_priv_.serviceClient<ExtractFeatures>("/extract_features_srv");
+	pose_publisher_ = nh_priv_.advertise<geometry_msgs::PoseStamped>("/manipulation_pose",5);
 }
 
 execute_action::~execute_action(){}
@@ -294,35 +295,47 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 		result_.success = false;
 	}
 
-	// If action succeeded
-	if(result_.success)
+	bool interrupt;
+	char interrupt_choice;
+	ROS_INFO_STREAM(" Action Point received from Feature Extraction Service is "<<action_point<<std::endl
+			<<" Do you want to continue (y/n): ");
+	std::cin>>interrupt_choice;
+	if(interrupt_choice == 'n')
 	{
-		// Now call the controller stack and execute the action
-		bool action_succeeded;
-		if(right_hand)
-			action_succeeded = doActionOnPoint(action_point,action,manipulation_object_r_);
-		else
-			action_succeeded = doActionOnPoint(action_point,action,manipulation_object_l_);
-		if(action_succeeded)
-		{
-			ROS_INFO("feature_learning::execute_action: %s: Action Succeeded", getName().c_str ());
-			// Send both hands home
-			manipulation_object_l_.switchStackToJointControl();
-			manipulation_object_l_.goHome();
-			manipulation_object_r_.switchStackToJointControl();
-			manipulation_object_r_.goHome();
-			// set the action state to succeeded
-			ROS_INFO("feature_learning::execute_action: Extract Feature Service and Action succeeded");
-			action_server_.setSucceeded(result_);
-		}
-		else{
-			ROS_INFO("feature_learning::execute_action: Extract Feature Service succeeded but execute action failed");
-			action_server_.setAborted(result_);
-		}
+		result_.success = false;
 	}
 	else{
-		ROS_INFO("feature_learning::execute_action: Extract Feature Service failed, check for errors");
-		action_server_.setAborted(result_);
+
+		// If action succeeded
+		if(result_.success)
+		{
+			// Now call the controller stack and execute the action
+			bool action_succeeded;
+			if(right_hand)
+				action_succeeded = doActionOnPoint(action_point,action,manipulation_object_r_);
+			else
+				action_succeeded = doActionOnPoint(action_point,action,manipulation_object_l_);
+			if(action_succeeded)
+			{
+				ROS_INFO("feature_learning::execute_action: %s: Action Succeeded", getName().c_str ());
+				// Send both hands home
+				manipulation_object_l_.switchStackToJointControl();
+				manipulation_object_l_.goHome();
+				manipulation_object_r_.switchStackToJointControl();
+				manipulation_object_r_.goHome();
+				// set the action state to succeeded
+				ROS_INFO("feature_learning::execute_action: Extract Feature Service and Action succeeded");
+				action_server_.setSucceeded(result_);
+			}
+			else{
+				ROS_INFO("feature_learning::execute_action: Extract Feature Service succeeded but execute action failed");
+				action_server_.setAborted(result_);
+			}
+		}
+		else{
+			ROS_INFO("feature_learning::execute_action: Extract Feature Service failed, check for errors");
+			action_server_.setAborted(result_);
+		}
 	}
 
 }
@@ -331,25 +344,31 @@ void execute_action::getPushPose(const geometry_msgs::PoseStamped &start_pose, g
 		double direction){
 
 	// Converting the push direction
-	tf::Vector3 x_axis(1,0,0);
-	tf::Vector3 z_axis(0,0,1);
+	tf::Vector3 y_axis(0,1,0);
+	tf::Vector3 x_axis(0,0,1);
 	tf::Pose start_direction_tf;
 	conversions::convert(start_pose.pose,start_direction_tf);
 
-	tf::Vector3 local_z_axis = start_direction_tf.getBasis().inverse()*z_axis;
-	tf::Matrix3x3 m(tf::Quaternion(local_z_axis,-direction));
+	double push_theta = M_PI/2;
+	tf::Vector3 local_z_axis = start_direction_tf.getBasis().inverse()*y_axis;
+	tf::Matrix3x3 m(tf::Quaternion(local_z_axis,-push_theta));
+	geometry_msgs::Quaternion initial_quat;
+	conversions::convert(tf::Quaternion(local_z_axis,-push_theta),initial_quat);
+	ROS_INFO_STREAM(" New Pose quaternion "<< initial_quat<<" Direction "<<-direction);
 	tf::Transform pose_transform = tf::Transform::getIdentity();
 	pose_transform.setBasis(m);
 
-	tf::Pose new_pose = start_direction_tf*pose_transform;
+	start_direction_tf = start_direction_tf*pose_transform;
+	geometry_msgs::Pose display_pose;
+	conversions::convert(start_direction_tf,display_pose);
+	ROS_INFO_STREAM(" New Pose origin "<< display_pose<<std::endl<<" Direction flip in x-axis "<<-direction);
 
-	double push_theta = M_PI/2;
-	tf::Vector3 local_push_x_axis = new_pose.getBasis().inverse()*x_axis;
-	tf::Matrix3x3 m_push(tf::Quaternion(local_push_x_axis,push_theta));
+	tf::Vector3 local_push_x_axis = start_direction_tf.getBasis().inverse()*x_axis;
+	tf::Matrix3x3 m_push(tf::Quaternion(local_push_x_axis,-direction));
 	tf::Transform push_pose_transform = tf::Transform::getIdentity();
 	push_pose_transform.setBasis(m_push);
-	tf::Pose new_push_pose = new_pose*push_pose_transform;
-	conversions::convert(new_push_pose,end_pose.pose);
+	start_direction_tf = start_direction_tf*push_pose_transform;
+	conversions::convert(start_direction_tf,end_pose.pose);
 
 }
 
@@ -361,8 +380,8 @@ void execute_action::getGraspPose(const geometry_msgs::PoseStamped &start_pose, 
 	tf::Pose grasp_pose_tf;
 	tf::poseMsgToTF(start_pose.pose,grasp_pose_tf);
 
-	//Now rotate the hand (object_pose) by 180 degrees
-	// Computing the yaw
+//	//Now rotate the hand (object_pose) by 180 degrees
+//	// Computing the yaw
 	double theta = M_PI;
 	tf::Vector3 local_x_axis = grasp_pose_tf.getBasis().inverse()*x_axis;
 	tf::Matrix3x3 m_x(tf::Quaternion(local_x_axis,theta));
@@ -374,13 +393,13 @@ void execute_action::getGraspPose(const geometry_msgs::PoseStamped &start_pose, 
 	// TODO: Use to the local point cloud template based on the max
 	// radius of the hand and compute eigen values and align with the direction
 	// that does not correspond to the dominant eigen value i.e thinner cloud
-
+//	tf::Pose new_object_pose;
 	double psi = -direction;
-	tf::Vector3 local_z_axis = grasp_pose_tf.getBasis().inverse()*z_axis;
+	tf::Vector3 local_z_axis = new_object_pose.getBasis().inverse()*z_axis;
 	tf::Matrix3x3 m_z(tf::Quaternion(local_z_axis,psi));
 	tf::Transform grasp_z_pose_transform = tf::Transform::getIdentity();
 	grasp_z_pose_transform.setBasis(m_z);
-	new_object_pose = grasp_pose_tf*grasp_z_pose_transform;
+	new_object_pose = new_object_pose*grasp_z_pose_transform;
 	conversions::convert(new_object_pose,end_pose.pose);
 
 
@@ -393,7 +412,10 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 	// Computing the manipulation pose, i.e rotating Hand around x axis by 90 degrees
 	geometry_msgs::PoseStamped manipulation_pose;
 	manipulation_pose.header.stamp = ros::Time::now();
-	manipulation_pose.pose.position = action_point;
+	manipulation_pose.pose.position.x = action_point.x;
+	manipulation_pose.pose.position.y = action_point.y;
+	manipulation_pose.pose.position.z = action_point.z;
+	manipulation_pose.header.frame_id = "/BASE";
 
 	manipulation_pose.pose.orientation.w = 1;
 	manipulation_pose.pose.orientation.x = 0;
@@ -402,18 +424,19 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 
 	double y_direction;
 
+	// NOTE: Directions calibrated to rotated axis
 	switch (action){
 	case 2: // Push Front
-		y_direction = 0.0;
-		break;
-	case 3: //Push back
-		y_direction = M_PI;
-		break;
-	case 4: //Push Right
 		y_direction = M_PI/2;
 		break;
-	case 5: //Push Left
+	case 3: //Push back
 		y_direction = M_PI/2 + M_PI;
+		break;
+	case 4: //Push Right
+		y_direction = M_PI;
+		break;
+	case 5: //Push Left
+		y_direction = 0.0;
 		break;
 	default:
 		y_direction = INFINITY;
@@ -424,9 +447,7 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 	if(isinf(y_direction) && action != 1)
 		return false;
 
-	ROS_INFO("feature_learning::execute_action: getting push Pose");
-	getPushPose(manipulation_pose,manipulation_pose,y_direction);
-
+	char pose_decision;
 	ROS_INFO("Manipulating at Location");
 	if(action == 1){
 
@@ -438,7 +459,17 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 		grasp_pose.pose.orientation.y = 0.0;
 		grasp_pose.pose.orientation.x = 0.0;
 
-		getGraspPose(grasp_pose,grasp_pose,y_direction);
+		ROS_INFO_STREAM("Original Grasp Pose "<<grasp_pose.pose);
+		getGraspPose(grasp_pose,grasp_pose,0.0);
+
+		pose_publisher_.publish(grasp_pose);
+		ROS_INFO_STREAM("Grasp Pose Published "<<grasp_pose.pose);
+
+		ROS_INFO("Do you want to quit now (y/n)? ");
+		std::cin>>pose_decision;
+		if(pose_decision == 'y')
+			return false;
+
 
 		if(graspNode(grasp_pose,manipulation_object))
 		{
@@ -450,6 +481,18 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 			return false;
 		}
 	}
+
+	ROS_INFO("feature_learning::execute_action: getting push Pose");
+	ROS_INFO_STREAM("Original Manipulation Pose "<<manipulation_pose.pose);
+	getPushPose(manipulation_pose,manipulation_pose,y_direction);
+	ROS_INFO_STREAM("Computed Manipulation Pose "<<manipulation_pose.pose);
+
+	pose_publisher_.publish(manipulation_pose);
+
+	ROS_INFO("Do you want to quit now (y/n)? ");
+	std::cin>>pose_decision;
+	if(pose_decision == 'y')
+		return false;
 
 	if(pushNode(manipulation_pose,y_direction,manipulation_object)){
 		ROS_INFO("Pushing Succeeded ");
@@ -487,7 +530,10 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 
 
 		if(!DEBUG){
-			if(manipulation_object.planAndMoveTo(push_tf)){
+			//if(manipulation_object.planAndMoveTo(push_tf)){ //
+			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			ROS_INFO_STREAM("Switched to Cartesian Control 1"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+			if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
 
 				// Move to poke position
 				geometry_msgs::Pose poke_position;
@@ -583,7 +629,10 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 		}
 		else{
 
-			if(manipulation_object.planAndMoveTo(push_tf)){
+			//if(manipulation_object.planAndMoveTo(push_tf)){
+			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			ROS_INFO_STREAM("Switched to Cartesian Control 2"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+			if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
 
 				geometry_msgs::Pose pick_position;
 				//TODO: Do something smarter
@@ -690,7 +739,11 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 	poke_pose.orientation = push_pose.pose.orientation;
 
 	if(!DEBUG){
-		if(manipulation_object.planAndMoveTo(push_tf)){
+
+		manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+		ROS_INFO_STREAM("Switched to Cartesian Control 3"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+		if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
+		//if(manipulation_object.planAndMoveTo(push_tf)){
 
 			// Remove comment when running on robot
 			geometry_msgs::Pose poke_position;
@@ -702,13 +755,29 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 				geometry_msgs::Pose push_position;
 				push_position = poke_position;
 				//y dir vector is [sin(t),cos(t),0]
-				push_position.position.y += 0.20*(cos(y_dir)); // Push it 20cm away from the body
-
-				if(manipulation_object.getEndeffectorId() == 2)
-					push_position.position.x -= 0.20*(sin(y_dir)); // Push it 20cm away from the body
-				else
-					push_position.position.x += 0.20*(sin(y_dir)); // Push it 20cm away from the body
-
+				switch (y_dir){
+				case (M_PI/2): // Push Front
+						push_position.position.y += 0.20;
+				        break;
+				case (M_PI/2 + M_PI): //Push back
+						push_position.position.y -= 0.10;
+						break;
+				case M_PI: //Push Right
+					    push_position.position.x += 0.20;
+					    break;
+				case 0.0: //Push Left
+				    	push_position.position.x -= 0.20;
+				        break;
+				default:
+					    break;
+				}
+				//				push_position.position.y += 0.20*(cos(y_dir)); // Push it 20cm away from the body
+				//
+				//				if(manipulation_object.getEndeffectorId() == 2)
+				//					push_position.position.x -= 0.20*(sin(y_dir)); // Push it 20cm away from the body
+				//				else
+				//					push_position.position.x += 0.20*(sin(y_dir)); // Push it 20cm away from the body
+				//
 				bool success;
 				manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 				success = manipulation_object.cartesian_.moveTo(push_position,3.0);
@@ -725,8 +794,10 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 			return false;
 	}
 	else{
-
-		if(manipulation_object.planAndMoveTo(push_tf)){
+		manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+		ROS_INFO_STREAM("Switched to Cartesian Control 4"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);ROS_INFO_STREAM("Switched to Cartesian Control"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+		if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){
+		//if(manipulation_object.planAndMoveTo(push_tf)){
 
 			geometry_msgs::Pose push_position;
 			//TODO: Do something smarter

@@ -197,6 +197,7 @@ void feature_class::computeGraspPatch(Eigen::MatrixXf &out_mat){
 	computeRefPoint(ref_point, gripper_pose_);
 	ROS_INFO("feature_learning::feature_class: Creating grasp template");
 	GraspTemplate templt;
+	std::cout << "num tiles x: " << templt.heightmap_.getNumTilesX() << std::endl;
 	t_gen.generateTemplateOnHull(templt, ref_point);
 
 	// Now convert output to Eigen Matrix
