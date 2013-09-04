@@ -46,6 +46,7 @@
 #include <tr1/functional>
 #include <graph_module/EGraph.h> // Defines Edge based Graph
 #include <graph_module/VGraph.h> // Defines Vertex based Graph
+#include <Eigen/Eigen>
 
 // boost graph library includes
 #include <boost/graph/adjacency_list.hpp>
@@ -101,6 +102,8 @@ public:
 
 	IGraph graph_;
 
+	Eigen::MatrixXf adjacency_matrix_;
+
 	ros_graph(int number_of_vertices);
 
 	ros_graph();
@@ -133,6 +136,10 @@ public:
 	int countVertex(Vertex_ros v1);
 
 	Vertex_ros findMaxVertex();
+
+	Eigen::MatrixXf getAdjacencyMatrix(){return adjacency_matrix_;}
+
+	Eigen::MatrixXf computeAdjacencyMatrix();
 
 	graph_module::EGraph convertToEGraphMsg();
 

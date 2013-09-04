@@ -41,6 +41,7 @@
 #include <graph_module/EGraph.h>
 #include <graph_module/VGraph.h>
 #include <list>
+#include <iterator>
 
 namespace graph {
 
@@ -77,6 +78,8 @@ bool ros_graph::buildGraph(graph_module::EGraph in_graph_msg){
     index_list.unique();
     number_of_vertices_ = index_list.size();
 
+    // Now compute the adjacency matrix
+    adjacency_matrix_ = computeAdjacencyMatrix();
     return true;
   }
 
@@ -248,6 +251,70 @@ struct find_vertex
   }
 };
 
+Eigen::MatrixXf ros_graph::computeAdjacencyMatrix(){
+
+	std::vector<Vertex_ros> vertex_list_visited;
+	std::vector<Vertex_ros>::iterator it;
+	std::vector<Vertex_ros>::iterator local_it;
+	std::vector<std::vector<Vertex_ros> > adjacency_list;
+
+	for(IGraph_it iter = graph_.begin(); iter != graph_.end(); ++iter){
+
+		int index = 0;
+		std::vector<Vertex_ros> local_adjacency;
+		if(vertex_list_visited.empty()){
+			local_adjacency.clear();
+			vertex_list_visited.push_back(iter->edge_.first);
+			local_adjacency.push_back(iter->edge_.second);
+			adjacency_list.push_back(local_adjacency);
+		}
+
+		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter->edge_.first.index_));
+		if(it == vertex_list_visited.end())
+		{
+			local_adjacency.clear();
+			vertex_list_visited.push_back(iter->edge_.first);
+			local_adjacency.push_back(iter->edge_.second);
+			adjacency_list.push_back(local_adjacency);
+		}
+		else{
+			local_adjacency.clear();
+			index = std::distance(vertex_list_visited.begin(), it);
+			local_it = std::find_if(adjacency_list[index].begin(), adjacency_list[index].end(), find_vertex(iter->edge_.second.index_));
+			if(local_it == adjacency_list[index].end())
+				adjacency_list[index].push_back(iter->edge_.second);
+
+		}
+
+		it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(iter->edge_.second.index_));
+		if(it == vertex_list_visited.end())
+		{
+			local_adjacency.clear();
+			vertex_list_visited.push_back(iter->edge_.second);
+			local_adjacency.push_back(iter->edge_.first);
+			adjacency_list.push_back(local_adjacency);
+		}
+		else{
+			local_adjacency.clear();
+			index = std::distance(vertex_list_visited.begin(), it);
+			local_it = std::find_if(adjacency_list[index].begin(), adjacency_list[index].end(), find_vertex(iter->edge_.first.index_));
+			if(local_it == adjacency_list[index].end())
+				adjacency_list[index].push_back(iter->edge_.first);
+		}
+	}
+
+	Eigen::MatrixXf adjacency_matrix = Eigen::MatrixXf::Zero(adjacency_list.size(),adjacency_list.size());
+
+	for(unsigned int i = 0; i < adjacency_matrix.rows(); i++)
+		for(it = adjacency_list[i].begin(); it!=adjacency_list[i].end();++it)
+		{
+			int adjacency_index = std::distance(vertex_list_visited.begin(),it);
+			adjacency_matrix(i,adjacency_index) = 1;
+		}
+
+	return adjacency_matrix;
+
+}
 Vertex_ros ros_graph::findMaxVertex(){
 
   std::vector<Vertex_ros> vertex_list_visited;

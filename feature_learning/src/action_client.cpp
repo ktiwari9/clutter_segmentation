@@ -49,7 +49,7 @@
 #include "graph_module/EGraph.h"
 #include <graph_module/graph_module.hpp>
 
-void getAdjacencyFromGraph(std::vector<static_segmentation::StaticSeg>& graph_msg){
+Eigen::MatrixXf getAdjacencyFromGraph(std::vector<static_segmentation::StaticSeg>& graph_msg){
 
 	std::vector<graph::ros_graph> graph_list;
 
@@ -63,10 +63,14 @@ void getAdjacencyFromGraph(std::vector<static_segmentation::StaticSeg>& graph_ms
 	}
 
 	// Now get adjaceny matrix from graph
-	Eigen::MatrixXf adjacency(total_vertices,total_vertices);
-
-
-
+	Eigen::MatrixXf adjacency = Eigen::MatrixXf::Zero(total_vertices,total_vertices);
+	long int row_index = 0, col_index = 0;
+	for(unsigned int i = 0; i < graph_list.size(); i++){
+		Eigen::MatrixXf local_adjacency = graph_list[i].getAdjacencyMatrix();
+		adjacency.block(row_index,col_index,local_adjacency.rows(),local_adjacency.cols()) = local_adjacency;
+		row_index = local_adjacency.rows(); col_index = local_adjacency.cols();
+	}
+	return adjacency;
 }
 
 bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
@@ -84,11 +88,8 @@ bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
 			call_succeeded = true;
 			ROS_INFO("Service Call succeeded");
 			std::vector<static_segmentation::StaticSeg> graph_msg = staticsegment_srv.response.graph_queue;
-
-			getAdjacencyFromGraph(graph_msg); // TODO: write the adjacency matrix and return
-			// computation
+			adjacency = getAdjacencyFromGraph(graph_msg);
 		}
-
 	}
 	return true;
 }
@@ -171,8 +172,16 @@ int main(int argc, char **argv){
 		else
 			ROS_INFO("Action extract_clusters_action_server did not finish before the time out.");
 
+		float reward_value = adjacency.squaredNorm();
 		// Recording the after adjacency matrix
 		bool success_after = callAndRecordAdjacency(adjacency);
+
+		// Now update the reward_value
+		reward_value -= adjacency.squaredNorm();
+		reward_value = 1/abs(reward_value);
+
+		if(reward_value > 10000)
+			reward_value = 10000;
 
 		// Storing the adjacency matrix
 		std::string eigen_after_filename(filename+"_after_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
@@ -182,6 +191,23 @@ int main(int argc, char **argv){
 			// instructions
 			ofs_after << adjacency;
 			ofs_after.close();
+		}
+		else  // sinon
+		{
+			std::cerr << "Erreur à l'ouverture !" << std::endl;
+		}
+
+		// Storing the adjacency matrix
+		std::string reward_filename(filename+"_reward_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
+		ofstream ofs_reward(reward_filename.c_str(),ios::out | ios::trunc);
+		ROS_INFO("Enter user reward  (1/0)");
+		int user_reward;
+		std::cin>>user_reward;
+		if(ofs_reward)
+		{
+			// instructions
+			ofs_reward << reward_value <<" "<<user_reward;
+			ofs_reward.close();
 		}
 		else  // sinon
 		{
