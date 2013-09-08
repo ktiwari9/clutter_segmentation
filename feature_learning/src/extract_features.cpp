@@ -1,36 +1,36 @@
 /*********************************************************************
-*
-*  Copyright (c) 2013, Computational Learning and Motor Control Laboratory
-*  University of Southern California
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************
+ *
+ *  Copyright (c) 2013, Computational Learning and Motor Control Laboratory
+ *  University of Southern California
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************
 /**
  * \author Bharath Sankaran
  *
@@ -51,8 +51,8 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-		nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
-		processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>),table_coefficients_(new pcl::ModelCoefficients ()){
+				nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
+				processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>),table_coefficients_(new pcl::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
@@ -162,8 +162,8 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		temp_contours.push_back(hole_contours[i]);
 		ROS_DEBUG("feature_learning::extract_features: Computing the mean of every contour");
 		cv::drawContours(sub_contour_mask, temp_contours, -1, cv::Scalar::all(255), CV_FILLED,8);
-	    cv::Moments m_c = cv::moments(sub_contour_mask, false);
-	    cv::Point2f sub_mask_center(m_c.m10/m_c.m00, m_c.m01/m_c.m00);
+		cv::Moments m_c = cv::moments(sub_contour_mask, false);
+		cv::Point2f sub_mask_center(m_c.m10/m_c.m00, m_c.m01/m_c.m00);
 		cv::Point2d mean_point(sub_mask_center.x, sub_mask_center.y);
 		ROS_DEBUG("feature_learning::extract_features: Projecting pixel to 3D");
 		cv::Point3d push_3d = model.projectPixelTo3dRay(mean_point);
@@ -180,7 +180,7 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 				ray.header.stamp, ros::Duration(5.0)));
 
 		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
-					ray, listener_));
+				ray, listener_));
 
 		// Now get intersection of Ray and cloud XY plane
 		/*
@@ -188,14 +188,14 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		 */
 
 		float t;
-//		t = (plane_coefficients->values[3] + plane_coefficients->values[0]*ray.points[0].x +
-//				plane_coefficients->values[1]*ray.points[0].y+ plane_coefficients->values[2]*ray.points[0].z);
-//		t /= (plane_coefficients->values[0]*ray.points[1].x +
-//				plane_coefficients->values[1]*ray.points[1].y+ plane_coefficients->values[2]*ray.points[1].z);
-//		t = (table_coefficients_->values[3] + table_coefficients_->values[0]*ray.points[0].x +
-//				table_coefficients_->values[1]*ray.points[0].y+ table_coefficients_->values[2]*ray.points[0].z);
-//		t /= (table_coefficients_->values[0]*ray.points[1].x +
-//				table_coefficients_->values[1]*ray.points[1].y+ table_coefficients_->values[2]*ray.points[1].z);
+		//		t = (plane_coefficients->values[3] + plane_coefficients->values[0]*ray.points[0].x +
+		//				plane_coefficients->values[1]*ray.points[0].y+ plane_coefficients->values[2]*ray.points[0].z);
+		//		t /= (plane_coefficients->values[0]*ray.points[1].x +
+		//				plane_coefficients->values[1]*ray.points[1].y+ plane_coefficients->values[2]*ray.points[1].z);
+		//		t = (table_coefficients_->values[3] + table_coefficients_->values[0]*ray.points[0].x +
+		//				table_coefficients_->values[1]*ray.points[0].y+ table_coefficients_->values[2]*ray.points[0].z);
+		//		t /= (table_coefficients_->values[0]*ray.points[1].x +
+		//				table_coefficients_->values[1]*ray.points[1].y+ table_coefficients_->values[2]*ray.points[1].z);
 
 
 		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
@@ -222,7 +222,10 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 		{
 			max_size = filtered_cloud->size();
 			processed_cloud.swap(*filtered_cloud);
-			action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
+			Eigen::Vector4f centroid;
+			pcl::compute3DCentroid(processed_cloud,centroid);
+			//action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
+			action_point_.point.x = centroid[0]; action_point_.point.y = centroid[1]; action_point_.point.z = centroid[2];
 			action_point_.header.frame_id = "/BASE";
 			ROS_INFO("feature_learning::extract_features: Found a actionable point cloud with size %d",processed_cloud.size());
 
@@ -231,13 +234,13 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 
 
 
-    ROS_INFO_STREAM("feature_learning::extract_features: Position of Marker :x "<<action_point_.point.x<<" y:"<<action_point_.point.y<<" z: "<<action_point_.point.z);
+	ROS_INFO_STREAM("feature_learning::extract_features: Position of Marker :x "<<action_point_.point.x<<" y:"<<action_point_.point.y<<" z: "<<action_point_.point.z);
 
-    // Populating Marker
+	// Populating Marker
 	marker_.header.frame_id = action_point_.header.frame_id;
-    marker_.pose.position.x = action_point_.point.x;
-    marker_.pose.position.y = action_point_.point.y;
-    marker_.pose.position.z = action_point_.point.z;
+	marker_.pose.position.x = action_point_.point.x;
+	marker_.pose.position.y = action_point_.point.y;
+	marker_.pose.position.z = action_point_.point.z;
 	vis_pub_.publish(marker_);
 
 	pcl::io::savePCDFileASCII ("/tmp/processed_cloud.pcd", processed_cloud);
@@ -252,13 +255,16 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
-	feature.initialized_ = feature.initializeFeatureClass(image,cloud,viewpoint,surface,gripper_pose);
+	// cropping feature image to remove recitification artificats
+	cv::Rect faceRect(75,75,768,576);
+	image(faceRect).copyTo(image);
+	feature.initialized_ = feature.initializeFeatureClass(image,cloud,viewpoint,surface,gripper_pose,action_point_.point);
 
 	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
 	feature.computeFeature(final_feature);
 	// Use bag writer to write before and after bags with topics and name the Eigen matrix as the same thing
 	std::stringstream eigen_filename;
-	eigen_filename<<filename<<"_"<<writer_counter<<".txt";
+	eigen_filename<<filename<<"_features_"<<writer_counter<<".txt";
 	ofstream ofs(eigen_filename.str().c_str(),ios::out | ios::trunc);
 	if(ofs)
 	{
@@ -285,35 +291,46 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 	surface_pose_ = request.surface_pose;
 	ROS_INFO("feature_learning::extract_features: Got gripper pose, surface pose and viewpoint");
 	if(initialized_){
-		ROS_INFO("feature_learning::extract_features: Computing features");
-		testfeatureClass(input_image_,processed_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
+		ROS_INFO("Updating all the data for processing");
+		bool updated = updateTopics();
+		if(updated){
 
-		action_point_.header.stamp = ros::Time::now();
+			ROS_INFO("feature_learning::extract_features: Computing features");
+			testfeatureClass(input_image_,processed_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
 
-		sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
-		pcl::toROSMsg(*input_cloud_,*ros_cloud);
-		ros_cloud->header = input_cloud_->header;
-		ROS_INFO("feature_learning::extract_features: Writing bag");
-		try
-		{
-			bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
-			bag_.write(topicFeatureCameraInput(), ros::Time::now(), ros_image_);
-			bag_.write(topicFeatureCameraInfo(), ros::Time::now(), cam_info_);
-			bag_.write(topicFeatureTable(), ros::Time::now(), surface_pose_);
-			bag_.write(topicFeatureGripperPose(), ros::Time::now(), gripper_pose_);
-			bag_.write(topicFeatureViewpoint(), ros::Time::now(), view_point_pose_);
+			action_point_.header.stamp = ros::Time::now();
+
+			sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
+			pcl::toROSMsg(*input_cloud_,*ros_cloud);
+			ros_cloud->header = input_cloud_->header;
+			ROS_INFO("feature_learning::extract_features: Writing bag");
+			try
+			{
+				bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
+				bag_.write(topicFeatureCameraInput(), ros::Time::now(), ros_image_);
+				bag_.write(topicFeatureCameraInfo(), ros::Time::now(), cam_info_);
+				bag_.write(topicFeatureTable(), ros::Time::now(), surface_pose_);
+				bag_.write(topicFeatureGripperPose(), ros::Time::now(), gripper_pose_);
+				bag_.write(topicFeatureViewpoint(), ros::Time::now(), view_point_pose_);
+			}
+			catch (rosbag::BagIOException ex)
+			{
+				ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
+						bag_.getFileName().c_str(), ex.what());
+
+			}
+
+			ROS_INFO("feature_learning::extract_features: returning success");
+			response.action_location = action_point_;
+			response.result = ExtractFeatures::Response::SUCCESS;
+			return true;
 		}
-		catch (rosbag::BagIOException ex)
-		{
-			ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
-					bag_.getFileName().c_str(), ex.what());
+		else{
 
+			ROS_INFO("feature_learning::extract_features: returning failed");
+			response.result = ExtractFeatures::Response::FAILURE;
+			return false;
 		}
-
-		ROS_INFO("feature_learning::extract_features: returning success");
-		response.action_location = action_point_;
-		response.result = ExtractFeatures::Response::SUCCESS;
-		return true;
 	}
 	else{
 
@@ -326,68 +343,66 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 }
 
 void extract_features::getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
-                                          const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks) {
+		const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks) {
 
-  masks.resize(clusters.size());
+	masks.resize(clusters.size());
 
-  Eigen::Matrix4f P;
-  int rows = 3, cols = 4;
-  for (int r = 0; r < rows; ++r)
-    for (int c = 0; c < cols; ++c)
-      P(r, c) = cam_info.P[r * cols + c];
+	Eigen::Matrix4f P;
+	int rows = 3, cols = 4;
+	for (int r = 0; r < rows; ++r)
+		for (int c = 0; c < cols; ++c)
+			P(r, c) = cam_info.P[r * cols + c];
 
-  P(3, 0) = 0;
-  P(3, 1) = 0;
-  P(3, 2) = 0;
-  P(3, 3) = 1;
+	P(3, 0) = 0;
+	P(3, 1) = 0;
+	P(3, 2) = 0;
+	P(3, 3) = 1;
 
-  //std::cout << "Transformation Matrix " << std::endl << P << std::endl;
+	//std::cout << "Transformation Matrix " << std::endl << P << std::endl;
 
-  for (size_t i = 0; i < clusters.size(); ++i) {
+	for (size_t i = 0; i < clusters.size(); ++i) {
 
-    sensor_msgs::PointCloud2 cloud_proj;
+		sensor_msgs::PointCloud2 cloud_proj;
 
-    sensor_msgs::Image mask;
-    mask.height = cam_info.height;
-    mask.width = cam_info.width;
-    //mask.encoding = enc::TYPE_32FC1;
-    mask.encoding = sensor_msgs::image_encodings::MONO8;
-    mask.is_bigendian = false;
-    mask.step = mask.width;
-    size_t size = mask.step * mask.height;
-    mask.data.resize(size);
+		sensor_msgs::Image mask;
+		mask.height = cam_info.height;
+		mask.width = cam_info.width;
+		//mask.encoding = enc::TYPE_32FC1;
+		mask.encoding = sensor_msgs::image_encodings::MONO8;
+		mask.is_bigendian = false;
+		mask.step = mask.width;
+		size_t size = mask.step * mask.height;
+		mask.data.resize(size);
 
-    pcl_ros::transformPointCloud(P, clusters[i], cloud_proj);
+		pcl_ros::transformPointCloud(P, clusters[i], cloud_proj);
 
-    for (unsigned int j = 0; j < cloud_proj.width; j++) {
+		for (unsigned int j = 0; j < cloud_proj.width; j++) {
 
-      float x, y, z;
+			float x, y, z;
 
-      memcpy(&x,
-             &cloud_proj.data[j * cloud_proj.point_step
-                              + cloud_proj.fields[0].offset], sizeof(float));
-      memcpy(&y,
-             &cloud_proj.data[j * cloud_proj.point_step
-                              + cloud_proj.fields[1].offset], sizeof(float));
-      memcpy(&z,
-             &cloud_proj.data[j * cloud_proj.point_step
-                              + cloud_proj.fields[2].offset], sizeof(float));
+			memcpy(&x,
+					&cloud_proj.data[j * cloud_proj.point_step
+					                 + cloud_proj.fields[0].offset], sizeof(float));
+			memcpy(&y,
+					&cloud_proj.data[j * cloud_proj.point_step
+					                 + cloud_proj.fields[1].offset], sizeof(float));
+			memcpy(&z,
+					&cloud_proj.data[j * cloud_proj.point_step
+					                 + cloud_proj.fields[2].offset], sizeof(float));
 
-      if (round(y / z) >= 0 && round(y / z) < mask.height
-          && round(x / z) >= 0 && round(x / z) < mask.width) {
-        int i = round(y / z) * mask.step + round(x / z);
-        mask.data[i] = 255;
-      }
-    }
+			if (round(y / z) >= 0 && round(y / z) < mask.height
+					&& round(x / z) >= 0 && round(x / z) < mask.width) {
+				int i = round(y / z) * mask.step + round(x / z);
+				mask.data[i] = 255;
+			}
+		}
 
-    masks[i] = mask;
-  }
+		masks[i] = mask;
+	}
 }
 
+bool extract_features::updateTopics(){
 
-bool extract_features::initialized(std::string filename){
-
-	filename_ = filename;
 	ROS_INFO("feature_learning::extract_features: Initializing extract features");
 	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh_, ros::Duration(5.0));
 	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/XTION/rgb/points",nh_, ros::Duration(5.0));
@@ -460,8 +475,8 @@ bool extract_features::initialized(std::string filename){
 		sensor_msgs::PointCloud2 cluster_points;
 
 		pcl_ros::transformPointCloud(tabletop_srv_.response.clusters[cloud_count].header.frame_id,
-						table_tf,tabletop_srv_.response.clusters[cloud_count],
-						cluster_points);
+				table_tf,tabletop_srv_.response.clusters[cloud_count],
+				cluster_points);
 
 		ROS_VERIFY(listener_.waitForTransform("/BASE",cluster_points.header.frame_id,
 				cluster_points.header.stamp, ros::Duration(5.0)));
@@ -499,6 +514,17 @@ bool extract_features::initialized(std::string filename){
 		return false;
 	}
 
+	if(left_cam_.distortionCoeffs().empty() || input_image_.empty() || input_cloud_->empty())
+		return false;
+	else
+		return true;
+}
+
+
+bool extract_features::initialized(std::string filename){
+
+	filename_ = filename;
+
 	std::stringstream bag_name;
 	bag_name<<filename<<"_"<<writer_counter<<".bag";
 
@@ -511,12 +537,9 @@ bool extract_features::initialized(std::string filename){
 	{
 		ROS_DEBUG("feature_learning::extract_features: Problem when opening demo file >%s< : %s.",
 				filename.c_str(), ex.what());
-	}
-
-	if(left_cam_.distortionCoeffs().empty() || input_image_.empty() || input_cloud_->empty())
 		return false;
-	else
-		return true;
+	}
+	return true;
 }
 
 } //namespace

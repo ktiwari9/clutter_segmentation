@@ -1,0 +1,18 @@
+\section{Observation Model}
+\label{sec:obs_model}
+% We would like to use a Bayesian framework to maintain probabilities for the object hypotheses. This requires statistics about the operation of the sensor for different object classes, orientations, and viewpoints. Instead of using the segmented pointcloud $\mathcal{Q}_t$ as the observation of the sensor, we take the output of the vocabulary tree. As a result, we deal with the space of possible vocabulary tree outputs rather than the space of all possible pointclouds. Moreover, this includes the operation of the vision algorithm in the sensor statistics. 
+% 
+% Given a query pointcloud $\mathcal{Q}_t$ suppose that the vocabulary tree returns template $\mathcal{P}_{g,l}$ as the top match. Assume that the models in the training database are indexed so that those from $B_2$ have a lower $l$ index than those from $B_1 \setminus B_2$. We take the linear index of the closest match $\mathcal{P}_{g,l}$ as the observation if the match is an object of interest. Otherwise, we record only the model index $l$, ignoring the viewpoint $g$:
+% \[
+% Z_t = \begin{cases}
+% (l-1)G+g, & \text{if } l \leq L_2\\
+% L_2G+(l-L_2), & \text{if } l > L_2, \forall g \in \{1,\ldots,G\}.
+% \end{cases}
+% \]
+% This makes the observation space one dimensional. Given a sensor pose $x \in V(\rho)$ and an object hypothesis $H_i$, we need to approximate the data likelihood of $Z_t$:
+% \[
+% h_i^x(z) := \mathbb{P}(Z_t = z \mid x, H_i)
+% \]
+% The function $h$ is called the \textit{observation model} of the static detector. It can be obtained off-line since it only depends on the characteristics of the sensor and the vision algorithm. Ideally, the sensing and detection processes should be abstracted to obtain a closed-form representation of $h$ but this is a daunting task for a depth sensor and a vocabulary tree. Instead, we learn a histogram approximating $h$ using the training dataset $B_1$.
+% 
+% The viewsphere is discretized into a set of viewpoints $\mathcal{X}(\rho) \subset V(\rho)$, which will be used in the planning phase. It need \textit{not} be the same as the set $V_G(\rho)$ used to train the vocabulary tree. We generated $50$ random environments from the models in $B_1$ for each of the $7$ hypotheses and used a simulated depth sensor to obtain scores from the vocabulary tree for a set $\mathcal{X}(\rho)$ of $42$ viewpoints.

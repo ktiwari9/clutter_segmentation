@@ -70,12 +70,13 @@ void feature_class::inputCloud(const PointCloudPtr &input_cloud_ptr){
 
 bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud,
 		const geometry_msgs::PoseStamped &viewpoint,const geometry_msgs::Pose& surface,
-		const geometry_msgs::PoseStamped& gripper_pose){
+		const geometry_msgs::PoseStamped& gripper_pose,const geometry_msgs::Point& centroid){
 
 	// creating input for initial values
 	inputImage(image);
 	inputCloud(cloud);
 
+	centroid_ = centroid;
 	bool verify = initializeGraspPatchParams(viewpoint,surface,gripper_pose);
 	if(verify)
 		return true;
@@ -107,43 +108,69 @@ bool feature_class::initializeGraspPatchParams(const geometry_msgs::PoseStamped 
 
 void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 
-	// TODO: Check effect of aggregation on features
-	pcl::UniqueShapeContext<PointType,pcl::SHOT> unique_context;
-	pcl::PointCloud<pcl::SHOT>::Ptr descriptors (new pcl::PointCloud<pcl::SHOT>);
-	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
-
-	// Normal Estimation
-    //pcl::VoxelGrid<pcl::PointXYZ> sor;
-	//sor.setInputCloud (local_cloud_);
-	//sor.setLeafSize (0.01f, 0.01f, 0.01f);
-	//sor.filter (*local_cloud_);
+	pcl::PointCloud<PointNT>::Ptr cloud_normals (new pcl::PointCloud<PointNT>);
+	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
 
 	float model_ss_ (0.02f); // make it 0.25 if too slow
-	pcl::PointCloud<int> keypoint_indices;
-	pcl::UniformSampling<PointType> uniform_sampling;
-	uniform_sampling.setInputCloud (local_cloud_);
-	uniform_sampling.setRadiusSearch (model_ss_);
-	uniform_sampling.compute (keypoint_indices);
-	pcl::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
-	ROS_INFO("Writing PCD Files");
-	pcl::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
+	do{
 
-	ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
-	unique_context.setInputCloud(local_cloud_);
-	unique_context.setSearchMethod(tree);
-	unique_context.setRadiusSearch(0.5);
-	// Use the same KdTree from the normal estimation
-	unique_context.compute(*descriptors);
+		pcl::PointCloud<int> keypoint_indices;
+		pcl::UniformSampling<PointType> uniform_sampling;
+		uniform_sampling.setInputCloud (local_cloud_);
+		uniform_sampling.setRadiusSearch (model_ss_);
+		uniform_sampling.compute (keypoint_indices);
+		pcl::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
+		ROS_INFO("Writing PCD Files");
+		pcl::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
+		model_ss_ += 0.005;
+		ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
 
-	ROS_INFO("feature_learning::feature_class: getting descriptors ");
-	int histSize = descriptors->at(0).descriptor.size();
+	}while(local_cloud_->size() > 800);
+
+	pcl::NormalEstimationOMP<PointType, PointNT> ne;
+	ne.setInputCloud (local_cloud_);
+
+	// Create an empty kdtree representation, and pass it to the normal estimation object.
+	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+	ne.setSearchMethod (tree);
+
+	// Output datasets
+
+	// Use all neighbors in a sphere of radius 3cm
+	ne.setRadiusSearch (0.03);
+
+	// Compute the features
+	ne.compute (*cloud_normals);
+
+	// Create the FPFH estimation class, and pass the input dataset+normals to it
+	pcl::FPFHEstimationOMP <PointType, PointNT, pcl::FPFHSignature33> fpfh;
+	fpfh.setInputCloud (local_cloud_);
+	fpfh.setInputNormals (cloud_normals);
+	// alternatively, if cloud is of tpe PointNormal, do fpfh.setInputNormals (cloud);
+
+	// Create an empty kdtree representation, and pass it to the FPFH estimation object.
+	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+	fpfh.setSearchMethod (tree);
+
+	// Output datasets
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
+
+	// Use all neighbors in a sphere of radius 5cm
+	// IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
+	fpfh.setRadiusSearch (0.05);
+
+	// Compute the features
+	fpfh.compute (*fpfhs);
+
+
+	ROS_INFO("feature_learning::feature_class: getting descriptors size %d",sizeof(fpfhs->points[0].histogram)/sizeof(float));
+	//int histSize = descriptors->at(0).descriptor.size();
 	Eigen::MatrixXf feature_mat;
-	feature_mat = descriptors->getMatrixXfMap (histSize, histSize + 9, 0); // use proper values
-	ROS_INFO("feature_learning::feature_class: sending descriptors ");
+	feature_mat = fpfhs->getMatrixXfMap (33,33,0); // use proper values
+	ROS_INFO("feature_learning::feature_class: sending descriptors %d rows: %d",feature_mat.cols(),feature_mat.rows());
 	//for dim, stride and offset, look at documentation for reasoning
-
-	out_mat.resize(1,feature_mat.cols());
-	out_mat<<feature_mat.colwise().mean();
+	out_mat.resize(1,feature_mat.rows());
+	out_mat<<feature_mat.rowwise().mean().transpose();
 
 }
 
@@ -178,10 +205,30 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 		computePushFeature(pushFeature);
 		ROS_INFO("feature_learning::feature_class: Getting grasp patch in input image");
 		computeGraspPatch(graspPatch);
-		out_mat.resize(1,colorHist.cols()+textonMap.cols()+entropyMap.cols()+pushFeature.cols()+graspPatch.cols());
+		out_mat.resize(1,colorHist.cols()+textonMap.cols()+entropyMap.cols()+pushFeature.cols()+graspPatch.cols()+2);
 		//TODO: Do I need to normalize these features???
-		ROS_INFO("feature_learning::feature_class: Resized features for input image");
-		out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch;
+		/*ROS_INFO("feature_learning::feature_class: Resized features for input image : Size %d",out_mat.cols());
+		ROS_INFO_STREAM("feature_learning::feature_class: Individual feature lenghts"<<std::endl
+				<<"ColorHist :"<<colorHist.cols()<<std::endl<<colorHist<<std::endl
+				<<"TextonMap :"<<textonMap.cols()<<std::endl<<textonMap<<std::endl
+				<<"EntropyMap :"<<entropyMap.cols()<<std::endl<<entropyMap<<std::endl
+				<<"pushFeature :"<<pushFeature.cols()<<std::endl<<pushFeature<<std::endl
+				<<"graspPatch :"<<graspPatch.cols()<<std::endl<<graspPatch<<std::endl
+				<<"Centroid x: "<<centroid_.x<<" y: "<<centroid_.y);
+*/		out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch,centroid_.x,centroid_.y;
+
+		// Conditioning feature vector
+		for(unsigned int i = 0; i<out_mat.cols();i++)
+		{
+			if(isnan(out_mat(0,i)))
+				out_mat(0,i) = 0;
+			if(isinf(out_mat(0,i)))
+				out_mat(0,i) = 1000;
+			if(abs(out_mat(0,i)) < 10e-6)
+				out_mat(0,i) = 0.0;
+			if(abs(out_mat(0,i)) > 1000)
+				out_mat(0,i) = (out_mat(0,i) > 0) ? 1000 : -1000;
+		}
 	}
 
 }
@@ -194,6 +241,17 @@ void feature_class::computeGraspPatch(Eigen::MatrixXf &out_mat){
 	t_gen.initialize(*local_cloud_,surface_);
 	Eigen::Vector3d ref_point;
 	ROS_INFO("feature_learning::feature_class: Computing reference point");
+	Eigen::Vector4f centroid;
+
+	pcl::compute3DCentroid(*local_cloud_,centroid);
+	// THIS HACK IS TO CIRCUMVENT GRIPPER POSE ISSUE
+	gripper_pose_.pose.position.x = centroid[0];
+	gripper_pose_.pose.position.y = centroid[1];
+	gripper_pose_.pose.position.z = centroid[2] + 0.15;
+	gripper_pose_.pose.orientation.x = 0;
+	gripper_pose_.pose.orientation.y = 0;
+	gripper_pose_.pose.orientation.z = 0;
+	gripper_pose_.pose.orientation.w = 1;
 	computeRefPoint(ref_point, gripper_pose_);
 	ROS_INFO("feature_learning::feature_class: Creating grasp template");
 	GraspTemplate templt;
@@ -223,7 +281,7 @@ void feature_class::computeColorHist(Eigen::MatrixXf &out_mat){
 
 	// let's quantize the hue to 30 levels
 	// and the saturation to 32 levels
-	int hbins = 30, sbins = 32;
+	int hbins = 3, sbins = 6;
 	int histSize[] = {hbins, sbins};
 	// hue varies from 0 to 179, see cvtColor
 	float hranges[] = { 0, 180 };
@@ -238,7 +296,7 @@ void feature_class::computeColorHist(Eigen::MatrixXf &out_mat){
 			hist, 2, histSize, ranges,
 			true, // the histogram is uniform
 			false );
-
+    cv::normalize( hist, hist, 0, 180, cv::NORM_MINMAX, -1, cv::Mat() );
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);
@@ -258,7 +316,7 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 	cv::imwrite("/tmp/input_color.jpg",local_image_);
 	ROS_DEBUG("Computing Texton Feature");
 
-	int n_textons = 32;
+	int n_textons = 24;
 	ROS_INFO("Initializing Texton Feature");
 
 	learn_appearance::TextonHistogram thist(n_textons);
@@ -266,8 +324,19 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 	ROS_INFO("Training texton Feature");
 	//thist.Train(img_gray_float, cv::Mat());
 	thist.InitializeCodebookFromImage(img_gray_float);
-	cv::MatND hist = thist.getTextonHist();
-	ROS_INFO("Converting Texton Feature");
+    cv::Mat texton_map = thist.getTextonMap();
+    // collect histogram over table mask for foreground
+    int channels[] = {0};
+    int hist_size[] = {n_textons};
+    float t_ranges[] = {0,n_textons};
+    const float *ranges[] = {t_ranges};
+    cv::MatND hist;
+    cv::calcHist( &texton_map, 1, channels, cv::Mat(),
+  		hist, 1, hist_size, ranges,
+  		true, // the histogram is uniform
+  		false );
+    cv::normalize( hist, hist, 0, 100, cv::NORM_MINMAX, -1, cv::Mat() );
+    ROS_INFO("Converting Texton Feature of size %d %d",hist.cols,hist.rows);
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);
@@ -286,8 +355,8 @@ void feature_class::computeEntropyMap(Eigen::MatrixXf &out_mat){
 
 	std::vector<cv::Mat> hsv;
 	// Computing in HSV as jeannette suggested
-	cv::cvtColor(local_image_,hsv_composite,CV_BGR2HSV);
-	cv::split(hsv_composite,hsv);
+	//cv::cvtColor(local_image_,hsv_composite,CV_BGR2HSV);
+	cv::split(local_image_,hsv);
 
 	/// Establish the number of bins
 	int histSize = 256;
@@ -334,6 +403,7 @@ void feature_class::computeEntropyMap(Eigen::MatrixXf &out_mat){
 
 	out_mat.resize(1,3);
 	out_mat<< entropy_h, entropy_s,entropy_v;
+
 
 }
 

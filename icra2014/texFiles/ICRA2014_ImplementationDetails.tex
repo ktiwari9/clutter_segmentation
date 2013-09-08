@@ -1,0 +1,76 @@
+\section{Implementation Details}
+\label{sec:impl_det}
+% The previous sections developed a procedure for making a decision about the class and orientation of a single object. In this section we present the details of using this procedure to process all objects on the table as quickly as possible.
+%  
+% \subsection{Segmentation and data association}
+% \label{subsec:seg_data_ass}
+% The points $\mathcal{Q}_t$ received from the scene are clustered according to Euclidean distance by using a Kd-tree. An occupancy grid representing the 2D table surface is maintained in order to associate the clustered surfaces with new or previously seen objects. The centroid of a newly obtained surface is projected to the table and compared with the occupied cells. If the new centroid is close enough to an existing object, the surface is associated with that object and the cell is indexed by the existing object ID. Otherwise, a new object with a unique ID is instantiated.
+% 
+% \subsection{Coupling between objects}
+% The optimization in Problem \ref{prob:active_obj_detect} is with respect to a single object but while executing it, the sensor can obtain surfaces from other objects within its field of view. We have the sensor turn towards the centroid and update the hypotheses' probabilities of every visible object. The turning is required because the observation model was trained only for a sensor facing the centroid of the object. Removing this assumption requires more training data and complicates the observation model approximation significantly. The energy used for these turns is not included in the optimization in (\ref{eq:sequential_optimization}). 
+% 
+% The scores obtained from the vocabulary tree are not affected significantly by scaling. This allows us to vary the radius $\rho$ of the viewsphere in order to ease the sensor movement and to update hypotheses for other objects within the field of view. The radius is set to $1$ meter by default but if the next viewpoint is not reachable, its can be adapted to accommodate obstacles and the sensor dynamics. Algorithm \ref{alg:test_pipeline} summarizes the complete hypothesis testing framework.
+% 
+% \begin{algorithm}[htb]
+% \caption{Active Object Detection}
+% \label{alg:test_pipeline}
+% \begin{algorithmic}[1]
+% \footnotesize
+% \State \textbf{Input}: Initial sensor pose $x_0=(x_0^p,x_0^r)\in SE(3)$, object models of interest $B_2$, vector of priors $p(0) \in [0,1]^M$ for the $M$ hypotheses 
+% \State \textbf{Output}: Decisions $\delta \in \{0,\ldots,M-1\}$ for every object on the table 
+% \State Priority queue $pq \gets \emptyset$
+% \State Current object ID $k^* \gets$ unassigned
+% \For{$t = 0$ to $\infty$}
+% 	\State Obtain a point cloud: $\mathcal{Q}_t \gets \phi(x_t,\Omega)$
+% 	\State Cluster $\mathcal{Q}_t$ and update the table occupancy grid
+% 	\For{every undecided object $k$ seen in $\mathcal{Q}_t$}
+% 		\State Rotate the sensor so that $x_t^r$ faces the centroid of $k$
+% 		\State Get viewsphere radius: $\rho \gets \|x_t^p - centroid(k)\|$
+% 		\State Get closest viewpoint: $v^k \gets \argmin_{v \in \mathcal{X}^k(\rho)} \|x_t^p - v\|$
+% 		\State Obtain a point cloud: $\mathcal{Q}^k \gets \phi(x_t,\Omega)$
+% 		\State Get vocabulary tree score $z^k$ using $\mathcal{Q}^k$
+% 		\State Update probabilities for object $k$: $p^k \gets T(p^k,v^k,z^k)$ 
+% 		\If{$k \notin pq$}
+% 			\State Insert $k$ in $pq$ according to probability $k \in B_2$, i.e. $1 - p_0^k$
+% 		\EndIf
+% 	\EndFor
+% 	\If{$k^*$ is unassigned}
+% 		\If{$pq$ is not empty}
+% 			\State $k^* \gets pq.pop()$
+% 		\Else
+% 			\Comment{All objects seen so far have been processed.}
+% 			\If{whole table explored}
+% 				\State \textbf{break}
+% 			\Else
+% 				\State Move sensor to an unexplored area and start over
+% 			\EndIf
+% 		\EndIf
+% 	\EndIf
+% 	\State $x_{t+1} \gets \hat{\mu}(v^{k^*},p^{k^*})$
+% 	\If{$x_{t+1} = a_i \in A$}
+% 		\State $\delta^{k^*} \gets i$, $k^* \gets$ unassigned, Go to line $18$
+% 	\EndIf
+% 	\State Move sensor to $x_{t+1}$
+% \EndFor
+% \end{algorithmic}
+% \end{algorithm}
+% 
+
+%The use of a depth sensor simplifies the segementation problem. 
+
+
+%Algorithm \ref{alg:test_pipeline} summarizes the sequential optimization of the $K$ single object opimization problems. The sensor obtains an initial point cloud $\mathbb{Q}$ from the scene and clusters it. For every detected cluster, we reorient the sensor to face the cluster centroid and obtain a new point cloud. The vocabulary tree is used to obtain a score for every hypothesis from this point cloud. We repeat this process for every cluster and sort them in a priority queue according to the probability that the object is in $B_2$, i.e. ($1 - P(H_0))$. Finally, every cluster in the queue is processed using the single object hypothesis testing (See Algorithm \ref{alg:alg1}).
+
+%TODO: - Dependent observations: Velez update, state space explosion if history of information state is kept, re-planning instead\\
+
+
+%After restricting the possible sensor poses to a view-sphere and discretizing the detection scores $Z_t$, we can formulate problem (\ref{eq:mary_hypothesis}) as a POMDP by a slight modification of the state space. Let the decisions that the sensor can make be represented by actions in $A = \{a_0, \ldots, a_{M-1}\}$, each associated with one of the $M$ hypotheses. 
+%The sensor pose is an observable variable by assumption and the hidden variable $(y,r)$ takes only on $M$ possible values. 
+
+
+
+
+%It is assumed that the depth information from the RGB-D camera is accurate enough to provide a good estimate of an object's location. Therefore, the main task of the active detection problem is to determine if the observed point cloud $\mathcal{Q}_t$ at time $t$ is of class $\mathcal{M}$ and if so determine its orientation $r \in R$. We present a dynamic programming equation for the problem, which was specified in the problem formulation section, which casts it as an active hypothesis testing problem with a mobile sensor and fixed target. The hidden variables in our model are the true orientation $r$ and class $\mathcal{M}$ of the object.
+
+%The active $M$-ary hypothesis testing problem problem has been addressed in literature only for a stateless sensor \cite{Javidi10_HypothesisTesting, Javidi10_MaryHypothesisTesting, Javidi11_HypothesisTesting, Javidi12_Journal}.
+

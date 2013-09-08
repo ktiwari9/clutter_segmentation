@@ -59,27 +59,20 @@ ros_graph::~ros_graph(){}
 
 bool ros_graph::buildGraph(graph_module::EGraph in_graph_msg){
 
-  std::list<int> index_list;
-
+//  ROS_INFO("Okay so we entered the message");
   if(in_graph_msg.edges.size() == 0)
     return false;
   else{
     graph_.clear();
-    for(int i=0; i<in_graph_msg.edges.size(); i++){
-
+    for(int i=0; i<in_graph_msg.edges.size(); i++)
       addEdge(in_graph_msg.edges[i].start.index,in_graph_msg.edges[i].start.point.x,in_graph_msg.edges[i].start.point.y,
               in_graph_msg.edges[i].end.index,in_graph_msg.edges[i].end.point.x,in_graph_msg.edges[i].end.point.y,
               in_graph_msg.edges[i].weight);
 
-      index_list.push_back(in_graph_msg.edges[i].start.index);
-      index_list.push_back(in_graph_msg.edges[i].end.index);
-    }
-
-    index_list.unique();
-    number_of_vertices_ = index_list.size();
-
-    // Now compute the adjacency matrix
+     // Now compute the adjacency matrix
+//    ROS_INFO("Entering adjacency matrix computation loop");
     adjacency_matrix_ = computeAdjacencyMatrix();
+    number_of_vertices_ = adjacency_matrix_.rows();
     return true;
   }
 
@@ -303,12 +296,15 @@ Eigen::MatrixXf ros_graph::computeAdjacencyMatrix(){
 		}
 	}
 
+	//ROS_INFO("Creating adjacency matrix in computation loop");
 	Eigen::MatrixXf adjacency_matrix = Eigen::MatrixXf::Zero(adjacency_list.size(),adjacency_list.size());
 
 	for(unsigned int i = 0; i < adjacency_matrix.rows(); i++)
 		for(it = adjacency_list[i].begin(); it!=adjacency_list[i].end();++it)
 		{
-			int adjacency_index = std::distance(vertex_list_visited.begin(),it);
+			local_it = std::find_if(vertex_list_visited.begin(), vertex_list_visited.end(), find_vertex(it->index_));
+			int adjacency_index = std::distance(vertex_list_visited.begin(),local_it);
+			//ROS_INFO_STREAM("Matrix size nxn: "<<adjacency_matrix.rows()<<" row: "<<i<<" col:"<<adjacency_index);
 			adjacency_matrix(i,adjacency_index) = 1;
 		}
 

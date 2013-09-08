@@ -1,0 +1,36 @@
+\section{Introduction}
+\label{sec:intro}
+%[TODO: Insert picture of experimental setup from simulation]
+
+% With the rapid progress of robotics research, the utility of autonomous robots is no longer restricted to controlled industrial environments. The focus has shifted to high-level interactive tasks in complex environments. The effective execution of such tasks requires the addition of semantic information to the traditional traversability representation of the environment. For example, a household robot needs to be able to detect an object of interest among those scattered on a dining table. For manipulation, it needs to estimate the object's pose accurately.
+% 
+% One of the central problems in computer vision, object detection and pose estimation, historically has been addressed with the assumption that the position of the sensing device is fixed \cite{Lowe04}, \cite{BelongieMP02}, \cite{FanMN89}. However, occlusions, variations in lighting, and imperfect object models in realistic environments decrease the accuracy of single-view object detectors. 
+% 
+% Active perception approaches circumvent these issues by utilizing appropriate sensing settings to gain more information about the scene. A large body of research in \textit{sensor management} \cite{Hero11_sensor_management} presents a structured approach to controlling the degrees of freedom in sensor systems and satisfying operational constraints while achieving the task objectives. However, most of the work either assumes  a simplified model for the detection process \cite{spaan08_POMDP, Jenkins10_PhD} or avoids the problem altogether and concentrates on estimating a target's state after its detection \cite{Hero03_sensor_management, sommerlade08_information, Mihaylova03_active_sensing}.
+% 
+% This paper is a step towards bridging the gap between the research in sensor management and the recent advances in 3D object detection enabled by the advent of low cost RGB-D cameras and open-source point cloud libraries \cite{Rusu_ICRA2011_PCL}. Rather than placing the burden of providing perfect results on a static detector, the sensor can move to increase the confidence in its detection. We consider the following problem. A mobile sensor has access to the models of several objects of interest. Its task is to determine which, if any, of the objects of interest are present on a cluttered table and to estimate their poses. The sensor has to balance the detection accuracy with the time spent observing the objects. The problem can be split into a static detection stage followed by a planning stage to determine a sequence of points of view, which minimize the mistakes made by the observer.
+% 
+% The rest of the paper is organized as follows. The next section provides an overview of related approaches to active object detection and summarizes our contribution. In section \ref{sec:problem} we draw up hypotheses about the class and orientation of an unknown object and formulate the active detection problem precisely. Section \ref{sec:obj_detect} describes our approach to static detection using a depth camera. In section \ref{sec:obs_model} we discuss the generation of an observation model, which is used in a Bayesian framework to assign a confidence measure on the hypotheses. Section \ref{sec:hyp_test} presents a formalism, which allows testing the hypotheses based on the sensor's observations and selecting a sequence of view-points to balance the sensing time with the decision accuracy. Implementation details are discussed in Section \ref{sec:impl_det}. Finally, in section \ref{sec:experiments} we present simulation results and discuss the validity of our approach.
+
+%\newpage
+
+%\begin{enumerate}
+%	\item Why is the problem important? Give motivation and introduction!
+%	\item Explain the scenario considered  and the approach to solving the problem
+%	\item Talk about other approaches and differentiate the work from them
+%	\item Explain the contributions and importance of the work
+%\end{enumerate}
+
+%As a result of the latest advances in robotics research, robots are beginning to move away from traditional tightly controlled industrial environments into more complex and dynamic environments. To effectively operate in these environments, the focus of robotic task specification has shifted towards more high-level interactive tasks. For the successful execution of these tasks, the robot requires additional semantic information to be incorporated into the traditional traversibility representations of the environment. For example, a household robot that needs clear a table has to be able to determine if there are any bottles among the objects present on the table. Upon the detection of such objects of interest the robot also needs to estimate the pose accurately enough to manipulate these objects.
+%need to detect objects of interest and estimate their location and orientation accurately enough for grasping and manipulation tasks.
+
+
+%One of the central problems in \textit{computer vision} is object detection and pose estimation. This problem when incorporated into high level task specification also requires the efficient estimation of semantic context with respect to the task. Historically, object detection and pose detection has been addressed with the assumption that the positions of the sensors are fixed ~\cite{Lowe04},~\cite{BelongieMP02} and ~\cite{FanMN89}
+%Though there have been a wide variety of techniques developed to address the stationary sensor case, it still remains an open problem as it is consistently plagued by false positives and false negatives. Attempting to develop a perfect object detector for a single viewpoint is an unrealistic task for real world environments as occlusions, variations in lighting and imperfect object models limit the detection capabilities of most algorithms.
+
+%Object recognition is one of the core problems in computer vision, and it is a very extensively investigated topic. Due to appearance variabilities caused for example by non-rigidity, background clutter, differences in viewpoint, orientation, scale or lighting conditions, it is a hard problem.
+
+%Object occlusions, poor lighting or ambiguities of object models limit the detection capabilities of any approach that relies on a single point of view. 
+
+
+%This paper is a step towards bridging the gap between the research in sensor management while utilizing state of the art techniques in 3D object detection which have gained traction since the advent of low cost RGB-D cameras and the availability of open source libaries for 3D object detection ~\cite{Rusu_ICRA2011_PCL}. Rather than relying entirely on the object detector for perfect estimation, the mobile sensor can execute appropriate actions to improve its detection.

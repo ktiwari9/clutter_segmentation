@@ -84,6 +84,8 @@ public:
 	arm_controller_interface::HeadJointTrajectoryClient head_joint_trajectory_client_;
     arm_controller_interface::SwitchControllerStackClient switch_controller_stack_;
 
+    bool hand_;
+
 protected:
 
 	ros::NodeHandle nh_;

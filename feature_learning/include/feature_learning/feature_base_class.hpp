@@ -78,6 +78,9 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/keypoints/uniform_sampling.h>
+#include <pcl/features/fpfh.h>
+#include <pcl/features/fpfh_omp.h>
+#include <pcl/features/normal_3d_omp.h>
 
 //Graph Module includes
 #include "graph_module/EGraph.h"
@@ -107,6 +110,7 @@ protected:
 	cv::Mat local_image_,local_segment_;
 	PointCloudPtr local_cloud_;
 
+	geometry_msgs::Point centroid_;
 	geometry_msgs::PoseStamped gripper_pose_;
 	geometry_msgs::Pose surface_;
 	Eigen::Vector3d view_point_translation_;
@@ -124,7 +128,7 @@ public:
 
 	// Initialize feature computation class
 	bool initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud, const geometry_msgs::PoseStamped &viewpoint,
-			const geometry_msgs::Pose& surface, const geometry_msgs::PoseStamped& gripper_pose);
+			const geometry_msgs::Pose& surface, const geometry_msgs::PoseStamped& gripper_pose, const geometry_msgs::Point& centroid);
 
 	// Getting the input from the user, function overloaded for
 	// raw color image and superpixel segment image

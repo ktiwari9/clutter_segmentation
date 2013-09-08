@@ -1,0 +1,120 @@
+\documentclass[letterpaper, 10pt, conference]{ieeeconf}
+
+\IEEEoverridecommandlockouts                              % This command is only
+                                                          % needed if you want to
+                                                          % use the \thanks command
+\overrideIEEEmargins
+% See the \addtolength command later in the file to balance the column lengths
+% on the last page of the document
+
+\addtolength{\textfloatsep}{-4mm}	% reduce the space between figures and text
+%\addtolength{\floatsep}{-3.6mm}		% reduce the space between figures
+
+%=================================================================%
+% Packages
+\usepackage{amsmath,amssymb,amsfonts,bbm} % math
+\usepackage{algorithm,algorithmicx,listings}  % algorithms
+\usepackage[noend]{algpseudocode}			  % necessary for algorithmicx
+\usepackage{url}					  % url citing
+\usepackage{graphics,graphicx,subfigure,color}	%figures and color	
+
+%\let\labelindent\relax				% allows using enumitem with IEEEconf
+%\usepackage{enumitem}				% named bullets
+%\usepackage{array,multirow,caption}			% table sutff
+%\usepackage{tikz}
+%\usetikzlibrary{arrows,petri,topaths,automata}
+\usepackage{gensymb}		% \degree
+
+% Bharath ADDONS:
+\usepackage{setspace}
+\usepackage{verbatim} %for multiline comment
+\usepackage[mathscr]{euscript}
+\usepackage[pdftex]{epsfig}
+
+%\usepackage[usenames,dvips,pdftex]{color}
+%\usepackage[pdftex]{color,graphicx}
+
+%\usepackage{subfig}
+%\usepackage{subfigure}
+%\usepackage{sty/algorithm}
+%\RequirePackage{setspace}
+%\usepackage{captcont}
+
+%\usepackage{multirow}
+
+%\usepackage[square]{natbib}
+
+
+
+%=================================================================%
+% Commands
+\def\liminf{\mathop{\lim\,\inf}\limits}	% EXAMPLE: \liminf_n A_n
+\def\limsup{\mathop{\lim\,\sup}\limits}	%
+\def\argmin{\mathop{\arg\,\min}\limits}	%
+\def\argmax{\mathop{\arg\,\max}\limits}	%
+\newcommand{\indicator}{\mathbbm{1}}
+\newcommand{\txbx}[1]{\boxed{\text{#1}}}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
+\newtheorem{problem}{Problem}
+
+
+
+\begin{document}
+
+%===================== TITLE =========================%
+\title{\LARGE \bf A Policy gradient approach for interactive segmentation}
+
+\author{Bharath Sankaran, Mrinal Kalakrishnan, Jeannette Bohg, Stefan Schaal% <-this % stops a space
+\thanks{This work was supported by the }% <-this % stops a space
+\thanks{B. Sankaran, M. Kalakrishnan and S.Schaal are with the Computational Learning and Motor Control Lab, University of Southern California, Los Angeles, CA 90089, {\tt\small bsankara@usc.edu, kalakris@usc.edu}}%
+\thanks{J.Bohg and S.Schaal are with the Autonomous Motion Department, Max Planck Institute for Intelligent Systems, Tuebingen Germany, {\tt\small jbohg@mpi-is.de,sschaal@mpi-is.de}}%
+}
+\maketitle
+%======================================================%
+
+%\thispagestyle{empty}
+%\pagestyle{empty}
+
+\begin{abstract}
+The paper is about a really cool idea on how to incorporate the action models to achieve perceptual tasks
+\end{abstract}
+
+%\section{Introduction}
+\input{texFiles/ICRA2014_Introduction.tex}
+
+%\section{Related Work}
+\input{texFiles/ICRA2014_RelatedWork.tex}
+
+%\section{Problem Formulation}
+\input{texFiles/ICRA2014_ProblemFormulation}
+
+%\section{Static Object Detection}
+\input{texFiles/ICRA2014_ObjectDetection}
+
+%\section{Obeservation Model}
+\input{texFiles/ICRA2014_ObservationModel}
+
+%\section{Active Hypothesis Testing}
+\input{texFiles/ICRA2014_HypothesisTesting}
+
+%\section{Implementation Details}
+%\input{texFiles/ICRA2014_ImplementationDetails}
+
+%\section{Experiments}
+\input{texFiles/ICRA2014_Experiments}
+
+%\section{Conclusion}
+\input{texFiles/ICRA2014_Conclusion.tex}
+
+% Bibliography
+%==================================================================%
+\bibliographystyle{IEEEtran}
+\bibliography{bib/ICRA2014_Bibliography}
+%==================================================================%
+
+\end{document}

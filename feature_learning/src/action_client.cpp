@@ -54,21 +54,27 @@ Eigen::MatrixXf getAdjacencyFromGraph(std::vector<static_segmentation::StaticSeg
 	std::vector<graph::ros_graph> graph_list;
 
 	int total_vertices = 0;
+	ROS_INFO("Converting graph message to graph");
 	for(unsigned int i = 0; i < graph_msg.size(); i++){
 
 		graph::ros_graph single_graph;
 		single_graph.buildGraph(graph_msg[i].graph);
+		if(single_graph.number_of_vertices_ <= 1)
+			continue;
 		total_vertices += single_graph.number_of_vertices_;
+		//ROS_INFO("Number of graph vertices %d",single_graph.number_of_vertices_);
 		graph_list.push_back(single_graph);
 	}
 
 	// Now get adjaceny matrix from graph
 	Eigen::MatrixXf adjacency = Eigen::MatrixXf::Zero(total_vertices,total_vertices);
 	long int row_index = 0, col_index = 0;
+	//ROS_INFO_STREAM("Total number of vertices "<<total_vertices<<std::endl<<" Graph List Size "<<graph_list.size());
 	for(unsigned int i = 0; i < graph_list.size(); i++){
 		Eigen::MatrixXf local_adjacency = graph_list[i].getAdjacencyMatrix();
+		//ROS_INFO_STREAM("Current adjacency size nxn:"<<local_adjacency.rows()<<std::endl<<local_adjacency);
 		adjacency.block(row_index,col_index,local_adjacency.rows(),local_adjacency.cols()) = local_adjacency;
-		row_index = local_adjacency.rows(); col_index = local_adjacency.cols();
+		row_index += local_adjacency.rows(); col_index += local_adjacency.cols();
 	}
 	return adjacency;
 }
@@ -125,7 +131,7 @@ int main(int argc, char **argv){
 		bool success_before = callAndRecordAdjacency(adjacency);
 
 		// Storing the adjacency matrix
-		std::string eigen_before_filename(filename+"_before_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
+		std::string eigen_before_filename(filename+"_beforeADJ_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
 		ofstream ofs_before(eigen_before_filename.c_str(),ios::out | ios::trunc);
 		if(ofs_before)
 		{
@@ -184,7 +190,7 @@ int main(int argc, char **argv){
 			reward_value = 10000;
 
 		// Storing the adjacency matrix
-		std::string eigen_after_filename(filename+"_after_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
+		std::string eigen_after_filename(filename+"_afterADJ_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
 		ofstream ofs_after(eigen_after_filename.c_str(),ios::out | ios::trunc);
 		if(ofs_after)
 		{

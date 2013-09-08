@@ -114,6 +114,8 @@ public:
 
 	bool initialized(std::string filename);
 
+	bool updateTopics();
+
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
 	void testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,

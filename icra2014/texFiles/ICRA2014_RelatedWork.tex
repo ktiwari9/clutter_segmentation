@@ -1,0 +1,167 @@
+\section{Related Work}
+\label{sec:rel_work}
+% The approaches in sensor management \cite{Hero11_sensor_management, Huber09_PhD} can be classified according to sensor type into \textit{mobile} (sensors have dynamic states) and \textit{stationary} (sensors have fixed states). Also, the targets of interest might be mobile or stationary. The process of choosing sensor configurations may quantify the utility of the next configuration only (\textit{myopic}) or may optimize over a sequence of future sensor configurations (\textit{non-myopic}). Finally, the objective may be to identify a target and estimate its state or simply improve the state estimate of a detected target.
+% 
+% The earliest work in active perception can be attributed to Bajscy \cite{bajscy_88, Krotkov_93}. It was focused on 3D position estimation through control of the sensor's intrinsic parameters. Pito's 1999 paper \cite{pito99_nbv} addresses the next best view problem as one that maximizes information gain by increasing spatial resolution. The movement of the sensor is constrained to a circle centered around the object of interest.
+% 
+% The work that is closest to ours \cite{Scharinger10_SceneModeling6D} uses a mobile sensor to classify stationary objects on a table and estimate their poses. Static detection is performed using SIFT matching. An object's pose distribution is represented with a Gaussian mixture. The authors use a myopic strategy to reduce the differential entropy in the pose and class distributions. This work differs from ours in that the sensor has models of all the objects so the detection is never against background. Moreover, by formulating hypotheses about an object's identity and by choosing a small discrete space for the possible sensor poses, we are able to plan non-myopically.
+% 
+% Velez and coworkers \cite{velez11_ijcai, velez11_icaps} consider the problem of detecting doorways, while a mobile sensor is traveling towards a fixed goal point. The unknown state of a candidate detection is binary: "present" or "not present". Stereo disparity and plane fitting are used for pose estimation. An entropy field is computed empirically for all view-points in the workspace and is used to myopically select locations with high expected information gain. The authors assume that the static detector provides sufficiently accurate pose estimates and do not optimize them during the planning.
+% 
+% In our work we use a depth sensor, which validates the assumption that the position estimate of a stationary object is accurate and does not need to included in the optimization objective. However, the orientation estimates can be improved through active planning. Inspired by the work on hypothesis testing \cite{Javidi12_arxiv}, we introduce a rough discretization of the space of orientations so that the hidden object state takes on several values, one for "object not present" and the rest for "object present" with a specific orientation. As a post-processing step, the rough orientation estimate is used to seed a robust alignment procedure, which provides an accurate pose estimate. In our previous work we considered a dual hypothesis problem aimed at model completion \cite{BharathThesis}. 
+% 
+% Karasev et al. \cite{karasev12_visual_learning} plan the path of a mobile sensor for visual search of an object in an otherwise known and static scene. The problem statement is different from ours but the optimization is surprisingly similar. The authors hypothesize about the pose of the object and minimize the probability of an incorrect decision. Since different object locations need to be considered, the optimization is intractable. Instead, a mathematical model of the sensing process is used to maximize the conditional entropy of the next measurement. 
+%  
+% A lot of the work in sensor management assumes a fixed sensor position, which simplifies the problem considerably because the trade-off between minimizing movement energy and maximizing view-point informativeness is avoided \cite{sommerlade08_information, Kragic06_ActiveObjRecognition}. Often, the action selection process is myopic. In contrast, we consider a mobile sensor, include the detection process in the optimization, and use non-myopic planning. Golovin and Krause \cite{golovin11_adaptive} showed that myopic planning for an adaptively submodular objective function is merely by a constant factor worse than the optimal strategy. Unfortunately, the objective in our formulation is not adaptively submodular and even with a fixed sensor state, a myopic strategy can perform arbitrarily worse than the optimal policy \cite{Javidi12_arxiv}.
+% 
+% The contributions of this paper are two-fold. Firstly, we introduce the idea of implicit pose estimation in 3D object detection by utilizing a vocabulary tree-based partial view matching. In addition to detecting the object's class this approach allows us to retrieve a course pose estimate. Moreover, relying on partial views helps in scenarios in which the object of interest is either partially occluded or in contact with another object. Secondly, we introduce a formal hypothesis testing framework to improve upon the static detection results by moving the sensor to more informative view-points. Our non-myopic planning approach weights the benefit of gaining more certainty about the correct hypothesis against the physical cost of moving the sensor. 
+% 
+
+
+
+%we integrate static object detection using a real depth sensor with a non-myopic planning approach which performs hypothesis testing. Our formal hypothesis testing framework weights the benefits of gaining more certainty about the existence of an object against the physical cost of moving to more informative viewpoints and explicitly minimizes the number of false positive and false negative mistakes.
+
+
+
+%A lot of the work in the sensor management field assumes a fixed sensor position, which simplifies the problem considerably because the trade-off between minimizing the movement energy and maximizing the view-point informativeness is avoided. For example, the authors of \cite{sommerlade08_information} control the pan, tilt, and zoom of a camera in order to track mobile targets, whose detection is assumed to be solved. Kalman filters are used to estimate the target states and the camera parameters are set to minimize the conditional entropy of the scene model. Similarly, Ekvall et al. \cite{Kragic06_ActiveObjRecognition} control a pan-zoom-tilt camera with a fixed position but include the detection process in their decision-making. The action selection process is myopic in both papers, while in our work we consider a mobile sensor, include the detection process in the optimization, and use a non-myopic planning process.
+
+
+
+
+
+
+%we discuss approaches for generating an observation model specific to the task of object detection in a Bayes framework. Finally, 
+
+
+%1) Using a point cloud data for static object detection and estimation
+%2) Discussion several approaches to generate an observation model specific to the task of object detection
+%3) Connecting static object detection and estimation using RGB-D camera to a formal hypothesis testing framework. 
+
+
+%The following papers are relevant: \cite{Rhunke11_SparseSurfaceAlignment}, \cite{Roy12_EstPlanMap}, \cite{Shi11_MultiHypothesis}, \cite{Rusu10_ViewpointFeatureHistogram}, \cite{Fox11_JointObjPoseRecognition}, \cite{Fox11_ObjectRecognition}.
+
+%Some of the exemplary papers in sensor management include \cite{Hero03_sensor_management}, in which the goal of the system is to learn the number and states of a group of moving targets occupying a surveillance region. A good measure of the quality of a sensing action is the reduction in entropy of the posterior distribution that is induced by the measurement.
+
+%(POMDP Myopic)
+%Approaches in active vision go to the other extreme, where the mobility and cost functions are modelled using a general POMDP formulation \cite{spaan08_POMDP}, \cite{Mihaylova03_active_sensing}, \cite{Scharinger10_SceneModeling6D}, \cite{Hero03_sensor_management}. Since the strucutre of the problem is not utilized the optimization problem is intractable and the authors are forced to resort to myopic planning.
+
+%(Soatto) 
+%The authors of \cite{valente12_info_gathering} are interested in designing a path through space, at the end of which the viewer will have seen all obstacles in an unknown environment. This problem is quite different from object detection and estimation but from a planning perspective it contains interesting ideas. The authors define an accumulated visibility level set function, which encodes the knowledge that the viewer has of the environment when moving along a given path and otian it as a solition to an Eikonal PDE.
+
+%(Sukhatme) 
+%The authors of \cite{Potthast11_NextBestView} consider an information gain-based variant of the next best view problem. A mobile sensor is tasked to sequentially take scans of an initially unknown environment with the objective of rapidly decreasing the amount of unknown space. A belief model for the visibility of the occluded space is used to predict the potential gains of different actions and a myopic planning scheme is used to select the best one.
+
+
+
+
+
+
+
+
+
+
+
+%Our hypothesis testing framework selects sequences of actions, which explicitly minimze the number of false positive and false negative mistakes made by the detector and 
+
+%Second, we introduce a formal hypothesis testing framework to select a sequence of actions, which explicitly minimze the number of false positive and false negative mistakes. Our non-myopic planning scheme weights the benefits of gaining more certainty about the existence of an object against the physical cost of moving to more informative viewpoints.
+%to select a sequence of actions, which improves the belief of a detection obtained from a static object detector. 
+
+%Our formal planning framework is based on the theoretical research in active multi-hypothesis testing presented in \cite{Javidi10_MaryHypothesisTesting, Javidi10_HypothesisTesting, Javidi11_HypothesisTesting, Javidi12_Journal}, which weights the benefits of gaining more certainty about the existence of an object against the physical cost of moving to different viewpoints.
+
+%The goal of this paper is to integrate static object detection using a real RGB-D sensor with an active planning framework, which selectes sequences of opimal sensor poses and explicitly minimizes the number of false positive and false negative mistakes. This requires a number of complex modifications over the classical \textit{sensor management} problem:
+% - complex observation model suitable for a detection tasks
+% - introduce mobility and minimize cost of movement in a nonmyopic planning framework
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%DONE:
+%\cite{Javidi10_HypothesisTesting}, \cite{sommerlade08_information}, \cite{spaan08_POMDP}, \cite{Hero03_sensor_management}, \cite{Mihaylova03_active_sensing}, \cite{valente12_info_gathering}, \cite{velez11_ijcai}, \cite{Herbst11_icra}, \cite{Jenkins10_PhD}, \cite{Lehment11_HumanPoseTracking}, \cite{Fallon12_SceneSimulation}, \cite{Potthast11_NextBestView}, \cite{Kragic06_ActiveObjRecognition}, \cite{Cipolla04_TemplateLikelihood}, \cite{Scharinger10_SceneModeling6D}.
+
+
+%From a motion planning perspective the closest work to ours is [Velez]. Velez and coworkers descirbe an online, any-time planning framework using a mobile sensor for object detection. The unknown state of the object is a binary random variable, which takes on the values "present" and "not present". The authors formulate a binary hypothesis testing problem, which weights the benefit of increasing the confidece in the state of the hidden variable against the cost of taking a detour to reach an informative view.
+
+%However, the problem formulation is abandoned and instead the conditional entropy between the state of the object and the confidence of the object detector is computed empirically for all viewpoints in the robot's workspace. This field is used to bias the planning towards locations with high expected information gain. It is not clear what is the relationship between minimizing this entropy field and the cost function in the original formulation, which minimizes the number of false positive and false negative mistakes explicitly.
+
+%The authors assume that the detector can estimate the postion and orientation of the detected object accurately enough. Their problem formulation does not optimize over the quality of the estimation. 
+
+%In our work we use a depth sensor, which validates the assumption that the position of the object can be estimated well enough without explicit inclusion in the optimization problem. However, ignoring the orientation of the object in the opitmization is not desirable because the results of static orientation estimation can be significantly improved using active planning. Reasoning over the continuous space of orientations is intractable. Instead, we introduce a very rough discretization of the space of orientations and note that it is sufficient because a post-processing step based on template matching can be used to obtain a very accurate orientation estimate. Thus, in our formulation the hidden object state takes on several integer values, one for "object not present" and the rest for "object present" with a specific orientation. 
+%This leads to an active M-ary hypothesis testing problem with a mobile sensor. To our knowledge this formulation has not been addressed in literature and the closest work is Javidi in which the state of the sensor is fixed.
+
+%Velez and coworkers \cite{velez11_ijcai, velez11_icaps} consider the problem of enriching metric maps with semantic information. In particular, a mobile sensor attempts to detect doorways along its way to a fixed goal point. The agent weights the benefit of increasing its confidence about a detection against the cost of taking a detour to a more suitable vantage point.
+
+%The authors utilize a static object detector due to \cite{Felzenszwalb08_detector} and use stereo disparity and plane fitting to estimate the position and orientation of detected doorways. They utilize a non-myopic action selection strategy, which minimizes the entropy between a detection hypothesis and the confidence of the object detector. Our planning stage is similar... (DESCRIBE HOW IT IS DIFFERENT)
+
+
+
+
+
+
+
+
+
+
+
+
+%Conversely, a large body of research has focused on 
+
+%Even state-of-the-art approaches to the static object detection are affected adversely by 
+
+%object detectors  Regardless of how good object detectors 
+
+
+%A straightfor-
+%ward approach to adding semantic information is to accept
+%the results of a standard object detector framework prima fa-
+%cie, irrespective of sensor noise.
+
+%As robotic research progresses, autonomous robots are used to perform high-level tasks in complex and dynamic environments. Sophisticated interactions between an agent and its workspace 
+
+
+%These tasks are very important for precise grasping an manipulation 
+
+%The progress of robotics research is indicated by 
+%The success of the 
+%One of the central problems of computer vision is the detection of semantically important objects and the estimation of their pose and shape information.
+
+
+%objects and activities.
+
+%Inaccurate sensing devices, bad classifiers, object occlusions, poor lighting or ambiguities of object models limit the detection capabilities. Active perception approaches aim at deliberately utilizing appropriate sensing settings to gain more information about the scene.
+
+
+%Detecting objects, estimating their pose and recovering 3D shape information are critical problems in many vision and robotics applications
+
+
+%* Useful for grasping and object manipulation. This information will help the robotic arm grasp the object at the right location and successfully interact with it.
+%* Useful for incorporating semantic information into SLAM / metric maps
+
+%* Active object detection is natural to humans and animals, while in the robotics and computer vision communities more emphasis has been placed on static object detection. However, attempting to develop a perfect object detector for a fixed viewpoint is a hopeless task for realistic environments, where occlusions, lighting, and changes affect the view.
+
+%* The object detection problem is hard
+
+%* One of the central problems of Computer Vision is the detection and estimation of objects and activities.
+
+%In this paper we address the problem of detecting an object and estimating its position and orientation. Moreover, our approach is active. The sensor can use a set of motion primitives to move in the environment.
+
+%Including mobility in object detection is crucial for the advancement. For example, authers of lbalbla showed that using a realtively weak detector in an active framework can lead to a significant performance improvement. 
+
+%We address the problem of 3D object detection from point cloud data. The use of point cloud data has gained immense popularity in the vision research communities with the advent of the RGB-D cameras and the open source Point Cloud Library.
+% 
+%% 1. Importance and motivation for object recognition
+%The wide availability of RGB-D cameras

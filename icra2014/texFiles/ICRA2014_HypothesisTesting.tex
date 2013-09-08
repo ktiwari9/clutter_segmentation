@@ -1,0 +1,73 @@
+\section{Learning Actions}
+\label{sec:hyp_test}
+To get
+% In this section we provide a dynamic programming formulation for the single object optimization problem in (\ref{eq:sequential_optimization}). As mentioned earlier, we restrict the possible sensor poses to a discrete set $\mathcal{X}(\rho)$ of viewpoints on the viewsphere $V(\rho)$ centered at the unknown object. The state at time $t$ consists of the sensor pose $x_t \in \mathcal{X}(\rho)$ and the \textit{information state}, summarized by the sufficient statistic consisting of the probabilities for each hypothesis:
+% \[
+% p_i(t) = \mathbb{P}(H_i \mid Z_1=z_1,\ldots,Z_t=z_t, x_{0:t}) \in [0,1],
+% \]
+% where $z_{1:t}$ are the observations from the vocabulary tree. Suppose that at time $t$ the state is $(x_t,p(t))$ and the sensor decides to continue observing by moving to a new viewpoint $x_{t+1}\in\mathcal{X}(\rho)$. The new observation $z_{t+1}$ is used to update the probabilities of the hypotheses according to Bayes' rule:
+% \begin{align*}
+% p(t+1) &= T(p(t),x_{t+1},z_{t+1}), \text{ with $i$th component:}\\
+% p_i(t+1) &= \mathbb{P}(H_i \mid z_{1:(t+1)},x_{0:(t+1)})\\
+% &=\frac{\mathbb{P}(Z_{t+1} = z_{t+1} \mid x_{t+1}, H_i)\mathbb{P}(H_i \mid z_{1:t}, x_{0:t})}{\mathbb{P}(Z_{t+1} = z_{t+1}\mid x_{t+1})}\\
+% &=\frac{h_i^{x_{t+1}}(z_{t+1})p_i(t)}{\sum_{j=0}^{M-1} h_j^{x_{t+1}}(z_{t+1}) p_j(t) }, \quad \forall i = 0,\ldots, M-1
+% \end{align*}
+% using the assumption of independence of successive observations. Supposing that $\tau$ is fixed for a moment, the terminal cost of the dynamic program can be derived after the latest observation $z_\tau$ has been incorporated in the posterior:
+% \begin{align*}
+% J_\tau(x_\tau,p(\tau)) &= \min_{\delta \in \{0,\ldots,M-1\}} \mathbb{E}_{Y,R} \Lambda_{\delta,j^*(Y,R)} \\
+% &= \min_{\delta \in \{0,\ldots,M-1\}} \sum_{j=0}^{M-1} \Lambda_{\delta,j} p_j(\tau)
+% \end{align*}
+% The intermediate stage costs for $t = 0,\ldots,(\tau-1)$ are:
+% \begin{align*}
+% J_t(x_t,p(t)) = &\min_{v \in \mathcal{X}(\rho)} \biggl\{ c(x_t, v) + \\
+% &\mathbb{E}_{Z_{t+1}} J_{t+1} (v, T(p(t), v, Z_{t+1})) \biggr\}
+% \end{align*}
+% Letting $\tau$ be random again and $t$ go to infinity we get the following infinite-horizon dynamic programming equation:
+% \begin{align}
+% \label{eq:mary_hypothesis}
+% J(x,p) = &\min\biggl\{ \min_{\delta \in \{0,\ldots,M-1\}} \sum_{j=0}^{M-1} \Lambda_{\delta j} p_j, \\
+% &\min_{v \in \mathcal{X}(\rho)} c(x,v) + \mathbb{E}_{Z} \{J(v,T(p,v,Z))\}\biggr\},\notag
+% \end{align}
+% which is well-posed by Propositions 9.8 and 9.10 in \cite{Bertsekas07_SoC}. Equation (\ref{eq:mary_hypothesis}) gives an intuition about the relationship between the cost functions $c(\cdot,\cdot)$, $\Lambda_{ij}$ and the stopping time $\tau$. If at time $t$, the expected cost of making a mistake given by $\min_{\delta \in \{0,\ldots,M-1\}} \sum_{j=0}^{M-1} \Lambda_{\delta j} p_j(t)$ is smaller than the cost of taking one more measurement, the sensor stops and chooses the minimizing hypothesis; otherwise it continues measuring.
+% 
+% We resort to numerical approximation techniques, which work well when the state space of the problem is sufficiently small. The decision rule $\delta(\cdot)$ can be replaced by a set of sink states $A = \{a_0,\ldots,a_{M-1}\}$ such that if the sensor goes to state $a_i$, it decides on hypothesis $H_i$ and remains there for the rest of time. Then, for $s_1, s_2 \in \mathcal{X}(\rho) \cup A$ the cost of movement and the state transition function become:
+% \begin{align*}
+% c'(s_1,p,s_2) &= \begin{cases}
+% 				c(s_1, s_2), & s_1,s_2 \in \mathcal{X}(\rho)\\
+% 				\sum_{j=0}^{M-1} p_j\Lambda_{s_2,j}, & s_1 \in \mathcal{X}(\rho), s_2 \in A\\
+% 				0, & s_1=s_2 \in A\\
+% 				\infty, & \text{otherwise}
+% 			\end{cases}\\
+% T'(p(t),s_{t+1},&z_{t+1}) = \begin{cases}
+% 				T(p(t),s_{t+1},z_{t+1}), & s_{t+1} \in \mathcal{X}(\rho)\\
+% 				p(t), & s_{t+1} \in A
+% 			\end{cases}
+% \end{align*}
+% We can rewrite (\ref{eq:mary_hypothesis}) into the usual Bellman optimality equation for a POMDP:
+% \[
+% J(s,p) = \min_{s' \in \mathcal{X}(\rho)\cup A} \biggl\{c'(s,p,s') + \mathbb{E}_Z\{J(s', T'(p,s',Z) \} \biggr\}
+% \]
+% We use a point-based POMDP algorithm \cite{Kurniawati08_sarsop, Ong08_sarsop}, which approximates optimally reachable belief spaces in order to solve the problem efficiently and obtain an approximate stationary policy $\hat{\mu}: \mathcal{X}(\rho)\cup A \times [0,1]^M \rightarrow \mathcal{X}(\rho)\cup A$.
+
+%The online procedure for using $\hat{\mu}$ is summarized in Algorithm \ref{alg:alg1}.
+%\begin{algorithm}[H]
+%\caption{Single Object Hypothesis Testing}
+%\label{alg:alg1}
+%\begin{algorithmic}[1]
+%\footnotesize
+%\State \textbf{Input}: Initial state $(x_0,p(0))$
+%\State \textbf{Output}: Decision $\delta \in \{0,\ldots,M-1\}$
+%\State
+%\For{$t = 0$ to $\infty$}
+%	\State $x_{t+1} \gets \hat{\mu}(x_t, p(t))$
+%	\If{$x_{t+1} = a_i \in A$}
+%		\State \textbf{return} $\delta \gets i$ 
+%	\EndIf
+%	\State Move sensor to $x_{t+1}$
+%	\State $\mathcal{Q}_{t+1} \gets \phi(x_{t+1},\Omega)$
+%	\State Obtain vocabulary tree score $z_{t+1}$ from $\mathcal{Q}_{t+1}$
+%	\State $p(t+1) \gets T(p(t),x_{t+1},z_{t+1})$
+%\EndFor
+%\end{algorithmic}
+%\end{algorithm}
+

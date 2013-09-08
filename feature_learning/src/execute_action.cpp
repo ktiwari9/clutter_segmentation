@@ -224,12 +224,9 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 
 
 	char input = 'p';
-	// TODO: Is this true??
-	ROS_INFO("feature_learning::execute_action: Note: Only demonstrations with the right arm are recorded.");
 
-	ROS_INFO("feature_learning::execute_action: Please, free the robot's view on the object "
-			"and enter an arbitrary character followed by enter.");
-	std::cin >> input;
+	ROS_INFO("feature_learning::execute_action: Getting viewpoint and surface for extraction");
+	//std::cin >> input;
 	// Now first get the topics we were looking for
 
 	geometry_msgs::PoseStamped surface_pose = getSurfacePose();
@@ -238,18 +235,18 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 
 	geometry_msgs::PoseStamped viewpoint_pose = getViewpointPose();
 
-	ROS_INFO("feature_learning::execute_action: Please, place the gripper at the object without displacing "
-			"it and enter an arbitrary character followed by enter.");
+	//ROS_INFO("feature_learning::execute_action: Please, place the gripper at the object without displacing "
+	//		"it and enter an arbitrary character followed by enter.");
 
-	std::cin >> input;
-	std::cout<<controller_prefix<<"GravityCompensation"<<" is the controller stack being run"<<std::endl;
+	//std::cin >> input;
+	//std::cout<<controller_prefix<<"GravityCompensation"<<" is the controller stack being run"<<std::endl;
 	//Now place the hand in gravity comp
-	ROS_VERIFY(switch_controller_stack_.switchControllerStack(controller_prefix + "GravityCompensation"));
+	//ROS_VERIFY(switch_controller_stack_.switchControllerStack(controller_prefix + "GravityCompensation"));
 
-	std::cin >> input;
-	ROS_INFO("feature_learning::execute_action: Please, Verify if hand has been placed in appropriate location and move out of the way "
-			"and enter an arbitrary character followed by enter.");
-	std::cin >> input;
+	//std::cin >> input;
+	//ROS_INFO("feature_learning::execute_action: Please, Verify if hand has been placed in appropriate location and move out of the way "
+	//		"and enter an arbitrary character followed by enter.");
+	//std::cin >> input;
 
 	ROS_INFO("feature_learning::execute_action: Verifying right hand now %d",right_hand);
 
@@ -263,6 +260,7 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 		manipulation_object_l_.switchControl(ArmInterface::JOINT_CONTROL_);
 	}
 
+	hand_ = right_hand;
 
 	geometry_msgs::PoseStamped gripper_pose = getGripperPose();
 
@@ -296,10 +294,10 @@ void execute_action::executeCallBack(const feature_learning::ExecuteActionGoalCo
 	}
 
 	bool interrupt;
-	char interrupt_choice;
-	ROS_INFO_STREAM(" Action Point received from Feature Extraction Service is "<<action_point<<std::endl
-			<<" Do you want to continue (y/n): ");
-	std::cin>>interrupt_choice;
+	char interrupt_choice = 'y';
+	//ROS_INFO_STREAM(" Action Point received from Feature Extraction Service is "<<action_point<<std::endl
+	//		<<" Do you want to continue (y/n): ");
+	//std::cin>>interrupt_choice;
 	if(interrupt_choice == 'n')
 	{
 		result_.success = false;
@@ -489,10 +487,10 @@ bool execute_action::doActionOnPoint(const geometry_msgs::Point &action_point, i
 
 	pose_publisher_.publish(manipulation_pose);
 
-	ROS_INFO("Do you want to quit now (y/n)? ");
-	std::cin>>pose_decision;
-	if(pose_decision == 'y')
-		return false;
+//	ROS_INFO("Do you want to quit now (y/n)? ");
+//	std::cin>>pose_decision;
+//	if(pose_decision == 'y')
+//		return false;
 
 	if(pushNode(manipulation_pose,y_direction,manipulation_object)){
 		ROS_INFO("Pushing Succeeded ");
@@ -524,16 +522,16 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 	{
 		geometry_msgs::Pose poke_pose;
 		poke_pose.position = push_pose.pose.position;
-		poke_pose.position.z = push_pose.pose.position.z - 0.10;
+		poke_pose.position.z = push_pose.pose.position.z - 0.20;
 		poke_pose.orientation = push_pose.pose.orientation; // This would have to be 1,0,0,0
 		ROS_INFO("Fingers opened");
 
 
 		if(!DEBUG){
-			//if(manipulation_object.planAndMoveTo(push_tf)){ //
-			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
-			ROS_INFO_STREAM("Switched to Cartesian Control 1"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
-			if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
+			if(manipulation_object.planAndMoveTo(push_tf)){ //
+			//manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			//ROS_INFO_STREAM("Switched to Cartesian Control 1"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+			//if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
 
 				// Move to poke position
 				geometry_msgs::Pose poke_position;
@@ -546,7 +544,7 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 				{
 					geometry_msgs::Pose pick_position;
 					pick_position = poke_position;
-					pick_position.position.z += 0.05;//Move  5cm above pick point
+					pick_position.position.z += 0.01;//Move  5cm above pick point
 					ROS_INFO("poke Successful");
 					bool success;
 					manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
@@ -555,6 +553,7 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 					if(success){
 
 						// manipulation object closing Hand
+						manipulation_object.gains_.enableFingerForceControlGains();
 						double mypos[] = {0,2.4,2.4,2.4};
 						std::vector<double> hand_joint_positions (mypos, mypos + sizeof(mypos) / sizeof(double) );
 						double myforces[] = {-0.5,-0.5,-0.5};
@@ -568,14 +567,25 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 							double joint_sum = 0;
 							for(int i = 1; i< hand_joint_positions.size() ;i++)
 								joint_sum+= hand_joint_positions[i];
-							if(joint_sum < 6.0)
+							if(joint_sum < 7.0) // JOINT SUM HEURISTIC
 							{
 								bool place_success = false;
 								geometry_msgs::Pose place_position;
+								ROS_INFO("Doing a Cartestian move to get above the table");
+								manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 								place_position.position = push_pose.pose.position;
 								place_position.orientation = push_pose.pose.orientation;
-								// Dropping from 5 cn above the ground
-								place_position.position.z += 0.05;
+								place_position.position.z += 0.25;
+								place_success = manipulation_object.cartesian_.moveTo(place_position,3.0);
+								// Now create a bigger table to prevent collisions
+								ROS_INFO("Creating bigger table to prevent collisions");
+								world_state_.createTable(1.0);
+								place_position.position = push_pose.pose.position;
+								place_position.position.y = 0.1;
+								place_position.position.x = (hand_) ? 1.0 : -1.0;
+								place_position.orientation = push_pose.pose.orientation;
+								// Dropping from 5 cm above the ground
+								place_position.position.z += 0.25;
 								// Now move to a position that is 20 cm away
 								double move_x_increment;
 								if(manipulation_object.getEndeffectorId() == 2)
@@ -583,7 +593,7 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 								else
 									move_x_increment = 0.35;
 								// Move to a position away from the object
-								place_position.position.x += move_x_increment;
+								//place_position.position.x += move_x_increment;
 								ROS_INFO("Planning to place position");
 								do{
 									ROS_INFO("Trying to place again");
@@ -629,15 +639,15 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 		}
 		else{
 
-			//if(manipulation_object.planAndMoveTo(push_tf)){
-			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
-			ROS_INFO_STREAM("Switched to Cartesian Control 2"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
-			if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
+			if(manipulation_object.planAndMoveTo(push_tf)){
+			//manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+			//ROS_INFO_STREAM("Switched to Cartesian Control 2"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+			//if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
 
 				geometry_msgs::Pose pick_position;
 				//TODO: Do something smarter
 				pick_position = push_pose.pose;
-				pick_position.position.z += 0.05; // Go 5cm away above the body
+				pick_position.position.z += 0.01; // Go 5cm away above the body
 				bool success;
 				manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 				success = manipulation_object.cartesian_.moveTo(pick_position,3.0);
@@ -647,6 +657,7 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 				if(success){
 
 					// manipulation object closing Hand
+					manipulation_object.gains_.enableFingerForceControlGains();
 					double mypos[] = {0,2.4,2.4,2.4}; // Dont alter the spread just the other joint angles
 					std::vector<double> hand_joint_positions (mypos, mypos + sizeof(mypos) / sizeof(double) );
 					double myforces[] = {-0.5,-0.5,-0.5};
@@ -660,11 +671,22 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 						double joint_sum = 0;
 						for(int i = 1; i< hand_joint_positions.size() ;i++)
 							joint_sum+= hand_joint_positions[i];
-						if(joint_sum < 6.0)
+						if(joint_sum < 7.0) // JOINT SUM HEURISTIC
 						{
 							bool place_success = false;
 							geometry_msgs::Pose place_position;
+							ROS_INFO("Doing a Cartestian move to get above the table");
+							manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 							place_position.position = push_pose.pose.position;
+							place_position.orientation = push_pose.pose.orientation;
+							place_position.position.z += 0.25;
+							place_success = manipulation_object.cartesian_.moveTo(place_position,3.0);
+							// Now create a bigger table to prevent collisions
+							ROS_INFO("Creating bigger table to prevent collisions");
+							world_state_.createTable(1.0);
+							place_position.position = push_pose.pose.position;
+							place_position.position.y = 0.1;
+							place_position.position.x = (hand_) ? 1.0 : -1.0;
 							place_position.orientation = push_pose.pose.orientation;
 							// Now move to a position that is 20 cm away
 							double move_x_increment;
@@ -673,7 +695,7 @@ bool execute_action::graspNode(geometry_msgs::PoseStamped push_pose, ArmInterfac
 							else
 								move_x_increment = 0.25;
 							// Move to a position away from the object
-							place_position.position.x += move_x_increment;
+							//place_position.position.x += move_x_increment;
 							do{
 								tf::Pose place_pose_tf;
 								tf::poseMsgToTF(place_position,place_pose_tf);
@@ -735,15 +757,15 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 
 	geometry_msgs::Pose poke_pose;
 	poke_pose.position = push_pose.pose.position;
-	poke_pose.position.z = push_pose.pose.position.z - 0.10;
+	poke_pose.position.z = push_pose.pose.position.z - 0.20;
 	poke_pose.orientation = push_pose.pose.orientation;
 
 	if(!DEBUG){
 
-		manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
-		ROS_INFO_STREAM("Switched to Cartesian Control 3"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
-		if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
-		//if(manipulation_object.planAndMoveTo(push_tf)){
+		//manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+		//ROS_INFO_STREAM("Switched to Cartesian Control 3"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+		//if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){ //
+		if(manipulation_object.planAndMoveTo(push_tf)){
 
 			// Remove comment when running on robot
 			geometry_msgs::Pose poke_position;
@@ -791,15 +813,25 @@ bool execute_action::pushNode(geometry_msgs::PoseStamped push_pose, double y_dir
 			return false;
 	}
 	else{
-		manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
-		ROS_INFO_STREAM("Switched to Cartesian Control 4"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);ROS_INFO_STREAM("Switched to Cartesian Control"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
-		if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){
-		//if(manipulation_object.planAndMoveTo(push_tf)){
+		//manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
+		//ROS_INFO_STREAM("Switched to Cartesian Control 4"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);ROS_INFO_STREAM("Switched to Cartesian Control"<<push_pose.pose.position<<" "<<push_pose.pose.orientation);
+		//if(manipulation_object.cartesian_.moveTo(push_pose.pose,3.0)){
+		if(manipulation_object.planAndMoveTo(push_tf)){
 
 			geometry_msgs::Pose push_position;
 			//TODO: Do something smarter
 			push_position = push_pose.pose;
-			push_position.position.y += 0.05; // Push it 5cm away from the body
+			if(y_dir == (M_PI/2))
+				push_position.position.y += 0.20;
+
+			if(y_dir == (M_PI/2 + M_PI)) //Push back
+				push_position.position.y -= 0.10;
+
+			if(y_dir == M_PI)
+				push_position.position.x += 0.20; //Push Right
+
+			if(y_dir == 0.0) // Push Left
+				push_position.position.x -= 0.20;
 			bool success;
 			manipulation_object.switchControl(ArmInterface::CARTESIAN_CONTROL_);
 			success = manipulation_object.cartesian_.moveTo(push_position,3.0);
