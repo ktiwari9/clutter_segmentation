@@ -7,7 +7,7 @@ SOURCEFILE = main
 
 #other files $(SOURCEFILE).tex includes, eg .bib files, etc.
 #DO include .tex, .bib, ...
-INCLUDES = texFiles/ICRA2014_Experiments.tex texFiles/ICRA2014_Conclusion.tex texFiles/ICRA2014_HypothesisTesting.tex texFiles/ICRA2014_Introduction.tex texFiles/ICRA2014_ObservationModel.tex texFiles/ICRA2014_ProblemFormulation.tex texFiles/ICRA2014_RelatedWork.tex texFiles/ICRA2014_ObjectDetection.tex
+INCLUDES = texFiles/ICRA2014_Experiments.tex texFiles/ICRA2014_Conclusion.tex texFiles/ICRA2014_HypothesisTesting.tex texFiles/ICRA2014_Introduction.tex texFiles/ICRA2014_ObservationModel.tex texFiles/ICRA2014_ProblemFormulation.tex texFiles/ICRA2014_RelatedWork.tex 
 #ENV      = env TEXINPUTS=".:styles/:" BSTINPUTS=".:styles/:"
 ENV      =
 BIBTEX   = $(ENV) bibtex

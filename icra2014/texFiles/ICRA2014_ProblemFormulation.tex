@@ -20,6 +20,7 @@ As the dimensionalty of the feature space is incredibly high, we may still not b
 
 
 
+
 % Let the table surface be represented by a bounded set $\mathcal{T} \subset \mathbb{R}^2$. Let $B_0$ be the possibly infinite set of all object classes that may appear on the table. We assume that each object class has a single model associated with it and use the words model and class interchangeably. Instances are drawn from $B_0$ at random and are placed uniformly on the table surface. For simplicity we assume that the objects have a random yaw and no pitch or roll so that their poses are in $SE(2)$. The extension of our framework to the $SE(3)$ case is immediate.
 % 
 % Consider a mobile depth sensor, whose position and orientation at time $t$ are $x_t = (x_t^p,x_t^r) \in SE(3)$. Let $\Omega$ represent the state of the \textit{static} environment, which includes factors such as scene geometry, lighting, occlusion, etc. At time $t$, the depth sensor can obtain a point cloud $\mathcal{Q}_t \subset \mathbb{R}^3$ from the scene which is visible from $x_t$ according to $\mathcal{Q}_t = \phi(x_t,\Omega)$. The first task of the sensor is to split $\mathcal{Q}_t$ into separate surfaces (\textit{segmentation}) and associate them with either new or previously observed objects (\textit{data association}). These procedures are not the focus of our paper but we mention briefly how we perform them in Subsection \ref{subsec:seg_data_ass}. We assume that they estimate the object positions accurately. 
