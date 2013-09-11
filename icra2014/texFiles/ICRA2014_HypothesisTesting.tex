@@ -4,9 +4,7 @@ The online phase of the algorithm we create a scene graph $\mathcal{G} = \{V,E\}
 \subsection{Supervised Classification}
 When a scene is presented to the agent (robot) in the form of an rgb image and corresponding point cloud is used to construct a scene graph $\mathcal{G}$. We first pre-process the point cloud to look for euclidean clusters supported by some dominant plane in the image. Once these clusters have been detected we project them back on to the image to get the corresponding image patches.
 
-To construct the scene graph we oversegment these image patches in to superpixels using the graph based segmentation approach described in (\cite{Javidi12_Journal} TODO: Fix Citation). We then construct the scene graph by analyzing the nearest neighbours of each superpixel segment. Every vertex $V_i$ of the graph $\mathcal{G}$ would be correspond to a superpixel and the edges $E_j$ would be be drawn between 
-
-superpixels touching each other. From such a respresentation the notion of rigid and dynamic edges are readily apparent as rigid edges are those edges that connect superpixels on the same object and dynamic edges are those edges that connect superpixels between two objects that are touching or in close proximity to each other. This is illustrated in the figure below Fig \ref{fig:scene_graph}.
+To construct the scene graph we oversegment these image patches in to superpixels using the graph based segmentation approach described in (\cite{Javidi12_Journal} TODO: Fix Citation). We then construct the scene graph by analyzing the nearest neighbours of each superpixel segment. Every vertex $V_i$ of the graph $\mathcal{G}$ would be correspond to a superpixel and the edges $E_j$ would be be drawn between superpixels touching each other. From such a respresentation the notion of rigid and dynamic edges are readily apparent as rigid edges are those edges that connect superpixels on the same object and dynamic edges are those edges that connect superpixels between two objects that are touching or in close proximity to each other. This is illustrated in the figure below Fig \ref{fig:scene_graph}.
 
 \begin{figure}[ht!]
 	\centering
@@ -26,9 +24,7 @@ a_t = \max(\frac{\exp^{w^Tf(x)}}{ \sum_b\exp^{w^Tf(x)}})\\
 Once we generate the action to be executed we execute the action $a_t$ and observe the corresponding reward $R_t$. Here $t$ is the current time step and $f(x)$ is the feature function.
 
 \subsection{Data Association}
-Once the action is executed we track the vertices of the scene graph $\mathcal{G}_t$ using optical flow. The positions of the vertices of the graph are updated using the Gunnar Farnebaack Optical Flow algorithm (\cite{Javidi12_Journal} TODO: Cite Gunnars' ICPR 2000 paper) to obtain the predicted scene graph update $\tilde{\mathcal{G}}_{t+1}$. Once the vertices in the graph are updated to get the predicted graph $\tilde{\mathcal{G}}_{t+1}$, the predicted graph is matched with the observed scene graph $\hat{\mathcal{G}}_{t+1}$ to get the actual
-
-scene graph $\mathcal{G}_{t+1}$. The graph matching is accomplished by measuring the Bhattacharya distance given by
+Once the action is executed we track the vertices of the scene graph $\mathcal{G}_t$ using optical flow. The positions of the vertices of the graph are updated using the Gunnar Farnebaack Optical Flow algorithm (\cite{Javidi12_Journal} TODO: Cite Gunnars' ICPR 2000 paper) to obtain the predicted scene graph update $\tilde{\mathcal{G}}_{t+1}$. Once the vertices in the graph are updated to get the predicted graph $\tilde{\mathcal{G}}_{t+1}$, the predicted graph is matched with the observed scene graph $\hat{\mathcal{G}}_{t+1}$ to get the actual scene graph $\mathcal{G}_{t+1}$. The graph matching is accomplished by measuring the Bhattacharya distance given by
 
 \[
 D_B(p,q) = -\log{\sum_{x\in\mathcal{X}}\sqrt{p(x)q(x)}}\\
@@ -47,7 +43,7 @@ between the appearance histograms of the vertices of each graph. Using this dist
 Once we get the updated scene graph $\mathcal{G}_{t+1}$ we perform an online policy gradient update utilizing the expected reward and the observed reward from the updated scene graph.
 
 \subsection{Online Feature Gradient Update}
-A policy gradient method is a {\bf reinforcement learning} method that directly parametrized control policy by gradient descent. Since we use discrete actions in our approach; as opposed to performing gradient descent in policy space we peform gradient descent in feature space, thereby adapting the action selection to the current scene being observed. This is accomplished in a method similar to that employed by policy gradient approaches.
+A policy gradient method is a {\bf reinforcement learning} method that directly optimizes a parametrized control policy by gradient descent. Since we use discrete actions in our approach; as opposed to performing gradient descent in policy space we peform gradient descent in feature space, thereby adapting the action selection to the current scene being observed. This is accomplished in a method similar to that employed by policy gradient approaches.
 
 Our feature gradient also follows the gradient of the expected return where the feature weights are updated as follows.
 

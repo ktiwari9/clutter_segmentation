@@ -1,5 +1,21 @@
 \section{Introduction}
 \label{sec:intro}
+Personal robots need to have the ability to intelligently interact with their environments to be able to successfully operate in human environments. In this paper we focus on a specific class of intelligent interaction; namely the ability to pick the most optimal action given any perceptual input and adapt this action selection model to any variation in inputs online. Most autonomous systems engaging in forceful interaction with the environment are tasked with this fundamental problem of action selection, i.e given the current perceptual input what is the most optimal action to select to achieve some given objective. When the objective of such tasks is strictly perceptual the tast of action selection can be cast into either of one of the two classes of problems:\\
+\begin{enumerate}
+ \item Active Perception : Agent's actions does not change the physical state of the environment\\ 
+ \item Interactive Perception : Agent's actions can change the physical state of the environment\\
+\end{enumerate}
+
+The problem of active perception for visual input has been one that has been long studied in the computer vision community since the early 80s. The multiple flavors of active perception such as sensor management, next best view, PTZ-control deal with the fundamental problem of how to control the sensor to achieve some perceptual objective. In previous work the problem of active perception for object detection was addressed by Sankaran and Atanasov (\cite{Javidi12_Journal}: TODO: Fix citiation to ICRA '13). In the current work we look at addressing the problem of interactive perception, specifically the problem of clutter segmentation.  
+
+The problem of clutter segmentation is an interactive perception problem as every action the agent selects to declutter the environment changes the physical state of the environment. In this domain of clutter segmentation, we assume no prior knowledge of any objects in the environment. The action selection in our approach is restricted to a set of movement primitives that can be executed at any location in the environment. These movement primitives can includes actions like grasping, pushing, pulling etc.
+
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[width=\linewidth]{figs/clutter.png}
+	\caption{Robot Operating in Clutter: TODO: Put in a better picture}
+	\label{fig:intro}
+\end{figure}
 %[TODO: Insert picture of experimental setup from simulation]
 
 % With the rapid progress of robotics research, the utility of autonomous robots is no longer restricted to controlled industrial environments. The focus has shifted to high-level interactive tasks in complex environments. The effective execution of such tasks requires the addition of semantic information to the traditional traversability representation of the environment. For example, a household robot needs to be able to detect an object of interest among those scattered on a dining table. For manipulation, it needs to estimate the object's pose accurately.
