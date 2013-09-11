@@ -1,5 +1,5 @@
 \section{Learning From Demonstration}
-\label{sec:obs_model}
+\label{sec:lfd}
 In our approach to clutter segmentation, since the learner/robot is not capable of exploring the entire space of all possible adjacency matrices for graph separation, we constraint the problem by exploring in the feature space rather than the space of all possible graphs. To accomplish this we define a set of features over the scene graph and execute actions on them 
 
 and observe rewards. Each action is demonstrated by an expert who also labels the actions as good and bad based on the observed reward. So once an expert demonstrates and action, the action is executed on a randomly selected scene graph and the reward is observed. After observing a sequence of such rewards and the corresponding features computed for that specific scene graph,
@@ -43,7 +43,7 @@ As a final feature we compute grasp templates which are local heightmaps compute
 Once these features are computed we concatenate these features in to a 112 dimensional feature vector to describe the current scene graph $mathcal{G}$. Once we record this feature $\mathcal{F}$ for a given scene graph, then we execute one of the actions in our action set $\mathcal{A}$ and label the feature as 1-0 based on the observed reward.
 
 \subsection{Max Entropy Learning}
-After number of executions of each action we take the labeled features $mathcal{F}_l$ and run them through a Max-Entropy Learner to learn weights on these features. We learn a set of weights $w_i$ corresponding to each action ${a_1,...a_i}\in \mathcal{A}$. We use L-1 logistic regression as our max entropy learner.
+After number of executions of each action we take the labeled features $\mathcal{F}_l$ and run them through a Max-Entropy Learner to learn weights on these features. We learn a set of weights $w_i$ corresponding to each action ${a_1,...a_i}\in \mathcal{A}$. We use L-1 logistic regression as our max entropy learner.
 
 The objective function we try to optimize in our learner is given by:
 \[
@@ -56,7 +56,15 @@ This objective function is optimized by the limited memory version of the BFGS a
 y_{test} = sgn(w^Tx_{test})\\
 \]
 
-We use L-1 regularized logistic regression as opposed to L-2 regularized logistic regression as it performs better when the dimensionality of the features exceeds that of the number of available training samples. (TODO: Cite that paper that Mrinal cites in his work)
+We use L-1 regularized logistic regression as opposed to L-2 regularized logistic regression as it performs better when the dimensionality of the features exceeds that of the number of available training samples. (TODO: Cite that paper that Mrinal cites in his work). We use these learned weigths in conjunction with the features observed online by sampling from a gibbs distribution as suggested by (\cite{Javidi12_Journal} TODO: Fix Citation, Cite Peters and Bagnell)
+
+\[
+\pi(a|s) \sim (\frac{\exp^{\phi(s,a)^T\theta}}{ \sum_b\exp^{\phi(s,b)^T\theta}})\\
+\]
+
+The action selection and the online adaptation of the weights is discussed in more detail in Section \ref{sec:hyp_test}.
+
+
 % We would like to use a Bayesian framework to maintain probabilities for the object hypotheses. This requires statistics about the operation of the sensor for different object classes, orientations, and viewpoints. Instead of using the segmented pointcloud $\mathcal{Q}_t$ as the observation of the sensor, we take the output of the vocabulary tree. As a result, we deal with the space of possible vocabulary tree outputs rather than the space of all possible pointclouds. Moreover, this includes the operation of the vision algorithm in the sensor statistics. 
 % 
 % Given a query pointcloud $\mathcal{Q}_t$ suppose that the vocabulary tree returns template $\mathcal{P}_{g,l}$ as the top match. Assume that the models in the training database are indexed so that those from $B_2$ have a lower $l$ index than those from $B_1 \setminus B_2$. We take the linear index of the closest match $\mathcal{P}_{g,l}$ as the observation if the match is an object of interest. Otherwise, we record only the model index $l$, ignoring the viewpoint $g$:

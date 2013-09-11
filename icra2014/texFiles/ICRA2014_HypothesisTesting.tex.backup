@@ -1,5 +1,67 @@
-\section{Learning Actions}
+\section{Online Adaptation}
 \label{sec:hyp_test}
+The online phase of the algorithm we create a scene graph $\mathcal{G} = \{V,E\}$, this graph at a selected vertex and update the action parametrization by updating the feature weights by gradient descent in feature space. The online phase of the algorithm has three stages; a supervised classification phase, a data association phase and an online gradient update phase. The three phases are discussed in detail in the sections below.
+\subsection{Supervised Classification}
+When a scene is presented to the agent (robot) in the form of an rgb image and corresponding point cloud is used to construct a scene graph $\mathcal{G}$. We first pre-process the point cloud to look for euclidean clusters supported by some dominant plane in the image. Once these clusters have been detected we project them back on to the image to get the corresponding image patches.
+
+To construct the scene graph we oversegment these image patches in to superpixels using the graph based segmentation approach described in (\cite{Javidi12_Journal} TODO: Fix Citation). We then construct the scene graph by analyzing the nearest neighbours of each superpixel segment. Every vertex $V_i$ of the graph $\mathcal{G}$ would be correspond to a superpixel and the edges $E_j$ would be be drawn between 
+
+superpixels touching each other. From such a respresentation the notion of rigid and dynamic edges are readily apparent as rigid edges are those edges that connect superpixels on the same object and dynamic edges are those edges that connect superpixels between two objects that are touching or in close proximity to each other. This is illustrated in the figure below Fig \ref{fig:scene_graph}.
+
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[width=\linewidth]{figs/full_graph.png}
+	\caption{Illustrates the scene graph construction from a set of objects on a table}
+	\label{fig:scene_graph}
+\end{figure}
+
+Once we generate the scene graph $\mathcal{G}$, we compute the set of features described in Section \ref{sec:lfd} for the vertex of maximum degree $V_{max}$ in the graph. The intuition for only attempting to manipulate the Vertex of maximum degree is that it is connected the most number of other vertices hence manipulating this vertex can impact the graph adjacency matrix more severly than any other node.
+
+Once we compute the features for the max degree vertex $V_{max}$ we use the weights computed using the max entropy learner in the offline learning phase discussed in Section \ref{sec:lfd}. Using these weights we select the best action to execute by sampling the best action from a gibbs distribution as shown below.
+
+\[
+a_t = \max(\frac{\exp^{w^Tf(x)}}{ \sum_b\exp^{w^Tf(x)}})\\
+\]
+
+Once we generate the action to be executed we execute the action $a_t$ and observe the corresponding reward $R_t$. Here $t$ is the current time step and $f(x)$ is the feature function.
+
+\subsection{Data Association}
+Once the action is executed we track the vertices of the scene graph $\mathcal{G}_t$ using optical flow. The positions of the vertices of the graph are updated using the Gunnar Farnebaack Optical Flow algorithm (\cite{Javidi12_Journal} TODO: Cite Gunnars' ICPR 2000 paper) to obtain the predicted scene graph update $\tilde{\mathcal{G}}_{t+1}$. Once the vertices in the graph are updated to get the predicted graph $\tilde{\mathcal{G}}_{t+1}$, the predicted graph is matched with the observed scene graph $\hat{\mathcal{G}}_{t+1}$ to get the actual
+
+scene graph $\mathcal{G}_{t+1}$. The graph matching is accomplished by measuring the Bhattacharya distance given by
+
+\[
+D_B(p,q) = -\log{\sum_{x\in\mathcal{X}}\sqrt{p(x)q(x)}}\\
+\]
+
+between the appearance histograms of the vertices of each graph. Using this distance metric we are able to establish an accurate correspondence between $\tilde{\mathcal{G}}_{t+1}$ and $\hat{\mathcal{G}}_{t+1}$, to get $\mathcal{G}_{t+1}$. This correspondence matching is show below in Figure \ref{fig:correspondence}.
+
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[width=\linewidth]{figs/correspondence.jpg}
+	\caption{Show's the result of the Graph Matching algorithm after the Optical Flow update}
+	\label{fig:correspondence}
+\end{figure}
+
+
+Once we get the updated scene graph $\mathcal{G}_{t+1}$ we perform an online policy gradient update utilizing the expected reward and the observed reward from the updated scene graph.
+
+\subsection{Online Feature Gradient Update}
+A policy gradient method is a {\bf reinforcement learning} method that directly parametrized control policy by gradient descent. Since we use discrete actions in our approach; as opposed to performing gradient descent in policy space we peform gradient descent in feature space, thereby adapting the action selection to the current scene being observed. This is accomplished in a method similar to that employed by policy gradient approaches.
+
+Our feature gradient also follows the gradient of the expected return where the feature weights are updated as follows.
+
+\[
+w_{k+1} = w_k + \alpha_k\bigtriangledown_w{\it J(\pi_w)}|_{w=w_k}\\
+\]
+
+where ${\it J(\pi_w)}$ the gradient on the reward is computed using regular regression
+
+\[
+\bigtriangledown_w = (\Delta W^T\Delta W)^{-1}\Delta W^T\Delta {\it J}\\
+\]
+
+The mean-subtracted reward return $\Delta {\it J}$ is obtained by subtracting the observed reward from the expected reward. The expected reward is given a function of the features weights computed using the Max Entropy learner in the offline phase. Hence the expected reward is $J(\hat{w} = W^Tf(x))$
 
 % In this section we provide a dynamic programming formulation for the single object optimization problem in (\ref{eq:sequential_optimization}). As mentioned earlier, we restrict the possible sensor poses to a discrete set $\mathcal{X}(\rho)$ of viewpoints on the viewsphere $V(\rho)$ centered at the unknown object. The state at time $t$ consists of the sensor pose $x_t \in \mathcal{X}(\rho)$ and the \textit{information state}, summarized by the sufficient statistic consisting of the probabilities for each hypothesis:
 % \[
