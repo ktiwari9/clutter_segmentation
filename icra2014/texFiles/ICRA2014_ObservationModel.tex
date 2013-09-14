@@ -40,7 +40,7 @@ Of all the tested orientations the bounding box with the maximum number of point
 \subsubsection{Grasp Templates}
 As a final feature we compute grasp templates which are local heightmaps computed for a given sensor viewpoint and gripper pose. These features were first introduced by Herzhog et al in (\cite{Javidi12_Journal} TODO: Fix Citation). The reader is encouraged to read the paper mentioned to learn about the computation of this specific feature.
 
-Once these features are computed we concatenate these features in to a 112 dimensional feature vector to describe the current scene graph $mathcal{G}$. Once we record this feature $\mathcal{F}$ for a given scene graph, then we execute one of the actions in our action set $\mathcal{A}$ and label the feature as 1-0 based on the observed reward.
+Once these features are computed we concatenate these features in to a 112 dimensional feature vector to describe the current scene graph $\mathcal{G}$. Once we record this feature $\mathcal{F}$ for a given scene graph, then we execute one of the actions in our action set $\mathcal{A}$ and label the feature as 1-0 based on the observed reward.
 
 \subsection{Max Entropy Learning}
 After number of executions of each action we take the labeled features $\mathcal{F}_l$ and run them through a Max-Entropy Learner to learn weights on these features. We learn a set of weights $w_i$ corresponding to each action ${a_1,...a_i}\in \mathcal{A}$. We use L-1 logistic regression as our max entropy learner.

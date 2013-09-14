@@ -1,6 +1,16 @@
-\section{Performance Evaluation}
+\section{Implementation}
 \label{sec:experiments}
-\subsection{Implementation}
+We evaluated our approach on the Barrett WAM robot with a WAM arm and a Barrett BH280 hand used and an end effector. The robot consists of a head-mounted Asus Xtion Sensor and a Bumblebee 2 camera. The entire head mount is calibrated with respect to the rest of the kinematic chain of the robot.
+
+The motion planner used in conjuction with the movement primitives was presented by Kalakrishnan et al (\cite{Javidi12_Journal} TODO: Cite Mrinal). The actual movement primitives are encoded by basic cartesian control and force control motions. The set of movement primitives used in our experiements are: Grasp, Push Forward, Pull Backward, Push Right, Push Left.
+The direction of the movement primitives is determined with respect to a fixed base axis. The pushing movement primitives are executed as basic cartesian control moves for a fixed threshold distance. The grasping movement primitive is encoded as an overhead grasp where the grasping motion is first position controlled and then force controlled. 
+
+The input to the feature computation pipeline are a RGB image from the Bumblebee 2 camera and a corresponding RGBD pointcloud from the ASUS Xtion Camera. All feature computations are parallelized in the implementation. In the offline phase the action selection is initialized by an expert who instructs the systems on what action to execute. Once the action is executed, the expert applies a binary label to the action, 1 if the action succeeded and zero otherwise. Once a series of actions have been executed, the features and their corresponding labels are collected.
+These labeled features are used to train a L1 regularized logistic regressor which is optimized using a commerically available LBFGs package ((\cite{Javidi12_Journal} TODO: Cite website)).
+
+\subsection{Online Phase}
+In the online phase the RGBD pointcloud is first preprocessed, i.e the dominant supporting plane is removed from the pointcloud and only the clusters corresponding to the points above the plane are extracted.
+
 
 % Object models, constructed using the kinect fusion algorithm from PCL, were used to construct $B_0$. The performance of the static and the active detectors were compared on synthetic scenes obtained from $B_0$. The results are summarized in Subsection \ref{subsec:static_v_active}. In Subsection \ref{subsec:real_scene}, the active framework was evaluated on several real scenes from a lab environment captured with a kinect sensor.
 % 
