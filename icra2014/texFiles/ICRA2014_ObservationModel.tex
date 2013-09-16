@@ -1,10 +1,8 @@
 \section{Learning From Demonstration}
 \label{sec:lfd}
-In our approach to clutter segmentation, since the learner/robot is not capable of exploring the entire space of all possible adjacency matrices for graph separation, we constraint the problem by exploring in the feature space rather than the space of all possible graphs. To accomplish this we define a set of features over the scene graph and execute actions on them 
+In our approach to clutter segmentation, since the learner/robot is not capable of exploring the entire space of all possible adjacency matrices for graph separation, we constraint the problem by exploring in the feature space rather than the space of all possible graphs. To accomplish this we define a set of features over the scene graph and execute actions on them to observe rewards. 
 
-and observe rewards. Each action is demonstrated by an expert who also labels the actions as good and bad based on the observed reward. So once an expert demonstrates and action, the action is executed on a randomly selected scene graph and the reward is observed. After observing a sequence of such rewards and the corresponding features computed for that specific scene graph,
-
-we feed the features and their corresponding labels (1/0) into a Max Entropy learner to learn the weights for each action. These weights are then used in the online phase to select appropriate actions for a set of observed features. In the online phase the weights are also updated using a policy gradient approach discussed in Section \ref{sec:hyp_test}.
+Each action is demonstrated by an expert who also labels the actions as good and bad based on the observed reward. So once an expert demonstrates an action, the action is executed on a randomly selected scene graph and the reward is observed. After observing a sequence of such rewards and its corresponding features computed for that specific scene graph, we feed the features and their corresponding labels (1/0) into a Max Entropy learner to learn the weights for each action. These weights are then used in the online phase to select appropriate actions for a set of observed features. In the online phase the weights are also updated using a policy gradient approach discussed in Section \ref{sec:hyp_test}.
 
 \subsection{Feature Selection}
 To learn the utility of actions for a given scene graph $\mathcal{G}$, we define a set of features $\mathcal{F}$ over the scene graph. The features we use are color histograms, textons, grasp templates (\cite{Javidi12_Journal} TODO: Cite Alex here), push-shape templates and entropy maps. The computation of these features are discussed in detail in the following subsections
@@ -15,9 +13,7 @@ To compute a color histogram over a given image patch we convert the patch from 
 \subsubsection{Texton Features}
 The idea of textons was first introduced by Olshausen and Field as fundamental micro-structures in generic natural images (\cite{Javidi12_Journal} TODO: Fix Citation). We utilize the version first introduced by Leung and Malik in  (\cite{Javidi12_Journal} TODO: Fix Citation). Here we convolve the image patch with a series of gabor filters at six evenly spaced orientations at two different pyramid scales.
 
-Once the patch is the image patch is convolved with this series of gabor filters, we take each individual filter response of each image patch and cluster them in an unsupervised manner using k-means clustering. (In our implementation we use k=24 for computational efficiency reasons). Once the responses from the filters are clustered into visual words, we quantize the gabor filter responses corresponding to the computed
-
-visual words using a nearest neighbour approach. This histogram of quantized responses now serves as a texton feature.
+Once the patch is the image patch is convolved with this series of gabor filters, we take each individual filter response of each image patch and cluster them in an unsupervised manner using k-means clustering. (In our implementation we use k=24 for computational efficiency reasons). Once the responses from the filters are clustered into visual words, we quantize the gabor filter responses corresponding to the computed visual words using a nearest neighbour approach. This histogram of quantized responses now serves as a texton feature.
 
 \subsubsection{Entropy Map}
 To quantify the entropy of the local image patch we quantize the colors of the image into RGB histograms. These histograms are normalized and their frequency is computed by summing the bins in each individual channel. The entropy of the image is then computed by summing the shannon entropy of each bin in each channel.
@@ -31,9 +27,7 @@ Entropy = \sum_jp_j*log(p_j)\\
 where $p_j$ is given by (Bin Value)/(Frequency of Channel). Hence this gives us three values for entropy, one for each color channel.
 
 \subsubsection{Push Template}
-Here we introduce the notion of a push template. A push template is a region in the point cloud which is amenable to pushing by a manipulator. To define such a template we extract holes in images, which are recovered by projecting euclidean clusters on some nominal plane and looking for voids on this plane. Once these voids are detected,
-
-we extract the largest pointcloud surrounding such a void in an image by looking at the total number of points inside an oriented bounding box. The orientations of the bounding box are determined by uniformly discretizing the space of all yaws. The size of the bounding box is constrained by the radius of the size of the gipper of the manipulator in use.
+Here we introduce the notion of a push template. A push template is a region in the point cloud which is amenable to pushing by a manipulator. To define such a template we extract holes in images, which are recovered by projecting euclidean clusters on some nominal plane and looking for voids on this plane. Once these voids are detected, we extract the largest pointcloud surrounding such a void in an image by looking at the total number of points inside an oriented bounding box. The orientations of the bounding box are determined by uniformly discretizing the space of all yaws. The size of the bounding box is constrained by the radius of the size of the gipper of the manipulator in use.
 
 Of all the tested orientations the bounding box with the maximum number of point is selected. We then compute quantized local normals ( Fast Point Feature Histograms \cite{Javidi12_Journal} TODO: Fix Citation) for the pointcloud inside this bounding box and take the mean of the feature computed over all points.
 
