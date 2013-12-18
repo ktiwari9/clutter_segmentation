@@ -171,7 +171,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	//for dim, stride and offset, look at documentation for reasoning
 	out_mat.resize(1,feature_mat.rows());
 	out_mat<<feature_mat.rowwise().mean().transpose();
-
+	out_mat.normalize();
 }
 
 void feature_class::computeRefPoint(Eigen::Vector3d& result, const geometry_msgs::PoseStamped& gripper_pose) const
@@ -215,7 +215,8 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 				<<"pushFeature :"<<pushFeature.cols()<<std::endl<<pushFeature<<std::endl
 				<<"graspPatch :"<<graspPatch.cols()<<std::endl<<graspPatch<<std::endl
 				<<"Centroid x: "<<centroid_.x<<" y: "<<centroid_.y);
-*/		out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch,centroid_.x,centroid_.y;
+*/		// Normalized Individual features TODO: Do I need to normalize again?
+		out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch,centroid_.x,centroid_.y;
 
 		// Conditioning feature vector
 		for(unsigned int i = 0; i<out_mat.cols();i++)
@@ -267,6 +268,7 @@ void feature_class::computeGraspPatch(Eigen::MatrixXf &out_mat){
 	ROS_INFO("feature_learning::feature_class: Converting eigen map");
 	out_mat.resize(1,grasp_patch_float.size());
 	Eigen::Map<Eigen::MatrixXf >(grasp_patch_float.data(),1,grasp_patch_float.size()) = out_mat; // Eigen map is used to convert std_vector to Eigen_Matrix
+	out_mat.normalize();
 }
 
 //template <class Derived>
@@ -300,6 +302,7 @@ void feature_class::computeColorHist(Eigen::MatrixXf &out_mat){
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);
+	out_mat.normalize();
 }
 
 
@@ -340,6 +343,7 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);
+	out_mat.normalize();
 
 }
 
@@ -403,8 +407,7 @@ void feature_class::computeEntropyMap(Eigen::MatrixXf &out_mat){
 
 	out_mat.resize(1,3);
 	out_mat<< entropy_h, entropy_s,entropy_v;
-
-
+	out_mat.normalize();
 }
 
 
