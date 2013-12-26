@@ -63,6 +63,8 @@ rosbuild_add_executable(test_holes src/test_hole_creation.cpp)
 rosbuild_add_executable(test_shot src/test_feature_extraction.cpp)
 rosbuild_add_executable(adjacency_recorder src/adjacency_recorder.cpp)
 target_link_libraries(adjacency_recorder learn_appearance graph_module)
+rosbuild_add_executable(pr2_learner src/feature_learner_pr2.cpp)
+target_link_libraries(pr2_learner learn_appearance graph_module)
 
 
 

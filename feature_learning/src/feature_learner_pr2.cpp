@@ -115,7 +115,7 @@ bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
 
 float compute_entropy(float a, float b){
 
-	float entropy_value = log(beta(a,b)) - (a - 1)*digamma(a) - (b-1)*digamma(b) + (a+b-2)*digamma(a+b);
+	float entropy_value = log(boost::math::beta(a,b)) - (a - 1)*boost::math::digamma(a) - (b-1)*boost::math::digamma(b) + (a+b-2)*boost::math::digamma(a+b);
 	return entropy_value; // clean up later
 }
 
@@ -136,14 +136,24 @@ int main(int argc, char **argv){
 	bool repeat = true;
 	int iteration_number = 1;
 
+	float alpha_val = 0.5, beta_val = 0.5;
+	int count_pos = 0, count_neg = 0;
+
+
+	// priors alpha = 0.5 and beta = 0.5
+	// Normalized update, alpha_1 = alpha_0 + N_1/N; beta_1 = beta_0 + (1 - N_1/N);
+	// Unnormalized update alpha_1 = alpha_0 + N_1; beta_1 = beta_0 + (N - N_1);
+
 	while(repeat)
 	{
+
+		// CURRENT IMPLEMENTATION OF ONLY ONE WHOLE BREAKING EVENT FOR THE ENTIRE ADJACENCY MATRIX
+		// NORMALIZED UPDATE
+		// TODO: THINK ABOUT EXTENDING TO INDIVIDUAL EDGES
 
 		// Record matrix once before and once after the action
 		Eigen::MatrixXf adjacency;
 		bool success_before = callAndRecordAdjacency(adjacency);
-
-		// Now to compute
 
 		// Storing the adjacency matrix
 		std::string eigen_before_filename(filename+"_beforeADJ_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
@@ -172,20 +182,30 @@ int main(int argc, char **argv){
 		std::cout<<std::endl;
 
 
-		float reward_value = adjacency.squaredNorm();
+		float adj_sum_old = adjacency.sum();
 		// Recording the after adjacency matrix
+
 		bool success_after = callAndRecordAdjacency(adjacency);
+		float prev_entropy = compute_entropy(alpha_val,beta_val);
 
-		// Now update the reward_value
-		reward_value -= adjacency.squaredNorm();
-		reward_value = 1/abs(reward_value);
+		if(adj_sum_old > adjacency.sum())
+		{
+			count_pos += 1;
+			alpha_val += count_pos/iteration_number;
+		}
 
-		if(reward_value > 10000)
-			reward_value = 10000;
+		if(adj_sum_old < adjacency.sum())
+		{
+			count_neg += 1;
+			beta_val += count_neg/iteration_number;
+		}
+
+		float new_entropy = compute_entropy(alpha_val,beta_val);
 
 		// Storing the adjacency matrix
 		std::string eigen_after_filename(filename+"_afterADJ_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
 		ofstream ofs_after(eigen_after_filename.c_str(),ios::out | ios::trunc);
+
 		if(ofs_after)
 		{
 			// instructions
@@ -198,6 +218,10 @@ int main(int argc, char **argv){
 		}
 
 		char answer;
+
+		// to measure +ve reward, because beta entropy -> max = 0 ; min = -inf
+		std::cout<<"Change in Entropy (-new + prev)" << -new_entropy + prev_entropy<< std::endl;
+
 		std::cout<<"Do you want to continue (y/n) ";
 		std::cin>>answer;
 
