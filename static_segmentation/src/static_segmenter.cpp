@@ -48,9 +48,9 @@ static_segment::static_segment(ros::NodeHandle &nh) :
 
   nh_priv_.param<std::string>("graph_service",graph_service_,std::string("/graph_segment_srv"));
 
-  nh_priv_.param<std::string>("rgb_input",rgb_topic_,std::string("/Honeybee/left/image_rect_color"));
+  nh_priv_.param<std::string>("rgb_input",rgb_topic_,std::string("/wide_stereo/left/image_rect_color"));
 
-  nh_priv_.param<std::string>("camera_info_topic",camera_topic_,std::string("/Honeybee/left/camera_info"));
+  nh_priv_.param<std::string>("camera_info_topic",camera_topic_,std::string("/wide_stereo/left/camera_info"));
 
   nh_priv_.param<double>("similarity_thresh",threshold_,100.0);
 
@@ -249,6 +249,7 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
   // Copy only part of image that belongs to tabletop clusters and create a grayscale version of it
   cv::Mat segmented_image = returnCVImage(graphsegment_srv_.response.segment);
   cv::Mat segmented_gray;
+  cv::imwrite("/tmp/graph_response.jpg",segmented_image);
   cv::cvtColor(segmented_image, segmented_gray, CV_BGR2GRAY);
 
   // An image to store the final set of all cluster graphs

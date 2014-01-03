@@ -4,8 +4,8 @@
   <arg name="kinect_frame_prefix" default="/head_mount_kinect" />
   <arg name="kinect_camera_name" default="head_mount_kinect" />
   <arg name="high_res" default="false" />
-  <arg name="stereo" default="/narrow_stereo_textured" />
-  <!-- <arg name="stereo" default="/narrow_stereo" /> -->
+  <!-- <arg name="stereo" default="/narrow_stereo_textured" /> -->
+  <arg name="stereo" default="/wide_stereo" /> 
 
   <arg name="tabletop_segmentation_points_in" default="$(arg kinect_frame_prefix)/depth_registered/points" />
   <arg name="tabletop_segmentation_stereo_points_in" default="$(arg stereo)/points2" />
