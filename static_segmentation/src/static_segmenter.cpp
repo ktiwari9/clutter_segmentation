@@ -328,9 +328,11 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
       cv::imwrite(name.str().c_str(),gray_graph);
     }
 
+    if(node_list_.size() > 0){
     graph_list_.push_back(node_list_);
     graph_centroid_.push_back(sub_mask_center);
     gray_mats.push_back(gray_graph);
+   }
   }
 
   // Data logging steps
@@ -371,7 +373,8 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
   return_masks.clear();
   for(int i = 0; i < (int)graph_list_.size();i++)
   {
-    StaticSeg single_seg;
+    if(graph_list_[i].size() > 0){
+    StaticSeg single_seg;    
     single_seg.graph = buildEGraph(graph_list_[i],gray_mats[i]);
     single_seg.centroid.x = graph_centroid_[i].x; single_seg.centroid.y = graph_centroid_[i].y;
     single_seg.centroid.z = 1;
@@ -382,6 +385,7 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
     conv_image.image = gray_mats[i];
     return_masks.push_back(*conv_image.toImageMsg());
     return_vector.push_back(single_seg);
+    }
   }
 
   ROS_INFO("Return vector built");
