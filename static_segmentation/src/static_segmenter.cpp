@@ -438,7 +438,7 @@ void static_segment::addEdge(local_graph_it it_1, local_graph_it it_2, graph::ro
 graph_module::EGraph static_segment::buildEGraph(std::vector<graph_node> node_list, cv::Mat segment){
 
   // construct graph
-  ROS_INFO("Constructing E graph Message");
+  ROS_INFO("Constructing E graph Message of node size %d",node_list.size());
   graph::ros_graph e_graph(node_list.size());
 
   if(e_graph.number_of_vertices_ > 1)

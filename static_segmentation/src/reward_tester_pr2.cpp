@@ -107,6 +107,13 @@ bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
 	bool call_succeeded = false;
 
 	while(!call_succeeded){
+
+                if (!ros::service::call(static_service, staticsegment_srv))
+                   {
+                     ROS_ERROR("Call to segmentation service failed");
+                     exit(0);
+                   }
+
 		if(ros::service::call(static_service,staticsegment_srv)){
 			call_succeeded = true;
 			ROS_INFO("Service Call succeeded");
@@ -120,11 +127,6 @@ bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
                  exit(0);
                 }	
 
-                if (!ros::service::call(static_service, staticsegment_srv))
-                   {
-                     ROS_ERROR("Call to segmentation service failed");
-                     exit(0);
-                   }
 	}
 	return true;
 }
