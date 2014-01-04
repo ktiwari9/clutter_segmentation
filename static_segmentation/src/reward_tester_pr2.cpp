@@ -113,6 +113,18 @@ bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
 			std::vector<static_segmentation::StaticSeg> graph_msg = staticsegment_srv.response.graph_queue;
 			adjacency = getAdjacencyFromGraph(graph_msg);
 		}
+
+               if (staticsegment_srv.response.result == staticsegment_srv.response.FAILURE)
+                {
+                 ROS_ERROR("Segmentation service returned error");
+                 exit(0);
+                }	
+
+                if (!ros::service::call(static_service, staticsegment_srv))
+                   {
+                     ROS_ERROR("Call to segmentation service failed");
+                     exit(0);
+                   }
 	}
 	return true;
 }
