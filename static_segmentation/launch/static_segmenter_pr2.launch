@@ -1,0 +1,57 @@
+<launch>
+
+  <arg name="debug" default="false"/>
+  <arg name="kinect_frame_prefix" default="/head_mount_kinect" />
+  <arg name="kinect_camera_name" default="head_mount_kinect" />
+  <arg name="high_res" default="false" />
+  <!-- <arg name="stereo" default="/narrow_stereo_textured" /> -->
+  <arg name="stereo" default="/wide_stereo" /> 
+
+  <arg name="tabletop_segmentation_points_in" default="$(arg kinect_frame_prefix)/depth_registered/points" />
+  <arg name="tabletop_segmentation_stereo_points_in" default="$(arg stereo)/points2" />
+  <arg name="tabletop_segmentation_depth_in" default="$(arg kinect_frame_prefix)/depth/image" />
+  <arg name="tabletop_segmentation_rgb_in" default="$(arg kinect_frame_prefix)/rgb/image_color" />
+  <arg name="tabletop_segmentation_cam_info" default="$(arg kinect_frame_prefix)/depth/camera_info" />
+  <arg name="tabletop_segmentation_stereo_cam_info" default="$(arg stereo)/left/camera_info" />
+  <arg name="tabletop_segmentation_clustering_voxel_size" default="0.003" />
+  <arg name="tabletop_segmentation_srv" default="tabletop_segmentation"/>
+  <arg name="tabletop_segmentation_markers" default="tabletop_segmentation_markers"/>
+  <arg name="merge" default="false"/>
+
+  <node pkg="tabletop_segmenter" name="$(arg tabletop_segmentation_srv)" type="tabletop_segmentation" respawn="true" output="screen">
+    <!--topic remapping-->
+    <remap from="cloud_in" to="$(arg tabletop_segmentation_points_in)" />
+    <remap from="stereo_cloud_in" to="$(arg tabletop_segmentation_stereo_points_in)" />
+    <remap from="depth_in" to="$(arg tabletop_segmentation_depth_in)" />
+    <remap from="rgb_in" to="$(arg tabletop_segmentation_rgb_in)" />
+    <remap from="cam_info" to="$(arg tabletop_segmentation_cam_info)" />
+    <remap from="stereo_cam_info" to="$(arg tabletop_segmentation_stereo_cam_info)" />
+    <remap from="segmentation_srv" to="$(arg tabletop_segmentation_srv)" />
+    <remap from="markers_out" to="$(arg tabletop_segmentation_markers)" />
+
+
+    <param name="merging" value="$(arg merge)" />
+    <param name="clustering_voxel_size" value="$(arg tabletop_segmentation_clustering_voxel_size)" />
+    <param name="inlier_threshold" value="100" />
+    <param name="plane_detection_voxel_size" value="0.01" />
+    <param name="cluster_distance" value="0.03" />
+    <param name="min_cluster_size" value="50" />
+    <param name="x_filter_min" value="0.30" />
+    <param name="x_filter_max" value="1.60" />
+    <param name="y_filter_min" value="-1.60" />
+    <param name="y_filter_max" value="1.60" />
+    <param name="z_filter_min" value="0.60" />
+    <param name="z_filter_max" value="1.0" />
+    <param name="table_z_filter_min_" value="-0.15" />
+    <param name="table_z_filter_max_" value="0.65" />        
+
+    
+  </node>
+
+  <node pkg="graph_based_segmentation" name="segment_service" type="segment_service" respawn="true" output="screen">
+   </node>
+
+  <node pkg="static_segmentation" name="static_segmenter" type="static_segmenter" respawn="true" output="screen">
+   </node>
+
+</launch>
