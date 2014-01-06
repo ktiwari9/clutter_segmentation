@@ -189,13 +189,9 @@ int main(int argc, char **argv){
 
 
 		int action = 0;
-		ROS_INFO_STREAM("Perform an action and select the corresponding choice" << std::endl
-				<<"1 - For grasping action "<<std::endl
-				<<"2 - For a front facing push (Push away from the robot) "<<std::endl
-				<<"3 - For a pull (Push towards the robot) "<<std::endl
-				<<"4 - For a right side push (push to the right away from the y-axis (Base frame))"<<std::endl
-				<<"5 - For a left side push (push to the left away from the y-axis (Base frame))"<<std::endl);
-		std::cout<<" Enter a action choice (1-5): ";
+		ROS_INFO_STREAM("Perform an action" << std::endl
+			       <<"Manipulate clutter and then press enter"<<std::endl);
+		std::cout<<" Enter a number if action completed ";
 		std::cin>>action;
 		std::cout<<std::endl;
 
@@ -238,7 +234,7 @@ int main(int argc, char **argv){
 		char answer;
 
 		// to measure +ve reward, because beta entropy -> max = 0 ; min = -inf
-		std::cout<<"Change in Entropy (-new + prev)" << -new_entropy + prev_entropy<< std::endl;
+		std::cout<<"Change in Entropy (-new + prev) = " << -new_entropy<<" + "<<prev_entropy<<" = "<<-new_entropy+prev_entropy <<std::endl;
 
 		std::cout<<"Do you want to continue (y/n) ";
 		std::cin>>answer;
