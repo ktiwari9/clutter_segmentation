@@ -37,9 +37,9 @@
     <param name="cluster_distance" value="0.03" />
     <param name="min_cluster_size" value="50" />
     <param name="x_filter_min" value="0.30" />
-    <param name="x_filter_max" value="1.20" />
-    <param name="y_filter_min" value="-1.60" />
-    <param name="y_filter_max" value="1.60" />
+    <param name="x_filter_max" value="1.00" />
+    <param name="y_filter_min" value="-0.60" />
+    <param name="y_filter_max" value="0.60" />
     <param name="z_filter_min" value="0.60" />
     <param name="z_filter_max" value="1.0" />
     <param name="table_z_filter_min_" value="-0.15" />
