@@ -62,7 +62,7 @@ Eigen::MatrixXf getAdjacencyFromGraph(std::vector<static_segmentation::StaticSeg
 	std::vector<graph::ros_graph> graph_list;
 
 	int total_vertices = 0;
-	ROS_INFO("Converting graph message to graph");
+//	ROS_INFO("Converting graph message to graph");
 	for(unsigned int i = 0; i < graph_msg.size(); i++){
 
 		graph::ros_graph single_graph;
@@ -110,20 +110,20 @@ bool callAndRecordAdjacency(Eigen::MatrixXf &adjacency){
 
                 if (!ros::service::call(static_service, staticsegment_srv))
                    {
-                     ROS_ERROR("Call to segmentation service failed");
+//                   ROS_ERROR("Call to segmentation service failed");
                      exit(0);
                    }
 
 		if(ros::service::call(static_service,staticsegment_srv)){
 			call_succeeded = true;
-			ROS_INFO("Service Call succeeded");
+//			ROS_INFO("Service Call succeeded");
 			std::vector<static_segmentation::StaticSeg> graph_msg = staticsegment_srv.response.graph_queue;
 			adjacency = getAdjacencyFromGraph(graph_msg);
 		}
 
                if (staticsegment_srv.response.result == staticsegment_srv.response.FAILURE)
                 {
-                 ROS_ERROR("Segmentation service returned error");
+//               ROS_ERROR("Segmentation service returned error");
                  exit(0);
                 }	
 
@@ -162,16 +162,17 @@ int main(int argc, char **argv){
 	// Normalized update, alpha_1 = alpha_0 + N_1/N; beta_1 = beta_0 + (1 - N_1/N);
 	// Unnormalized update alpha_1 = alpha_0 + N_1; beta_1 = beta_0 + (N - N_1);
 
+        // Record matrix once before and once after the action
+        Eigen::MatrixXf adjacency;
+        bool success_before = callAndRecordAdjacency(adjacency);
+        float adj_sum_old = adjacency.sum();
+
 	while(repeat)
 	{
 
 		// CURRENT IMPLEMENTATION OF ONLY ONE WHOLE BREAKING EVENT FOR THE ENTIRE ADJACENCY MATRIX
 		// NORMALIZED UPDATE
 		// TODO: THINK ABOUT EXTENDING TO INDIVIDUAL EDGES
-
-		// Record matrix once before and once after the action
-		Eigen::MatrixXf adjacency;
-		bool success_before = callAndRecordAdjacency(adjacency);
 
 		// Storing the adjacency matrix
 		std::string eigen_before_filename(filename+"_beforeADJ_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
@@ -189,32 +190,33 @@ int main(int argc, char **argv){
 
 
 		int action = 0;
-		ROS_INFO_STREAM("Perform an action" << std::endl
-			       <<"Manipulate clutter and then press enter"<<std::endl);
+//		ROS_INFO_STREAM("Perform an action" << std::endl <<"Manipulate clutter and then press enter"<<std::endl);
 		std::cout<<" Enter a number if action completed ";
 		std::cin>>action;
-		std::cout<<std::endl;
 
 
-		float adj_sum_old = adjacency.sum();
 		// Recording the after adjacency matrix
-
+		std::cout<<"Adjacency before "<<adj_sum_old<<std::endl;
 		bool success_after = callAndRecordAdjacency(adjacency);
+		std::cout<<"Adjacency after "<<adjacency.sum()<<std::endl;
 		float prev_entropy = compute_entropy(alpha_val,beta_val);
-
+		std::cout<<"Before: alpha value "<<alpha_val<<" Beta Value "<<beta_val<<std::endl;
 		if(adj_sum_old > adjacency.sum())
 		{
 			count_pos += 1;
-			alpha_val += count_pos/iteration_number;
+			alpha_val += static_cast<float>(count_pos)/static_cast<float>(iteration_number);
+                        std::cout<<"Updating positive count "<<std::endl;
 		}
 
 		if(adj_sum_old < adjacency.sum())
 		{
 			count_neg += 1;
-			beta_val += count_neg/iteration_number;
+			beta_val += static_cast<float>(count_neg)/static_cast<float>(iteration_number);
+                        std::cout<<"Updating negative count "<<std::endl;
 		}
-
 		float new_entropy = compute_entropy(alpha_val,beta_val);
+		std::cout<<"After: alpha value "<<alpha_val<<" Beta Value "<<beta_val<<std::endl;
+                std::cout<<"Pos :"<<count_pos<<" Neg :"<<count_neg<<" iteration_number :"<<iteration_number<<std::endl;
 
 		// Storing the adjacency matrix
 		std::string eigen_after_filename(filename+"_afterADJ_"+ boost::lexical_cast<std::string>(iteration_number)+".txt");
@@ -242,6 +244,8 @@ int main(int argc, char **argv){
 		iteration_number++;
 		if(std::cin.fail() || answer == 'n')
 			repeat = false;
+                
+                adj_sum_old = adjacency.sum();
 
 	}
 
