@@ -154,7 +154,7 @@ int main(int argc, char **argv){
 	bool repeat = true;
 	int iteration_number = 1;
 
-	float alpha_val = 0.5, beta_val = 0.5;
+	float alpha_val = 1.0, beta_val = 1.0;
 	int count_pos = 0, count_neg = 0;
 
 
@@ -204,6 +204,7 @@ int main(int argc, char **argv){
 		if(adj_sum_old > adjacency.sum())
 		{
 			count_pos += 1;
+			//alpha_val += ((adj_sum_old - adjacency.sum())/2)*static_cast<float>(count_pos)/static_cast<float>(iteration_number);
 			alpha_val += static_cast<float>(count_pos)/static_cast<float>(iteration_number);
                         std::cout<<"Updating positive count "<<std::endl;
 		}
@@ -211,6 +212,7 @@ int main(int argc, char **argv){
 		if(adj_sum_old < adjacency.sum())
 		{
 			count_neg += 1;
+			//beta_val += ((adjacency.sum() - adj_sum_old)/2)*static_cast<float>(count_neg)/static_cast<float>(iteration_number);
 			beta_val += static_cast<float>(count_neg)/static_cast<float>(iteration_number);
                         std::cout<<"Updating negative count "<<std::endl;
 		}
