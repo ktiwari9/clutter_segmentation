@@ -81,6 +81,7 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/organized_edge_detection.h>
 
 //Graph Module includes
 #include "graph_module/EGraph.h"

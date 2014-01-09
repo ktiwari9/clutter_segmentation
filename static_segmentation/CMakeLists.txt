@@ -36,7 +36,7 @@ rosbuild_add_executable(static_segmenter src/static_segmenter.cpp)
 target_link_libraries(static_segmenter graph_module)
 rosbuild_add_executable(ping_static_segmenter src/ping_static_segmenter.cpp)
 target_link_libraries(ping_static_segmenter graph_module)
-rosbuild_add_executable(pr2_reward_tester src/reward_tester_pr2.cpp)
-target_link_libraries(pr2_reward_tester graph_module)
+#rosbuild_add_executable(pr2_reward_tester src/reward_tester_pr2.cpp)
+#target_link_libraries(pr2_reward_tester graph_module)
 
 

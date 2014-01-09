@@ -87,7 +87,6 @@ bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &c
 bool feature_class::initializeGraspPatchParams(const geometry_msgs::PoseStamped &viewpoint,
 		const geometry_msgs::Pose &surface, const geometry_msgs::PoseStamped &gripper_pose){
 
-
 	// Getting view point translation
 	view_point_translation_.x() = viewpoint.pose.position.x;
 	view_point_translation_.y() = viewpoint.pose.position.y;

@@ -9,13 +9,10 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/feature_learning</url>
   <depend package="roscpp"/>
-
   <depend package="tf"/>
-
   <depend package="visualization_msgs" />
   <depend package="sensor_msgs"/>
   <depend package="geometry_msgs" />
-
   <depend package="pcl"/>
   <depend package="pcl_ros"/>
   <depend package="actionlib"/>
@@ -25,14 +22,8 @@
   <depend package="image_geometry" />
   <depend package="static_segmentation" />
   <depend package="graph_module" />
-  <depend package="grasp_template"/>
-  <depend package="grasp_template_planning"/>
   <depend package="graph_based_segmentation"/>
   <depend package="learn_appearance"/>
-  <depend package="arm_head_behaviors"/>
-  <depend package="arm_manipulation_tools"/>
-  <depend package="arm_motion_primitives"/>
-  <depend package="arm_world_state"/>
   <depend package="conversions"/>
   <depend package="usc_utilities"/>  
   <export>

@@ -56,6 +56,8 @@ static_segment::static_segment(ros::NodeHandle &nh) :
 
   static_segment_srv_ = nh_.advertiseService(nh_.resolveName("static_segment_srv"),&static_segment::serviceCallback, this);
 
+  graph_pub_ = nh_.advertise<sensor_msgs::Image>(nh_.resolveName("graph_projection"),10);
+
 }
 
 static_segment::~static_segment(){ }
@@ -139,6 +141,43 @@ geometry_msgs::Point32 static_segment::createPoint32( double x, double y, double
   point.y = y;
   point.z = z;
   return point;
+}
+
+
+cv::Mat static_segment::constructVisGraph(cv::Mat input, std::vector<graph::ros_graph>& graph_iter_){
+
+	cv::Mat draw(input);
+
+	int count=0;
+
+	for(std::vector<graph::ros_graph>::iterator node = graph_iter_.begin();
+			node != graph_iter_.end() ; ++node){
+
+		for(graph::ros_graph::IGraph_it iter_= node->graph_.begin();
+				iter_!=node->graph_.end(); ++iter_){
+
+			// First point
+			graph::Edge_ros edge = *iter_;
+			cv::Point center_1(edge.edge_.first.x_,edge.edge_.first.y_);
+			// Second point
+			cv::Point center_2(edge.edge_.second.x_,edge.edge_.second.y_);
+
+			// Display shenanigans
+			cv::circle(draw,center_1, 5, cv::Scalar(128,0,128), -1);
+			cv::circle(draw,center_2, 5, cv::Scalar(128,0,128), -1);
+			cv::line(draw,center_1,center_2,cv::Scalar(128,0,0),1,0);
+
+			cv::putText(draw, boost::lexical_cast<string>(edge.edge_.first.index_), center_1,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+
+			cv::putText(draw, boost::lexical_cast<string>(edge.edge_.second.index_), center_2,
+						CV_FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
+		}
+		count++;
+	}
+
+	ROS_DEBUG("Number of Edges %d",count);
+	return draw;
 }
 
 
@@ -368,9 +407,13 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 
   ROS_INFO_STREAM("Sanity Check:\n number of graphs registered :"<<graph_list_.size()
                   <<" Number of centroids registered: "<<graph_centroid_.size());
-  // Convert to output message type
 
+
+  // Convert to output message type
   return_masks.clear();
+
+  std::vector<graph::ros_graph> publish_graph;
+
   for(int i = 0; i < (int)graph_list_.size();i++)
   {
     if(graph_list_[i].size() > 0){
@@ -382,11 +425,29 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
     conv_image.header = graphsegment_srv_.response.segment.header;
     conv_image.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
 
+    // TODO: This sequence is redundant hence time consuming, this of combining this block if doesn't work well real time
+    graph::ros_graph graph_instance;
+    graph_instance.buildGraph(single_seg.graph);
+    publish_graph.push_back(graph_instance);
+    //-------------------------------------------------------------------------------------------------------------------
+
     conv_image.image = gray_mats[i];
     return_masks.push_back(*conv_image.toImageMsg());
     return_vector.push_back(single_seg);
     }
   }
+
+  // NOTE: Create an image projection on the segmentation side to see how the created graph looks on the projected image
+    segmented_image.copyTo(segmented_image,contour_mask);
+    cv::Mat projected_image  = constructVisGraph(segmented_image,publish_graph);
+
+    cv_bridge::CvImage out_graph_image;
+    out_graph_image.header = graphsegment_srv_.response.segment.header;
+    out_graph_image.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+    out_graph_image.image = projected_image;
+    graph_pub_.publish(*out_graph_image.toImageMsg());
+
+
 
   ROS_INFO("Return vector built");
 

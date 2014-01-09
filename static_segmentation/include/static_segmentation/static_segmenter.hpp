@@ -90,6 +90,9 @@ protected:
 
 	ros::NodeHandle nh_;
 
+	//! Publisher for graph_image
+	ros::Publisher graph_pub_;
+
 	cv::Mat input_;
 
 	std::string tabletop_service_,graph_service_,rgb_topic_,camera_topic_;
@@ -135,6 +138,8 @@ public:
 			std::vector<sensor_msgs::Image> &masks);
 
 	cv::Mat returnCVImage(const sensor_msgs::Image & img);
+
+	cv::Mat constructVisGraph(cv::Mat input, std::vector<graph::ros_graph>& graph_iter);
 
 	geometry_msgs::Point32 createPoint32(double x, double y, double z);
 
