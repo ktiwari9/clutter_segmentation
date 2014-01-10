@@ -90,11 +90,10 @@
 // Feature computation includes
 #include <learn_appearance/texton_hist.h>
 #include <pcl/surface/convex_hull.h>
-//Grasp Template Includes
-#include <grasp_template/heightmap_sampling.h>
-#include <pcl/features/usc.h> // Unique shape context feature
 
-using namespace grasp_template;
+//Grasp Template Includes
+//#include <grasp_template/heightmap_sampling.h>
+#include <pcl/features/usc.h> // Unique shape context feature
 
 namespace feature_learning {
 
@@ -128,8 +127,7 @@ public:
 	~feature_class();
 
 	// Initialize feature computation class
-	bool initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud, const geometry_msgs::PoseStamped &viewpoint,
-			const geometry_msgs::Pose& surface, const geometry_msgs::PoseStamped& gripper_pose, const geometry_msgs::Point& centroid);
+	bool initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud, const geometry_msgs::Point& centroid);
 
 	// Getting the input from the user, function overloaded for
 	// raw color image and superpixel segment image
@@ -141,31 +139,17 @@ public:
 	void inputCloud(const PointCloudPtr &input_cloud_ptr);
 
 	// Computing the features required for learning
-	//template <class Derived>
 	void computeColorHist(Eigen::MatrixXf &out_mat );
 
-	//template <class Derived>
 	void computeTextonMap(Eigen::MatrixXf &out_mat );
 
-	//template <class Derived>
 	void computeEntropyMap(Eigen::MatrixXf &out_mat );
 
-	//template <class Derived>
 	void computePushFeature(Eigen::MatrixXf &out_mat );
 
-	//template <class Derived>
-	void computeGraspPatch(Eigen::MatrixXf &out_mat );
-
-	//template <class Derived>
 	void computeFeature(Eigen::MatrixXf &out_mat);
 
 protected:
-
-
-	bool initializeGraspPatchParams(const geometry_msgs::PoseStamped &viewpoint,
-			const geometry_msgs::Pose& surface, const geometry_msgs::PoseStamped& gripper_pose);
-
-	void computeRefPoint(Eigen::Vector3d& result, const geometry_msgs::PoseStamped& gripper_pose) const;
 
 	float getHistogramBinValue(cv::Mat hist, int binNum);
 

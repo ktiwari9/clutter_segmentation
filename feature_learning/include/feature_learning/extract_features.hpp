@@ -51,7 +51,6 @@
 #include <sensor_msgs/CameraInfo.h>
 #include "pcl_ros/transforms.h"
 //Grasp Template Includes
-#include <grasp_template/heightmap_sampling.h>
 #include <pcl/features/usc.h> // Unique shape context feature
 #include <pcl/features/3dsc.h> // Unique shape context feature
 #include <pcl/filters/crop_box.h>
@@ -61,6 +60,7 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/features/organized_edge_detection.h>
 //Tabletopsegmenter includes
 #include "tabletop_segmenter/TabletopSegmentation.h"
 
@@ -78,6 +78,10 @@ public:
 	std::string filename_;
 
 protected:
+
+	typedef pcl::PointXYZ PointType;
+	typedef pcl::PointXYZRGB PoinRGBType;
+	typedef pcl::Normal PointNT;
 
 	ros::NodeHandle nh_;
 	tf::TransformListener listener_;
@@ -99,8 +103,6 @@ protected:
 	std::string topicFeatureCameraInfo() const {return "/Honeybee/left/camera_info";};
 	std::string topicFeatureCameraInput() const {return "/Honeybee/left/image_rect_color";};
 	std::string topicFeatureTable() const {return "/grasp_demo_table";};
-	std::string topicFeatureGripperPose() const {return "/grasp_demo_gripper_pose";};
-	std::string topicFeatureViewpoint() const {return "/grasp_demo_viewpoint_transform";};
 
 public:
 
@@ -119,11 +121,12 @@ public:
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
 	void testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
-			const geometry_msgs::PoseStamped &viewpoint,const geometry_msgs::Pose& surface,
-			const geometry_msgs::PoseStamped& gripper_pose, const image_geometry::PinholeCameraModel& model,
-			const std::string filename);
+			const image_geometry::PinholeCameraModel& model, const std::string filename);
 
-	void preProcessCloud(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+	void preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+			pcl::PointCloud<pcl::PointXYZ> &processed_cloud);
+
+	void preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 			pcl::PointCloud<pcl::PointXYZ> &processed_cloud);
 
 	bool serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response);
@@ -142,8 +145,6 @@ private:
 	// Data required for feature extraction
 	pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud_,processed_cloud_;
 	cv::Mat input_image_, mask_image_;
-	geometry_msgs::PoseStamped view_point_pose_, gripper_pose_;
-	geometry_msgs::Pose surface_pose_;
 	image_geometry::PinholeCameraModel left_cam_;
 	sensor_msgs::CameraInfo cam_info_;
 	sensor_msgs::ImagePtr ros_image_;

@@ -44,6 +44,16 @@ if(OPENMP_FOUND)
 endif()
 
 find_package(Eigen REQUIRED)
+
+#Find PCL 1.7
+find_package(PCL 1.7 REQUIRED)
+include_directories(BEFORE ${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+if (NOT PCL_FOUND)
+    MESSAGE(FATAL_ERROR "PCL not found.\n")
+endif (NOT PCL_FOUND)
+
 include_directories(${Eigen_INCLUDE_DIRS} ${GRAPH_DIR}/include)
 link_directories(${GRAPH_DIR}/lib)
 #common commands for building c++ executables and libraries
@@ -52,19 +62,11 @@ rosbuild_add_library(feature_base src/feature_base_class.cpp)
 target_link_libraries(feature_base learn_appearance)
 #rosbuild_add_boost_directories()
 rosbuild_add_executable(extract_features src/extract_features.cpp)
-target_link_libraries(extract_features feature_base)
-rosbuild_add_executable(execute_action src/execute_action.cpp)
-target_link_libraries(execute_action feature_base arm_motion_primitives)
-rosbuild_add_executable(action_client src/action_client.cpp)
-target_link_libraries(action_client learn_appearance graph_module)
+target_link_libraries(extract_features feature_base ${PCL_LIBRARIES})
 rosbuild_add_executable(test_texton src/test_texton.cpp)
 target_link_libraries(test_texton learn_appearance)
 rosbuild_add_executable(test_holes src/test_hole_creation.cpp)
 rosbuild_add_executable(test_shot src/test_feature_extraction.cpp)
-rosbuild_add_executable(adjacency_recorder src/adjacency_recorder.cpp)
-target_link_libraries(adjacency_recorder learn_appearance graph_module)
-rosbuild_add_executable(pr2_learner src/feature_learner_pr2.cpp)
-target_link_libraries(pr2_learner learn_appearance graph_module)
-
+target_link_libraries(test_shot ${PCL_LIBRARIES})
 
 

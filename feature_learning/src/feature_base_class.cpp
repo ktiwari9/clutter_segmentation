@@ -40,8 +40,6 @@
 
 #include "feature_learning/feature_base_class.hpp"
 
-
-
 namespace feature_learning{
 
 feature_class::feature_class():
@@ -69,40 +67,13 @@ void feature_class::inputCloud(const PointCloudPtr &input_cloud_ptr){
 }
 
 bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &cloud,
-		const geometry_msgs::PoseStamped &viewpoint,const geometry_msgs::Pose& surface,
-		const geometry_msgs::PoseStamped& gripper_pose,const geometry_msgs::Point& centroid){
+		const geometry_msgs::Point& centroid){
 
 	// creating input for initial values
 	inputImage(image);
 	inputCloud(cloud);
 
 	centroid_ = centroid;
-	bool verify = initializeGraspPatchParams(viewpoint,surface,gripper_pose);
-	if(verify)
-		return true;
-	else
-		return false;
-}
-
-bool feature_class::initializeGraspPatchParams(const geometry_msgs::PoseStamped &viewpoint,
-		const geometry_msgs::Pose &surface, const geometry_msgs::PoseStamped &gripper_pose){
-
-	// Getting view point translation
-	view_point_translation_.x() = viewpoint.pose.position.x;
-	view_point_translation_.y() = viewpoint.pose.position.y;
-	view_point_translation_.z() = viewpoint.pose.position.z;
-
-	// Getting view point rotation
-	view_point_rotation_.w() = viewpoint.pose.orientation.w;
-	view_point_rotation_.x() = viewpoint.pose.orientation.x;
-	view_point_rotation_.y() = viewpoint.pose.orientation.y;
-	view_point_rotation_.z() = viewpoint.pose.orientation.z;
-
-	gripper_pose_ = gripper_pose;
-	surface_ = surface;
-
-	return true;
-
 }
 
 void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
@@ -173,24 +144,9 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	out_mat.normalize();
 }
 
-void feature_class::computeRefPoint(Eigen::Vector3d& result, const geometry_msgs::PoseStamped& gripper_pose) const
-{
-	Eigen::Vector3d trans(gripper_pose.pose.position.x, gripper_pose.pose.position.y, gripper_pose.pose.position.z);
-	Eigen::Quaterniond rot(gripper_pose.pose.orientation.w, gripper_pose.pose.orientation.x,
-			gripper_pose.pose.orientation.y, gripper_pose.pose.orientation.z);
-
-	Eigen::Vector3d delta;
-	//Set Template extraction point to delta
-	//TODO: Load this from a Yaml file like in Alex's code???
-	delta << 0,0,0; // load this from a yaml file later
-	result = rot * delta + trans;
-}
-
-
-//template <class Derived>
 void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 
-	Eigen::MatrixXf colorHist, textonMap, entropyMap, pushFeature, graspPatch;
+	Eigen::MatrixXf colorHist, textonMap, entropyMap, pushFeature;
 
 	if(initialized_)
 	{
@@ -203,9 +159,8 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 		ROS_INFO("feature_learning::feature_class: Getting push features of input image");
 		computePushFeature(pushFeature);
 		ROS_INFO("feature_learning::feature_class: Getting grasp patch in input image");
-		computeGraspPatch(graspPatch);
-		out_mat.resize(1,colorHist.cols()+textonMap.cols()+entropyMap.cols()+pushFeature.cols()+graspPatch.cols()+2);
-		//TODO: Do I need to normalize these features???
+		out_mat.resize(1,colorHist.cols()+textonMap.cols()+entropyMap.cols()+pushFeature.cols()+2);
+
 		/*ROS_INFO("feature_learning::feature_class: Resized features for input image : Size %d",out_mat.cols());
 		ROS_INFO_STREAM("feature_learning::feature_class: Individual feature lenghts"<<std::endl
 				<<"ColorHist :"<<colorHist.cols()<<std::endl<<colorHist<<std::endl
@@ -215,7 +170,8 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 				<<"graspPatch :"<<graspPatch.cols()<<std::endl<<graspPatch<<std::endl
 				<<"Centroid x: "<<centroid_.x<<" y: "<<centroid_.y);
 */		// Normalized Individual features TODO: Do I need to normalize again?
-		out_mat<<colorHist,textonMap,entropyMap,pushFeature,graspPatch,centroid_.x,centroid_.y;
+
+		out_mat<<colorHist,textonMap,entropyMap,pushFeature,centroid_.x,centroid_.y;
 
 		// Conditioning feature vector
 		for(unsigned int i = 0; i<out_mat.cols();i++)
@@ -229,48 +185,12 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 			if(abs(out_mat(0,i)) > 1000)
 				out_mat(0,i) = (out_mat(0,i) > 0) ? 1000 : -1000;
 		}
+
+		out_mat.normalize(); //TODO: Normalize with centroid? does this make sense???
 	}
 
 }
 
-//template <class Derived>
-void feature_class::computeGraspPatch(Eigen::MatrixXf &out_mat){
-
-	ROS_INFO("feature_learning::feature_class: setting up height sampling");
-	HeightmapSampling t_gen(view_point_translation_,view_point_rotation_);
-	t_gen.initialize(*local_cloud_,surface_);
-	Eigen::Vector3d ref_point;
-	ROS_INFO("feature_learning::feature_class: Computing reference point");
-	Eigen::Vector4f centroid;
-
-	pcl::compute3DCentroid(*local_cloud_,centroid);
-	// THIS HACK IS TO CIRCUMVENT GRIPPER POSE ISSUE
-	gripper_pose_.pose.position.x = centroid[0];
-	gripper_pose_.pose.position.y = centroid[1];
-	gripper_pose_.pose.position.z = centroid[2] + 0.15;
-	gripper_pose_.pose.orientation.x = 0;
-	gripper_pose_.pose.orientation.y = 0;
-	gripper_pose_.pose.orientation.z = 0;
-	gripper_pose_.pose.orientation.w = 1;
-	computeRefPoint(ref_point, gripper_pose_);
-	ROS_INFO("feature_learning::feature_class: Creating grasp template");
-	GraspTemplate templt;
-	std::cout << "num tiles x: " << templt.heightmap_.getNumTilesX() << std::endl;
-	t_gen.generateTemplateOnHull(templt, ref_point);
-
-	// Now convert output to Eigen Matrix
-	ROS_INFO("feature_learning::feature_class: getting grid");
-	std::vector<double> grasp_patch = templt.heightmap_.getGrid();
-	ROS_INFO("feature_learning::feature_class: getting grasp patch");
-	std::vector<float> grasp_patch_float(grasp_patch.begin(), grasp_patch.end());
-	// converting to float as all pcl types deal with float
-	ROS_INFO("feature_learning::feature_class: Converting eigen map");
-	out_mat.resize(1,grasp_patch_float.size());
-	Eigen::Map<Eigen::MatrixXf >(grasp_patch_float.data(),1,grasp_patch_float.size()) = out_mat; // Eigen map is used to convert std_vector to Eigen_Matrix
-	out_mat.normalize();
-}
-
-//template <class Derived>
 void feature_class::computeColorHist(Eigen::MatrixXf &out_mat){
 
 	cv::MatND hist;
@@ -305,7 +225,6 @@ void feature_class::computeColorHist(Eigen::MatrixXf &out_mat){
 }
 
 
-//template <class Derived>
 void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 
 	cv::Mat img_gray_float(local_image_.rows, local_image_.cols, CV_64F);
@@ -346,7 +265,6 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 
 }
 
-//template <class Derived>
 void feature_class::computeEntropyMap(Eigen::MatrixXf &out_mat){
 
 

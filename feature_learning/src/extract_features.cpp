@@ -43,7 +43,6 @@
 #include <usc_utilities/assert.h>
 
 
-using namespace grasp_template;
 using namespace graph_based_segmentation;
 
 int writer_counter = 1;
@@ -125,7 +124,56 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	return holes;
 }
 
-void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+void extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
+
+
+	// Local Declarations
+	processed_cloud.clear();
+	pcl::PointCloud<PointType>::Ptr filtered_cloud (new pcl::PointCloud<PointType>);
+	pcl::PointCloud<PointNT>::Ptr cloud_normals (new pcl::PointCloud<PointNT>);
+	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
+
+	pcl::NormalEstimationOMP<PointType, PointNT> ne;
+	ne.setInputCloud (input_cloud_);
+
+	// Create an empty kdtree representation, and pass it to the normal estimation object.
+	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+	ne.setSearchMethod (tree);
+
+	// Output datasets
+
+	// Use all neighbors in a sphere of radius 3cm
+	ne.setRadiusSearch (0.03);
+
+	// Compute the features
+	ne.compute (*cloud_normals);
+
+
+
+	pcl::OrganizedEdgeFromNormals<PointType,PointNT, pcl::Label> oed;
+	oed.setInputCloud (input_cloud_);
+	oed.setInputNormals (cloud_normals);
+	//oed.setDepthDisconThreshold (0.02); // 2cm
+	//oed.setMaxSearchNeighbors (50);
+	pcl::PointCloud<pcl::Label> labels;
+	std::vector<pcl::PointIndices> label_indices;
+	oed.compute (labels, label_indices);
+
+	pcl::PointCloud<PointType>::Ptr occluding_edges (new pcl::PointCloud<PointType>),
+	        occluded_edges (new pcl::PointCloud<PointType>),
+	        boundary_edges (new pcl::PointCloud<PointType>),
+	        high_curvature_edges (new pcl::PointCloud<PointType>),
+	        rgb_edges (new pcl::PointCloud<PointType>);
+
+	pcl::copyPointCloud (*input_cloud_, label_indices[0].indices, *boundary_edges);
+	pcl::copyPointCloud (*input_cloud_, label_indices[1].indices, *occluding_edges);
+	pcl::copyPointCloud (*input_cloud_, label_indices[2].indices, *occluded_edges);
+	pcl::copyPointCloud (*input_cloud_, label_indices[3].indices, *high_curvature_edges);
+	//pcl::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
+
+}
+void extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
 
 	// Local Declarations
@@ -224,7 +272,6 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 			processed_cloud.swap(*filtered_cloud);
 			Eigen::Vector4f centroid;
 			pcl::compute3DCentroid(processed_cloud,centroid);
-			//action_point_.point.x = push_point.x;action_point_.point.y = push_point.y;action_point_.point.z = push_point.z;
 			action_point_.point.x = centroid[0]; action_point_.point.y = centroid[1]; action_point_.point.z = centroid[2];
 			action_point_.header.frame_id = "/BASE";
 			ROS_INFO("feature_learning::extract_features: Found a actionable point cloud with size %d",processed_cloud.size());
@@ -249,16 +296,14 @@ void extract_features::preProcessCloud(cv::Mat input_segment,const image_geometr
 }
 
 void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
-		const geometry_msgs::PoseStamped &viewpoint,const geometry_msgs::Pose& surface,
-		const geometry_msgs::PoseStamped& gripper_pose, const image_geometry::PinholeCameraModel& model,
-		const std::string filename){
+		const image_geometry::PinholeCameraModel& model, const std::string filename){
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
 	// cropping feature image to remove recitification artificats
 	cv::Rect faceRect(75,75,768,576);
 	image(faceRect).copyTo(image);
-	feature.initialized_ = feature.initializeFeatureClass(image,cloud,viewpoint,surface,gripper_pose,action_point_.point);
+	feature.initialized_ = feature.initializeFeatureClass(image,cloud,action_point_.point);
 
 	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
 	feature.computeFeature(final_feature);
@@ -286,17 +331,13 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
 	ROS_INFO("feature_learning::extract_features: Executing service, initialized %d",initialized_);
-	view_point_pose_ = request.view_point;
-	gripper_pose_ = request.gripper_pose;
-	surface_pose_ = request.surface_pose;
-	ROS_INFO("feature_learning::extract_features: Got gripper pose, surface pose and viewpoint");
 	if(initialized_){
 		ROS_INFO("Updating all the data for processing");
 		bool updated = updateTopics();
 		if(updated){
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			testfeatureClass(input_image_,processed_cloud_,view_point_pose_,surface_pose_,gripper_pose_,left_cam_,filename_);
+			testfeatureClass(input_image_,processed_cloud_,left_cam_,filename_);
 
 			action_point_.header.stamp = ros::Time::now();
 
@@ -309,9 +350,6 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 				bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
 				bag_.write(topicFeatureCameraInput(), ros::Time::now(), ros_image_);
 				bag_.write(topicFeatureCameraInfo(), ros::Time::now(), cam_info_);
-				bag_.write(topicFeatureTable(), ros::Time::now(), surface_pose_);
-				bag_.write(topicFeatureGripperPose(), ros::Time::now(), gripper_pose_);
-				bag_.write(topicFeatureViewpoint(), ros::Time::now(), view_point_pose_);
 			}
 			catch (rosbag::BagIOException ex)
 			{
@@ -506,7 +544,7 @@ bool extract_features::updateTopics(){
 		cv::add(mask, mask_image_, mask_image_);
 	}
 
-	preProcessCloud(input_image_,left_cam_,*processed_cloud_);
+	preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
 
 	if(processed_cloud_->size() < 10)
 	{

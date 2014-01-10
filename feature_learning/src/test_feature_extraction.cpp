@@ -70,9 +70,9 @@ int main(int argc, char** argv)
 	std::cout<<"feature_learning::feature_class: Size of input cloud "<<cloud->size()<<std::endl;
 
 	// TODO: try multiple features like USC and shape context to see what works
-	pcl::PointCloud<pcl::SHOT>::Ptr descriptors (new pcl::PointCloud<pcl::SHOT>);
+	pcl::PointCloud<pcl::ShapeContext1980>::Ptr descriptors (new pcl::PointCloud<pcl::ShapeContext1980>);
 
-	pcl::UniqueShapeContext<PointType,pcl::SHOT> unique_context;
+	pcl::UniqueShapeContext<PointType,pcl::ShapeContext1980> unique_context;
 
 	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
 	// Normal Estimation
@@ -95,7 +95,11 @@ int main(int argc, char** argv)
 	pcl::copyPointCloud (*cloud, keypoint_indices.points, *cloud);
 	std::cout<<"feature_learning::feature_class: Size of sampled input cloud "<<cloud->size()<<std::endl;
 
-	pcl::io::savePCDFileASCII ("/tmp/sampled_pcd.pcd", *cloud);
+	pcl::PointCloud<pcl::PointXYZ> copy_cloud(*cloud);
+	pcl::PCDWriter writer;
+	writer.writeASCII(std::string("/tmp/sampled_pcd.pcd"), copy_cloud);
+
+	// FOR USC parameters check test file
 	std::cout<<"feature_learning::feature_class: Shape Context start "<<std::endl;
 	unique_context.setInputCloud(cloud);
 	unique_context.setSearchMethod(tree);
@@ -104,7 +108,7 @@ int main(int argc, char** argv)
 	unique_context.compute(*descriptors);
 
 	std::cout<<"feature_learning::feature_class: getting descriptors "<<std::endl;
-	int histSize = descriptors->at(0).descriptor.size();
+	int histSize = 1980;//descriptors->at(0).descriptor.size();
 	Eigen::MatrixXf out_mat;
 	std::cout<<"feature_learning::feature_class: descriptors size "<<histSize<<std::endl;
 	out_mat = descriptors->getMatrixXfMap (histSize, histSize + 9, 0); // use proper values
