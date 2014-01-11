@@ -80,6 +80,7 @@ active_segment::active_segment(ros::NodeHandle & nh):
   nh_priv_.param<std::string>("left_camera_topic",left_camera_topic_,std::string("/Honeybee/left/camera_info"));
   nh_priv_.param<std::string>("tabletop_service", tabletop_service_,std::string("/tabletop_segmentation"));
   nh_priv_.param<std::string>("rgb_input",rgb_topic_,std::string("/Honeybee/left/image_rect_color"));
+  nh_priv_.param<std::string>("base_frame",base_frame_,std::string("/BASE"));
 
   pose_publisher_ = nh_priv_.advertise<geometry_msgs::PoseStamped>("/push_pose",5);
 
@@ -96,7 +97,7 @@ active_segment::active_segment(ros::NodeHandle & nh):
   poly_pixel_ = 6;
   poly_sigma_ = 1.25;
   global_counter_ = 0;
-  push_hand_pose_.header.frame_id = "/BASE";
+  push_hand_pose_.header.frame_id = base_frame_;
 
 }
 
@@ -148,9 +149,9 @@ void active_segment::initGraphHelpers(){
 			table_tf,table_srv_.response.table.table_points,
 			transform_table_cloud);
 
-	ROS_VERIFY(listener_.waitForTransform("/BASE", transform_table_cloud.header.frame_id,
+	ROS_VERIFY(listener_.waitForTransform(base_frame_, transform_table_cloud.header.frame_id,
 			transform_table_cloud.header.stamp, ros::Duration(5.0)));
-	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", transform_table_cloud,
+	ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, transform_table_cloud,
 			transform_table_cloud, listener_));
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr table_cloud_pcl(new pcl::PointCloud<pcl::PointXYZ>());
@@ -408,10 +409,10 @@ void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
 	ray.header = cam_info_.header;
 
 	ROS_DEBUG("Creating Ray in base frame");
-	ROS_VERIFY(listener_.waitForTransform("/BASE",cam_info_.header.frame_id,
+	ROS_VERIFY(listener_.waitForTransform(base_frame_,cam_info_.header.frame_id,
 			ros::Time::now(), ros::Duration(5.0)));
 
-	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
+	ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, ray,
 			ray, listener_));
 	ROS_DEBUG("Converting cloud complete");
 
@@ -921,7 +922,7 @@ void active_segment::controlGraph(){
 				push_3d_pcl.points[1]);
 		getPushPoint(push_3d_pcl,push_loc_);
 
-//		view_pose.header.frame_id = "/BASE";
+//		view_pose.header.frame_id = base_frame_;
 //		view_pose.header.stamp = ros::Time::now();
 //		view_pose.pose.position.x = push_loc_.x;
 //		view_pose.pose.position.y = push_loc_.y;

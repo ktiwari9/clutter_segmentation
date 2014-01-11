@@ -186,7 +186,7 @@ protected:
 	int number_of_vertices_;
 
 	std::string static_service_,rgb_topic_,camera_topic_,window_thread_,left_camera_topic_,tabletop_service_,
-	correspondence_thread_;
+	correspondence_thread_,base_frame_;
 
 	tf::TransformListener listener_;
 

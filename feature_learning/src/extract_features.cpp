@@ -54,6 +54,11 @@ extract_features::extract_features(ros::NodeHandle& nh):
 				processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>),table_coefficients_(new pcl::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
+	nh_priv_.param<std::string>("input_cloud_topic",input_cloud_topic_,std::string("/tabletop_segmentation"));
+	nh_priv_.param<std::string>("input_camera_info",input_camera_info_,std::string("/tabletop_segmentation"));
+	nh_priv_.param<std::string>("input_image_topic",input_image_topic_,std::string("/tabletop_segmentation"));
+	nh_priv_.param<std::string>("base_frame",base_frame_,std::string("/tabletop_segmentation"));
+
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 0);
 
@@ -124,7 +129,7 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	return holes;
 }
 
-void extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
 
 
@@ -160,7 +165,7 @@ void extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_g
 	std::vector<pcl::PointIndices> label_indices;
 	oed.compute (labels, label_indices);
 
-	pcl::PointCloud<PointType>::Ptr occluding_edges (new pcl::PointCloud<PointType>),
+/*	pcl::PointCloud<PointType>::Ptr occluding_edges (new pcl::PointCloud<PointType>),
 	        occluded_edges (new pcl::PointCloud<PointType>),
 	        boundary_edges (new pcl::PointCloud<PointType>),
 	        high_curvature_edges (new pcl::PointCloud<PointType>),
@@ -170,13 +175,51 @@ void extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_g
 	pcl::copyPointCloud (*input_cloud_, label_indices[1].indices, *occluding_edges);
 	pcl::copyPointCloud (*input_cloud_, label_indices[2].indices, *occluded_edges);
 	pcl::copyPointCloud (*input_cloud_, label_indices[3].indices, *high_curvature_edges);
-	//pcl::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
+	pcl::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
+	*/
 
+	// Now cluster the edges and return them to the user
+	pcl::PointCloud<PointType> edge_list;
+
+	for(size_t i = 0; i < label_indices.size() ; i++)
+	{
+		pcl::PointCloud<PointType>::Ptr edge_points (new pcl::PointCloud<PointType>);
+		pcl::copyPointCloud (*input_cloud_, label_indices[i].indices, *edge_points);
+
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		ec.setClusterTolerance (0.01); // 2cm
+		ec.setMinClusterSize (50);
+		ec.setMaxClusterSize (2500);
+		ec.setSearchMethod (tree);
+		ec.setInputCloud (edge_points);
+		ec.extract (cluster_indices);
+
+		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+		{
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+			for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
+				cloud_cluster->points.push_back (edge_points->points[*pit]); //*
+
+			cloud_cluster->width = cloud_cluster->points.size ();
+			cloud_cluster->height = 1;
+
+			Eigen::Vector4f centroid;
+			pcl::compute3DCentroid(*cloud_cluster,centroid);
+			PointType center_point;
+			center_point.x = centroid[0];center_point.y = centroid[1];center_point.z = centroid[2];
+			edge_list.push_back(center_point);
+		}
+	}
+	return edge_list;
 }
-void extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+
+pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
 
 	// Local Declarations
+	pcl::PointCloud<PointType> edge_list;
+
 	processed_cloud.clear();
 	pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PassThrough<pcl::PointXYZ> pass;
@@ -193,14 +236,15 @@ void extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_g
 	ROS_INFO("feature_learning::extract_features: Getting holes in input image");
 	std::vector<std::vector<cv::Point> > hole_contours = getHoles(input_segment);
 	if(hole_contours.empty())
-		return;
+		return edge_list;
 	cv::Mat contour_mask = cv::Mat::zeros(input_segment.size(), CV_8UC1);
 	cv::drawContours(contour_mask, hole_contours, -1, cv::Scalar::all(255), CV_FILLED,8);
 	cv::imwrite("/tmp/countour_image.jpg",contour_mask);
 	// Computing means around contour points
 	size_t max_size = 0;
 	ROS_INFO("Number of contours returned %d",hole_contours.size());
-	pcl::PointXYZ push_point;
+
+	PointType push_point;
 	for(size_t i = 0; i < hole_contours.size(); i++)
 	{
 		if(hole_contours[i].size() < 100)
@@ -224,16 +268,17 @@ void extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_g
 
 		ROS_DEBUG("feature_learning::extract_features: Creating Ray in base frame");
 		ROS_INFO_STREAM("Model frame "<<model.tfFrame());
-		ROS_VERIFY(listener_.waitForTransform("/BASE",model.tfFrame(),
+		ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),
 				ray.header.stamp, ros::Duration(5.0)));
 
-		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", ray,
+		ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, ray,
 				ray, listener_));
 
+/*
 		// Now get intersection of Ray and cloud XY plane
-		/*
+
 		 * TODO: This may only work if plane calculation is correct, so verify this
-		 */
+
 
 		float t;
 		//		t = (plane_coefficients->values[3] + plane_coefficients->values[0]*ray.points[0].x +
@@ -247,62 +292,28 @@ void extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_g
 
 
 		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
-		push_point.x = ray.points[1].x;push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
-		// Trying a pass through filter
-		filtered_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
-		pass.setInputCloud (input_cloud_);
-		pass.setFilterFieldName ("z");
-		pass.setFilterLimits (push_point.z - (BOX_HEIGHT_Z/2), push_point.z + (BOX_HEIGHT_Z/2));
-		pass.filter (*filtered_cloud);
+*/
 
-		pass.setInputCloud (filtered_cloud);
-		pass.setFilterFieldName ("y");
-		pass.setFilterLimits (push_point.y - (BOX_LENGTH_Y/2), push_point.y + (BOX_LENGTH_Y/2));
-		pass.filter (*filtered_cloud);
-
-		pass.setInputCloud (filtered_cloud);
-		pass.setFilterFieldName ("x");
-		pass.setFilterLimits (push_point.x - (BOX_WIDTH_X/2), push_point.x + (BOX_WIDTH_X/2));
-		pass.filter (*filtered_cloud);
-
-		ROS_INFO_STREAM("Filtered cloud size "<<filtered_cloud->size());
-		if(max_size < filtered_cloud->size())
-		{
-			max_size = filtered_cloud->size();
-			processed_cloud.swap(*filtered_cloud);
-			Eigen::Vector4f centroid;
-			pcl::compute3DCentroid(processed_cloud,centroid);
-			action_point_.point.x = centroid[0]; action_point_.point.y = centroid[1]; action_point_.point.z = centroid[2];
-			action_point_.header.frame_id = "/BASE";
-			ROS_INFO("feature_learning::extract_features: Found a actionable point cloud with size %d",processed_cloud.size());
-
-		}
+		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
+		edge_list.push_back(push_point);
 	}
 
-
-
-	ROS_INFO_STREAM("feature_learning::extract_features: Position of Marker :x "<<action_point_.point.x<<" y:"<<action_point_.point.y<<" z: "<<action_point_.point.z);
-
-	// Populating Marker
-	marker_.header.frame_id = action_point_.header.frame_id;
-	marker_.pose.position.x = action_point_.point.x;
-	marker_.pose.position.y = action_point_.point.y;
-	marker_.pose.position.z = action_point_.point.z;
-	vis_pub_.publish(marker_);
-
-	pcl::io::savePCDFileASCII ("/tmp/processed_cloud.pcd", processed_cloud);
-	ROS_INFO("feature_learning::extract_features: Got an action point");
+	return edge_list;
 
 }
 
-void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
-		const image_geometry::PinholeCameraModel& model, const std::string filename){
+void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<PointType>::Ptr &cloud,
+		const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center){
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
 	// cropping feature image to remove recitification artificats
 	cv::Rect faceRect(75,75,768,576);
 	image(faceRect).copyTo(image);
+
+	action_point_.point.x = center.x; action_point_.point.y = center.y; action_point_.point.z = center.z;
+	action_point_.header.frame_id = base_frame_;
+
 	feature.initialized_ = feature.initializeFeatureClass(image,cloud,action_point_.point);
 
 	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
@@ -328,6 +339,38 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl
 
 }
 
+std::vector<pcl::PointCloud<pcl::PointXYZ> > extract_features::extract_templates(const pcl::PointCloud<pcl::PointXYZ> &centroids){
+
+	pcl::PointCloud<PointType>::Ptr filtered_cloud (new pcl::PointCloud<PointType>);
+	pcl::PassThrough<PointType> pass;
+
+	std::vector<pcl::PointCloud<PointType> > output_template_list;
+
+	for(size_t t = 0;  t < centroids.points.size(); t++)
+	{
+		// Trying a pass through filter
+		filtered_cloud.reset(new pcl::PointCloud<PointType>);
+		pass.setInputCloud (input_cloud_);
+		pass.setFilterFieldName ("z");
+		pass.setFilterLimits (centroids.points[t].z - (BOX_HEIGHT_Z/2), centroids.points[t].z + (BOX_HEIGHT_Z/2));
+		pass.filter (*filtered_cloud);
+
+		pass.setInputCloud (filtered_cloud);
+		pass.setFilterFieldName ("y");
+		pass.setFilterLimits (centroids.points[t].y - (BOX_LENGTH_Y/2), centroids.points[t].y + (BOX_LENGTH_Y/2));
+		pass.filter (*filtered_cloud);
+
+		pass.setInputCloud (filtered_cloud);
+		pass.setFilterFieldName ("x");
+		pass.setFilterLimits (centroids.points[t].x - (BOX_WIDTH_X/2), centroids.points[t].x + (BOX_WIDTH_X/2));
+		pass.filter (*filtered_cloud);
+
+		output_template_list.push_back(*filtered_cloud);
+	}
+
+	return output_template_list;
+}
+
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
 	ROS_INFO("feature_learning::extract_features: Executing service, initialized %d",initialized_);
@@ -337,31 +380,47 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		if(updated){
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			testfeatureClass(input_image_,processed_cloud_,left_cam_,filename_);
+			pcl::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			//pcl::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
-			action_point_.header.stamp = ros::Time::now();
-
-			sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
-			pcl::toROSMsg(*input_cloud_,*ros_cloud);
-			ros_cloud->header = input_cloud_->header;
-			ROS_INFO("feature_learning::extract_features: Writing bag");
-			try
+			if(cluster_centers.empty())
+				return false;
+			else
 			{
-				bag_.write(topicFeatureInputCloud(), ros::Time::now(), ros_cloud);
-				bag_.write(topicFeatureCameraInput(), ros::Time::now(), ros_image_);
-				bag_.write(topicFeatureCameraInfo(), ros::Time::now(), cam_info_);
-			}
-			catch (rosbag::BagIOException ex)
-			{
-				ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
-						bag_.getFileName().c_str(), ex.what());
 
-			}
+				std::vector<pcl::PointCloud<PointType> > templates = extract_templates(cluster_centers);
 
-			ROS_INFO("feature_learning::extract_features: returning success");
-			response.action_location = action_point_;
-			response.result = ExtractFeatures::Response::SUCCESS;
-			return true;
+				for (size_t t = 0; t < templates.size(); t++){
+
+					pcl::PointCloud<PointType>::Ptr temp_cloud(new pcl::PointCloud<PointType>(templates[t]));
+
+					testfeatureClass(input_image_,temp_cloud,left_cam_,filename_,cluster_centers.points[t]);
+
+					action_point_.header.stamp = ros::Time::now();
+
+					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
+					pcl::toROSMsg(*input_cloud_,*ros_cloud);
+					ros_cloud->header = input_cloud_->header;
+					ROS_INFO("feature_learning::extract_features: Writing bag");
+					try
+					{
+						bag_.write(input_cloud_topic_, ros::Time::now(), ros_cloud);
+						bag_.write(input_image_topic_, ros::Time::now(), ros_image_);
+						bag_.write(input_camera_info_, ros::Time::now(), cam_info_);
+					}
+					catch (rosbag::BagIOException ex)
+					{
+						ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
+								bag_.getFileName().c_str(), ex.what());
+
+					}
+
+					ROS_INFO("feature_learning::extract_features: returning success");
+					response.action_location = action_point_;
+					response.result = ExtractFeatures::Response::SUCCESS;
+				}
+				return true;
+			}
 		}
 		else{
 
@@ -442,15 +501,15 @@ void extract_features::getMasksFromClusters(const std::vector<sensor_msgs::Point
 bool extract_features::updateTopics(){
 
 	ROS_INFO("feature_learning::extract_features: Initializing extract features");
-	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>("/Honeybee/left/image_rect_color", nh_, ros::Duration(5.0));
-	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/XTION/rgb/points",nh_, ros::Duration(5.0));
+	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>(input_image_topic_, nh_, ros::Duration(5.0));
+	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(input_cloud_topic_,nh_, ros::Duration(5.0));
 	pcl::fromROSMsg (*ros_cloud, *input_cloud_);
 	ROS_INFO("feature_learning::extract_features: Got input image and pointcloud");
 
-	ROS_VERIFY(listener_.waitForTransform("/BASE",input_cloud_->header.frame_id,
+	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_cloud_->header.frame_id,
 			input_cloud_->header.stamp, ros::Duration(5.0)));
 
-	ROS_VERIFY(pcl_ros::transformPointCloud("/BASE",*input_cloud_,*input_cloud_,listener_));
+	ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_,*input_cloud_,*input_cloud_,listener_));
 
 	graph_segment convertor;
 	input_image_ = convertor.returnCVImage(*input_image);
@@ -461,7 +520,7 @@ bool extract_features::updateTopics(){
 
 	// getting camera info
 	sensor_msgs::CameraInfo::ConstPtr cam_info =
-			ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/Honeybee/left/camera_info", nh_, ros::Duration(10.0));
+			ros::topic::waitForMessage<sensor_msgs::CameraInfo>(input_camera_info_, nh_, ros::Duration(10.0));
 	left_cam_.fromCameraInfo(cam_info);
 	cam_info_ = *cam_info;
 	ROS_INFO("feature_learning::extract_features: got camera info");
@@ -516,9 +575,9 @@ bool extract_features::updateTopics(){
 				table_tf,tabletop_srv_.response.clusters[cloud_count],
 				cluster_points);
 
-		ROS_VERIFY(listener_.waitForTransform("/BASE",cluster_points.header.frame_id,
+		ROS_VERIFY(listener_.waitForTransform(base_frame_,cluster_points.header.frame_id,
 				cluster_points.header.stamp, ros::Duration(5.0)));
-		ROS_VERIFY(pcl_ros::transformPointCloud("/BASE", cluster_points,
+		ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, cluster_points,
 				cluster_points, listener_));
 		pcl::PointCloud<pcl::PointXYZ>::Ptr temp_clouds(new pcl::PointCloud<pcl::PointXYZ>());
 
@@ -542,14 +601,6 @@ bool extract_features::updateTopics(){
 
 		cv::Mat mask = convertor.returnCVImage(bbl_masks[i]);
 		cv::add(mask, mask_image_, mask_image_);
-	}
-
-	preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-
-	if(processed_cloud_->size() < 10)
-	{
-		ROS_ERROR("feature_learning::extract_features: FEATURE COMPUTATION FAILED");
-		return false;
 	}
 
 	if(left_cam_.distortionCoeffs().empty() || input_image_.empty() || input_cloud_->empty())

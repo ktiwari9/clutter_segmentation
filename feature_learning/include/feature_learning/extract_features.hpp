@@ -51,6 +51,7 @@
 #include <sensor_msgs/CameraInfo.h>
 #include "pcl_ros/transforms.h"
 //Grasp Template Includes
+#include <pcl/point_types.h>
 #include <pcl/features/usc.h> // Unique shape context feature
 #include <pcl/features/3dsc.h> // Unique shape context feature
 #include <pcl/filters/crop_box.h>
@@ -59,6 +60,7 @@
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/features/organized_edge_detection.h>
 //Tabletopsegmenter includes
@@ -92,17 +94,16 @@ protected:
 
 	bool initialized_;
 
-	std::string tabletop_service_;
+	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 
-	static const double BOX_WIDTH_X = 0.50; // in m
-	static const double BOX_LENGTH_Y = 0.50; // in m
-	static const double BOX_HEIGHT_Z = 0.35; // in m
+	static const double BOX_WIDTH_X = 0.10; // in m
+	static const double BOX_LENGTH_Y = 0.10; // in m
+	static const double BOX_HEIGHT_Z = 0.05; // in m
 
 	std::string topicFeatureInputCloud() const {return "/XTION/rgb/points";};
 	std::string topicFeatureCameraInfo() const {return "/Honeybee/left/camera_info";};
 	std::string topicFeatureCameraInput() const {return "/Honeybee/left/image_rect_color";};
-	std::string topicFeatureTable() const {return "/grasp_demo_table";};
 
 public:
 
@@ -120,14 +121,16 @@ public:
 
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
-	void testfeatureClass(cv::Mat image, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
-			const image_geometry::PinholeCameraModel& model, const std::string filename);
+	void testfeatureClass(cv::Mat image, const pcl::PointCloud<PointType>::Ptr &cloud,
+			const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center);
 
-	void preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+	pcl::PointCloud<PointType> preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 			pcl::PointCloud<pcl::PointXYZ> &processed_cloud);
 
-	void preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+	pcl::PointCloud<PointType> preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 			pcl::PointCloud<pcl::PointXYZ> &processed_cloud);
+
+	std::vector<pcl::PointCloud<PointType> > extract_templates(const pcl::PointCloud<PointType> &centroids);
 
 	bool serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response);
 

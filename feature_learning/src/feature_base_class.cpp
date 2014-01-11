@@ -81,7 +81,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	pcl::PointCloud<PointNT>::Ptr cloud_normals (new pcl::PointCloud<PointNT>);
 	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
 
-	float model_ss_ (0.02f); // make it 0.25 if too slow
+	float model_ss_ (0.02f); // make it 0.25 if too slow TODO: fix this heuristic!
 	do{
 
 		pcl::PointCloud<int> keypoint_indices;
