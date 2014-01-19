@@ -70,7 +70,7 @@
 #include <graph_based_segmentation/segment.h>
 #include <rosbag/bag.h>
 #include <visualization_msgs/Marker.h>
-#include "visualization_msgs/MarkerArray.h"
+#include <visualization_msgs/MarkerArray.h>
 
 namespace feature_learning {
 
@@ -89,11 +89,13 @@ protected:
 	ros::NodeHandle nh_;
 	tf::TransformListener listener_;
 
-	ros::Publisher vis_pub_,pcd_pub_,m_array_pub_;
+	ros::Publisher vis_pub_,pcd_pub_,m_array_pub_,edge_cloud_;
 	// Visualization Markers
 	visualization_msgs::Marker marker_;
 	visualization_msgs::MarkerArray marker_array_;
 
+
+	//Eigen::MatrixXf publish_feature_; TODO: check if we need this later
 
 	bool initialized_;
 

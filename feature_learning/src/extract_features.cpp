@@ -62,7 +62,8 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 1);
 	m_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/template_markers", 1);
-        pcd_pub_ = nh_.advertise<pcl::PointCloud<PointType> >("/template_locations", 1)
+    pcd_pub_ = nh_.advertise<pcl::PointCloud<PointType> >("/template_patches", 1);
+    edge_cloud_ = nh_.advertise<pcl::PointCloud<PointType> >("/template_basis", 1);
 
 	marker_.header.stamp = ros::Time();
 	marker_.ns = "extract_features";
@@ -154,6 +155,7 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	std::vector<std::vector<cv::Point> > holes;
 	cv::findContours(singleLevelHoles.clone(), holes, CV_RETR_LIST,CV_CHAIN_APPROX_NONE);
 	ROS_INFO("feature_learning::extract_features: returning contours in input image");
+
 	return holes;
 }
 
@@ -208,6 +210,9 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 
 	// Now cluster the edges and return them to the user
 	pcl::PointCloud<PointType> edge_list;
+	pcl::PointCloud<PointType> edges;
+
+	int counter = 0;
 
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
@@ -233,12 +238,26 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 			cloud_cluster->height = 1;
 
 			Eigen::Vector4f centroid;
+			edges += *cloud_cluster;
 			pcl::compute3DCentroid(*cloud_cluster,centroid);
 			PointType center_point;
 			center_point.x = centroid[0];center_point.y = centroid[1];center_point.z = centroid[2];
 			edge_list.push_back(center_point);
+
+			visualization_msgs::Marker location_marker = getMarker(counter);
+			counter++;
+
+			location_marker.header = input_cloud_->header;
+			location_marker.header.stamp = ros::Time();
+			location_marker.pose.position.x = center_point.x; location_marker.pose.position.y = center_point.y; location_marker.pose.position.z = center_point.z;
+			marker_array_.markers.push_back(location_marker);
 		}
 	}
+
+	edges.header = input_cloud_->header;
+	edges.header.stamp = ros::Time();
+	edge_cloud_.publish(edges);
+	m_array_pub_.publish(marker_array_);
 	return edge_list;
 }
 
@@ -273,6 +292,8 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat i
 	ROS_INFO("Number of contours returned %d",hole_contours.size());
 
 	PointType push_point;
+
+	int counter = 0;
 	for(size_t i = 0; i < hole_contours.size(); i++)
 	{
 		if(hole_contours[i].size() < 100)
@@ -323,9 +344,19 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat i
 */
 
 		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
+
+		visualization_msgs::Marker location_marker = getMarker(counter);
+		counter++;
+
+		location_marker.header = input_cloud_->header;
+		location_marker.header.stamp = ros::Time();
+		location_marker.pose.position.x = push_point.x; location_marker.pose.position.y = push_point.y; location_marker.pose.position.z = push_point.z;
+		marker_array_.markers.push_back(location_marker);
+
 		edge_list.push_back(push_point);
 	}
 
+	m_array_pub_.publish(marker_array_);
 	return edge_list;
 
 }
@@ -374,6 +405,8 @@ std::vector<pcl::PointCloud<pcl::PointXYZ> > extract_features::extract_templates
 
 	std::vector<pcl::PointCloud<PointType> > output_template_list;
 
+	pcl::PointCloud<PointType> template_cloud;
+
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
 		// Trying a pass through filter
@@ -394,7 +427,11 @@ std::vector<pcl::PointCloud<pcl::PointXYZ> > extract_features::extract_templates
 		pass.filter (*filtered_cloud);
 
 		output_template_list.push_back(*filtered_cloud);
+		template_cloud += *filtered_cloud;
 	}
+
+	template_cloud.header = input_cloud_->header;
+	pcd_pub_.publish(template_cloud);
 
 	return output_template_list;
 }
@@ -428,7 +465,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
 					//pcl::toROSMsg(*input_cloud_,*ros_cloud);
-                                        pcl::toROSMsg(templates[t],*ros_cloud);
+                    pcl::toROSMsg(templates[t],*ros_cloud);
 					ros_cloud->header = input_cloud_->header;
 					ROS_INFO("feature_learning::extract_features: Writing bag");
 					try
