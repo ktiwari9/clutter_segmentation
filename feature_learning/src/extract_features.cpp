@@ -60,7 +60,9 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	nh_priv_.param<std::string>("base_frame",base_frame_,std::string("/tabletop_segmentation"));
 
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
-	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 0);
+	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 1);
+	m_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/template_markers", 1);
+        pcd_pub_ = nh_.advertise<pcl::PointCloud<PointType> >("/template_locations", 1)
 
 	marker_.header.stamp = ros::Time();
 	marker_.ns = "extract_features";
@@ -78,6 +80,7 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	marker_.pose.orientation.y = 0.0;
 	marker_.pose.orientation.z = 0.0;
 	marker_.pose.orientation.w = 1.0;
+
 }
 
 extract_features::extract_features(std::string filename){
@@ -86,6 +89,31 @@ extract_features::extract_features(std::string filename){
 }
 
 extract_features::~extract_features(){}
+
+visualization_msgs::Marker extract_features::getMarker(int i){
+        
+	visualization_msgs::Marker local_marker;
+ 
+        local_marker.header.stamp = ros::Time();
+        local_marker.ns = "extract_features";
+        local_marker.id = i;
+        local_marker.type = visualization_msgs::Marker::SPHERE;
+        local_marker.action = visualization_msgs::Marker::ADD;
+        local_marker.scale.x = 0.05;
+        local_marker.scale.y = 0.05;
+        local_marker.scale.z = 0.05;
+        local_marker.color.a = 1.0;
+        local_marker.color.r = 0.0;
+        local_marker.color.g = 1.0;
+        local_marker.color.b = 0.0;
+        local_marker.pose.orientation.x = 0.0;
+        local_marker.pose.orientation.y = 0.0;
+        local_marker.pose.orientation.z = 0.0;
+        local_marker.pose.orientation.w = 1.0;
+
+        return local_marker;
+
+}
 
 std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 
@@ -399,7 +427,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 					action_point_.header.stamp = ros::Time::now();
 
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
-					pcl::toROSMsg(*input_cloud_,*ros_cloud);
+					//pcl::toROSMsg(*input_cloud_,*ros_cloud);
+                                        pcl::toROSMsg(templates[t],*ros_cloud);
 					ros_cloud->header = input_cloud_->header;
 					ROS_INFO("feature_learning::extract_features: Writing bag");
 					try

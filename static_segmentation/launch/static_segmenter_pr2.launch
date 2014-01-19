@@ -11,7 +11,7 @@
   <arg name="tabletop_segmentation_stereo_points_in" default="$(arg stereo)/points2" />
   <arg name="tabletop_segmentation_depth_in" default="$(arg kinect_frame_prefix)/depth/image" />
   <arg name="tabletop_segmentation_rgb_in" default="$(arg kinect_frame_prefix)/rgb/image_color" />
-  <arg name="tabletop_segmentation_cam_info" default="$(arg kinect_frame_prefix)/depth/camera_info" />
+  <arg name="tabletop_segmentation_cam_info" default="$(arg kinect_frame_prefix)/depth_registered/camera_info" />
   <arg name="tabletop_segmentation_stereo_cam_info" default="$(arg stereo)/left/camera_info" />
   <arg name="tabletop_segmentation_clustering_voxel_size" default="0.003" />
   <arg name="tabletop_segmentation_srv" default="tabletop_segmentation"/>

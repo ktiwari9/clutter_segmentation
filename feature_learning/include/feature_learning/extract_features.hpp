@@ -70,6 +70,7 @@
 #include <graph_based_segmentation/segment.h>
 #include <rosbag/bag.h>
 #include <visualization_msgs/Marker.h>
+#include "visualization_msgs/MarkerArray.h"
 
 namespace feature_learning {
 
@@ -88,9 +89,11 @@ protected:
 	ros::NodeHandle nh_;
 	tf::TransformListener listener_;
 
-	ros::Publisher vis_pub_;
+	ros::Publisher vis_pub_,pcd_pub_,m_array_pub_;
 	// Visualization Markers
 	visualization_msgs::Marker marker_;
+	visualization_msgs::MarkerArray marker_array_;
+
 
 	bool initialized_;
 
@@ -136,6 +139,8 @@ public:
 
 	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
             const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks);
+
+       visualization_msgs::Marker getMarker(int id);
 
 private:
 

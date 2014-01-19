@@ -1,7 +1,7 @@
-# request contains gripper pose, table/surface pose and viewpoint
-geometry_msgs/PoseStamped view_point
-geometry_msgs/PoseStamped gripper_pose
-geometry_msgs/Pose surface_pose
+# empty request , node listens to required topics on its own
+int32 EMPTY = 1
+int32 FULL = 2
+int32 call
 
 ---
 

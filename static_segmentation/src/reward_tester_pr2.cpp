@@ -50,10 +50,10 @@
 
 // beta distributions include from boost
 #include <boost/math/special_functions/digamma.hpp>
-#define BOOST_HAS_TR1_TUPLE 1
+//#define BOOST_HAS_TR1_TUPLE 1
 #include <boost/tr1/detail/config.hpp>
-#undef BOOST_HAS_INCLUDE_NEXT
-#include <boost/tr1/tuple.hpp>
+//#undef BOOST_HAS_INCLUDE_NEXT
+//#include <boost/tr1/tuple.hpp>
 #include <boost/math/special_functions/beta.hpp>
 
 
