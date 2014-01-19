@@ -42,6 +42,8 @@
 #include "feature_learning/extract_features.hpp"
 #include <usc_utilities/assert.h>
 
+//pcl publisher
+#include <pcl_ros/point_cloud.h>
 
 using namespace graph_based_segmentation;
 
@@ -256,7 +258,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 
 	edges.header = input_cloud_->header;
 	edges.header.stamp = ros::Time();
-	edge_cloud_.publish(edges);
+	edge_cloud_.publish(edges.makeShared());
 	m_array_pub_.publish(marker_array_);
 	return edge_list;
 }
@@ -431,7 +433,7 @@ std::vector<pcl::PointCloud<pcl::PointXYZ> > extract_features::extract_templates
 	}
 
 	template_cloud.header = input_cloud_->header;
-	pcd_pub_.publish(template_cloud);
+	pcd_pub_.publish(template_cloud.makeShared());
 
 	return output_template_list;
 }
@@ -445,8 +447,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		if(updated){
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			pcl::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			//pcl::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			//pcl::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			pcl::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty())
 				return false;
