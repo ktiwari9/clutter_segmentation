@@ -173,10 +173,10 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType>);
 	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
 
-	//pcl17::NormalEstimationOMP<PointType, PointNT> ne;
-	pcl17::NormalEstimation<PointType, PointNT> ne;
+	pcl17::NormalEstimationOMP<PointType, PointNT> ne;
+	//pcl17::NormalEstimation<PointType, PointNT> ne;
 	ne.setInputCloud (input_cloud_);
-        //ne.setNumberOfThreads(6);
+        ne.setNumberOfThreads(6);
 
 
 	// Create an empty kdtree representation, and pass it to the normal estimation object.
@@ -198,12 +198,13 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	pcl17::OrganizedEdgeFromNormals<PointType,PointNT, pcl17::Label> oed;
 	oed.setInputCloud (input_cloud_);
 	oed.setInputNormals (cloud_normals);
-	//oed.setDepthDisconThreshold (0.02); // 2cm
-	//oed.setMaxSearchNeighbors (50);
+	oed.setDepthDisconThreshold (0.005); // 2cm
+	oed.setMaxSearchNeighbors (500);
 	pcl17::PointCloud<pcl17::Label> labels;
 	std::vector<pcl17::PointIndices> label_indices;
 	ROS_INFO("feature_learning::extract_features: Computing organized edges");
 	oed.compute (labels, label_indices);
+	ROS_INFO("feature_learning::extract_features: Computed labels size:%d", labels.points.size());
 
 /*	pcl17::PointCloud<PointType>::Ptr occluding_edges (new pcl17::PointCloud<PointType>),
 	        occluded_edges (new pcl17::PointCloud<PointType>),
@@ -223,13 +224,14 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	pcl17::PointCloud<PointType> edges;
 
 	int counter = 0;
-	ROS_INFO("feature_learning::extract_features: Clustering edges");
+	ROS_INFO("feature_learning::extract_features: Clustering edges, Number of Edges found: %d",label_indices.size());
 
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
 		pcl17::PointCloud<PointType>::Ptr edge_points (new pcl17::PointCloud<PointType>);
 		pcl17::copyPointCloud (*input_cloud_, label_indices[i].indices, *edge_points);
-
+		ROS_INFO("feature_learning::extract_features: Clustering edges of Type %d, with %d points",i,label_indices[i].indices.size());
+                ROS_INFO("feature_learning::extract_features: Corresponding cloud size %d",edge_points->points.size());
 		std::vector<pcl17::PointIndices> cluster_indices;
 		pcl17::EuclideanClusterExtraction<pcl17::PointXYZ> ec;
 		ec.setClusterTolerance (0.01); // 2cm
@@ -238,6 +240,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 		ec.setSearchMethod (tree);
 		ec.setInputCloud (edge_points);
 		ec.extract (cluster_indices);
+                ROS_INFO("feature_learning::extract_features: % d clusters found for edges of type %d",cluster_indices.size(),i);
 
 		for (std::vector<pcl17::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 		{
@@ -460,11 +463,13 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
 			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
-			if(cluster_centers.empty())
+			if(cluster_centers.empty()){
+                        ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
 				return false;
+                        }
 			else
 			{
-
+                                ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
 				std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
 
 				for (size_t t = 0; t < templates.size(); t++){
