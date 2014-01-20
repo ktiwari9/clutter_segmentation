@@ -13,8 +13,8 @@
   <depend package="visualization_msgs" />
   <depend package="sensor_msgs"/>
   <depend package="geometry_msgs" />
-  <depend package="pcl17"/>
-  <depend package="pcl17_ros"/>
+  <!--<depend package="pcl"/> -->
+  <!--<depend package="pcl_ros"/> -->
   <depend package="actionlib"/>
   <depend package="actionlib_msgs"/>
   <depend package="opencv2"/>

@@ -36,22 +36,22 @@
 #include <opencv2/opencv.hpp>
 #include "feature_learning/macros_time.hpp"
 //PCL includes
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/pcl_base.h>
-#include <pcl/PointIndices.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/features/usc.h> // Unique shape context feature
-#include <pcl/filters/crop_box.h>
-#include <pcl/keypoints/uniform_sampling.h>
+#include <pcl17/point_cloud.h>
+#include <pcl17/point_types.h>
+#include <pcl17/io/pcd_io.h>
+#include <pcl17/pcl_base.h>
+#include <pcl17/PointIndices.h>
+#include <pcl17/ModelCoefficients.h>
+#include <pcl17/features/normal_3d.h>
+#include <pcl17/filters/voxel_grid.h>
+#include <pcl17/features/usc.h> // Unique shape context feature
+#include <pcl17/filters/crop_box.h>
+#include <pcl17/keypoints/uniform_sampling.h>
 #include <iostream>
 
 using namespace std;
-typedef pcl::PointXYZ PointType;
-typedef pcl::Normal PointNT;
+typedef pcl17::PointXYZ PointType;
+typedef pcl17::Normal PointNT;
 
 int main(int argc, char** argv)
 {
@@ -64,19 +64,19 @@ int main(int argc, char** argv)
 	std::cout<<" Reading image ...."<<std::endl;
 	std::string img_name(argv[1]);
 	cv::Mat img = cv::imread(img_name.c_str());
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::io::loadPCDFile(img_name,*cloud);
+	pcl17::PointCloud<pcl17::PointXYZ>::Ptr cloud (new pcl17::PointCloud<pcl17::PointXYZ>);
+	pcl17::io::loadPCDFile(img_name,*cloud);
 
 	std::cout<<"feature_learning::feature_class: Size of input cloud "<<cloud->size()<<std::endl;
 
 	// TODO: try multiple features like USC and shape context to see what works
-	pcl::PointCloud<pcl::ShapeContext1980>::Ptr descriptors (new pcl::PointCloud<pcl::ShapeContext1980>);
+	pcl17::PointCloud<pcl17::ShapeContext1980>::Ptr descriptors (new pcl17::PointCloud<pcl17::ShapeContext1980>);
 
-	pcl::UniqueShapeContext<PointType,pcl::ShapeContext1980> unique_context;
+	pcl17::UniqueShapeContext<PointType,pcl17::ShapeContext1980> unique_context;
 
-	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType> ());
+	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType> ());
 	// Normal Estimation
-	pcl::VoxelGrid<pcl::PointXYZ> sor;
+	pcl17::VoxelGrid<pcl17::PointXYZ> sor;
 	sor.setInputCloud (cloud);
 	sor.setLeafSize (0.01f, 0.01f, 0.01f);
 	sor.filter (*cloud);
@@ -85,18 +85,18 @@ int main(int argc, char** argv)
 
 	float model_ss_ (0.05f); // make it 0.25 if too slow
 
-	pcl::PointCloud<int> keypoint_indices;
+	pcl17::PointCloud<int> keypoint_indices;
 
-	pcl::UniformSampling<PointType> uniform_sampling;
+	pcl17::UniformSampling<PointType> uniform_sampling;
 	uniform_sampling.setInputCloud (cloud);
 	uniform_sampling.setRadiusSearch (model_ss_);
 	uniform_sampling.compute (keypoint_indices);
 	std::cout<<"No of Keypoints found "<<(int)keypoint_indices.points.size()<<std::endl;
-	pcl::copyPointCloud (*cloud, keypoint_indices.points, *cloud);
+	pcl17::copyPointCloud (*cloud, keypoint_indices.points, *cloud);
 	std::cout<<"feature_learning::feature_class: Size of sampled input cloud "<<cloud->size()<<std::endl;
 
-	pcl::PointCloud<pcl::PointXYZ> copy_cloud(*cloud);
-	pcl::PCDWriter writer;
+	pcl17::PointCloud<pcl17::PointXYZ> copy_cloud(*cloud);
+	pcl17::PCDWriter writer;
 	writer.writeASCII(std::string("/tmp/sampled_pcd.pcd"), copy_cloud);
 
 	// FOR USC parameters check test file

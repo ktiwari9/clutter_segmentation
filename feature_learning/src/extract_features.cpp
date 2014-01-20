@@ -165,14 +165,19 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
 
 
+	ROS_INFO("feature_learning::extract_features: Initializing edge computation features");
 	// Local Declarations
 	processed_cloud.clear();
 	pcl::PointCloud<PointType>::Ptr filtered_cloud (new pcl::PointCloud<PointType>);
 	pcl::PointCloud<PointNT>::Ptr cloud_normals (new pcl::PointCloud<PointNT>);
 	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
+	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
 
-	pcl::NormalEstimationOMP<PointType, PointNT> ne;
+	//pcl::NormalEstimationOMP<PointType, PointNT> ne;
+	pcl::NormalEstimation<PointType, PointNT> ne;
 	ne.setInputCloud (input_cloud_);
+        //ne.setNumberOfThreads(6);
+
 
 	// Create an empty kdtree representation, and pass it to the normal estimation object.
 	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
@@ -182,11 +187,13 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 
 	// Use all neighbors in a sphere of radius 3cm
 	ne.setRadiusSearch (0.03);
+	ROS_INFO("feature_learning::extract_features: Computing Normals");
 
 	// Compute the features
 	ne.compute (*cloud_normals);
 
 
+	ROS_INFO("feature_learning::extract_features: Initializing organized edge detection");
 
 	pcl::OrganizedEdgeFromNormals<PointType,PointNT, pcl::Label> oed;
 	oed.setInputCloud (input_cloud_);
@@ -195,6 +202,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 	//oed.setMaxSearchNeighbors (50);
 	pcl::PointCloud<pcl::Label> labels;
 	std::vector<pcl::PointIndices> label_indices;
+	ROS_INFO("feature_learning::extract_features: Computing organized edges");
 	oed.compute (labels, label_indices);
 
 /*	pcl::PointCloud<PointType>::Ptr occluding_edges (new pcl::PointCloud<PointType>),
@@ -215,6 +223,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 	pcl::PointCloud<PointType> edges;
 
 	int counter = 0;
+	ROS_INFO("feature_learning::extract_features: Clustering edges");
 
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
@@ -255,6 +264,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 			marker_array_.markers.push_back(location_marker);
 		}
 	}
+	ROS_INFO("feature_learning::extract_features: Publishing edges and markers");
 
 	edges.header = input_cloud_->header;
 	edges.header.stamp = ros::Time();
@@ -570,9 +580,12 @@ bool extract_features::updateTopics(){
 
 	ROS_INFO("feature_learning::extract_features: Initializing extract features");
 	sensor_msgs::Image::ConstPtr input_image = ros::topic::waitForMessage<sensor_msgs::Image>(input_image_topic_, nh_, ros::Duration(5.0));
+	ROS_INFO("feature_learning::extract_features: Got input Image");
+
 	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(input_cloud_topic_,nh_, ros::Duration(5.0));
+	ROS_INFO("feature_learning::extract_features: Got input pointcloud from topic %s",input_cloud_topic_.c_str());
 	pcl::fromROSMsg (*ros_cloud, *input_cloud_);
-	ROS_INFO("feature_learning::extract_features: Got input image and pointcloud");
+	ROS_INFO("feature_learning::extract_features: Converted input pointcloud to ros message");
 
 	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_cloud_->header.frame_id,
 			input_cloud_->header.stamp, ros::Duration(5.0)));
