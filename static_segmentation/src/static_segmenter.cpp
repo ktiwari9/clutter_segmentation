@@ -23,8 +23,8 @@
 #include "static_segmentation/static_segmenter.hpp"
 #include "static_segmentation/StaticSeg.h"
 #include <graph_module/graph_module.hpp>
-#include <pcl/point_cloud.h>
-#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl17/point_cloud.h>
+#include <pcl17/kdtree/kdtree_flann.h>
 #include <ros/ros.h>
 
 bool DEBUG = false;
@@ -94,7 +94,7 @@ void static_segment::getMasksFromClusters(const std::vector<sensor_msgs::PointCl
     size_t size = mask.step * mask.height;
     mask.data.resize(size);
 
-    pcl_ros::transformPointCloud(P, clusters[i], cloud_proj);
+    pcl17_ros::transformPointCloud(P, clusters[i], cloud_proj);
 
     for (unsigned int j = 0; j < cloud_proj.width; j++) {
 
@@ -210,14 +210,14 @@ std::vector<StaticSeg> static_segment::computeCGraph(sensor_msgs::ImagePtr &retu
 		    }
 		  }
      */
-    //	ROS_VERIFY(pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
+    //	ROS_VERIFY(pcl17_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
     //		tabletop_srv_.response.clusters[i], transform_cloud,
     //		listener_));
 
     //-------------->// TODO: CORRECT THIS NAIVE FIX LATER<------------------------//
     try {
       tabletop_srv_.response.clusters[i].header.stamp = ros::Time(0);// <---- Change this later
-      pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
+      pcl17_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
                                    tabletop_srv_.response.clusters[i], transform_cloud,
                                    listener_);
     } catch (tf::TransformException& ex) {

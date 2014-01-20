@@ -66,12 +66,12 @@
 #include "graph_module/EGraph.h"
 #include <graph_module/graph_module.hpp>
 // PCL includes
-#include <pcl_ros/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl17_ros/point_cloud.h>
+#include <pcl17/point_types.h>
+#include <pcl17/ModelCoefficients.h>
+#include <pcl17/sample_consensus/method_types.h>
+#include <pcl17/sample_consensus/model_types.h>
+#include <pcl17/segmentation/sac_segmentation.h>
 // Arm trajectory client and controller stuff
 #include <arm_controller_interface/joint_trajectory_client.h>
 #include <arm_manipulation_tools/arm_interface.h>
@@ -206,7 +206,7 @@ protected:
 	bool tracking_,got_table_;
 	int print_tag_,global_counter_;
 
-	pcl::ModelCoefficients::Ptr table_coefficients_;
+	pcl17::ModelCoefficients::Ptr table_coefficients_;
 
 	// Optical flow parameters
 	float pyramid_scale_; // Pyramid scales
@@ -248,7 +248,7 @@ public:
 
 	void trackAndUpdate();
 
-	void getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
+	void getPushPoint(pcl17::PointCloud<pcl17::PointXYZ> push_ray,
 			geometry_msgs::Point &push_loc);
 
 	bool pushNode(geometry_msgs::PoseStamped pose, double y_dir, ArmInterface& manipulation_object);
@@ -286,7 +286,7 @@ public:
 
 	bool matchGraphs(local_graph base_graph,local_graph match_graph,int index);
 
-	void projectVertex3DBASE(graph::Vertex_ros point,pcl::PointCloud<pcl::PointXYZ> &ray);
+	void projectVertex3DBASE(graph::Vertex_ros point,pcl17::PointCloud<pcl17::PointXYZ> &ray);
 
 	void updateMaskList(std::vector<cv::Mat>& masks,std::vector<local_graph> graph_list);
 

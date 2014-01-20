@@ -42,8 +42,8 @@
 #include "active_segmentation/macros_time.hpp"
 #include "tabletop_segmenter/TabletopSegmentation.h"
 // PCL includes
-#include "pcl_ros/transforms.h"
-#include <pcl/filters/extract_indices.h>
+#include "pcl17_ros/transforms.h"
+#include <pcl17/filters/extract_indices.h>
 #include <conversions/ros_to_tf.h>
 #include <conversions/tf_to_ros.h>
 #include <time.h>
@@ -69,7 +69,7 @@ active_segment::active_segment(cv::Mat input, cv::Mat segment, graph_module::EGr
 
 active_segment::active_segment(ros::NodeHandle & nh):
 			    nh_(nh),nh_priv_("~"),//graph_iter_(Container(graph_list_)),
-			    table_coefficients_(new pcl::ModelCoefficients ()),first_call_(true),queue_empty_(false),
+			    table_coefficients_(new pcl17::ModelCoefficients ()),first_call_(true),queue_empty_(false),
 			    marker_("/rviz_segment"),manipulation_object_l_(2),manipulation_object_r_(1),
 			    poke_object_(),world_state_(){
 
@@ -145,31 +145,31 @@ void active_segment::initGraphHelpers(){
 	sensor_msgs::PointCloud2 transform_table_cloud;
 
 
-	pcl_ros::transformPointCloud(table_srv_.response.table.pose.header.frame_id,
+	pcl17_ros::transformPointCloud(table_srv_.response.table.pose.header.frame_id,
 			table_tf,table_srv_.response.table.table_points,
 			transform_table_cloud);
 
 	ROS_VERIFY(listener_.waitForTransform(base_frame_, transform_table_cloud.header.frame_id,
 			transform_table_cloud.header.stamp, ros::Duration(5.0)));
-	ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, transform_table_cloud,
+	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, transform_table_cloud,
 			transform_table_cloud, listener_));
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr table_cloud_pcl(new pcl::PointCloud<pcl::PointXYZ>());
-	pcl::fromROSMsg(transform_table_cloud, *table_cloud_pcl);
+	pcl17::PointCloud<pcl17::PointXYZ>::Ptr table_cloud_pcl(new pcl17::PointCloud<pcl17::PointXYZ>());
+	pcl17::fromROSMsg(transform_table_cloud, *table_cloud_pcl);
 
-	pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+	pcl17::PointIndices::Ptr inliers (new pcl17::PointIndices ());
 	// Create the segmentation object
-	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	pcl17::SACSegmentation<pcl17::PointXYZ> seg;
 	// Optional
 	seg.setOptimizeCoefficients (true);
 	// Mandatory
-	seg.setModelType (pcl::SACMODEL_PLANE);
-	seg.setMethodType (pcl::SAC_RANSAC);
+	seg.setModelType (pcl17::SACMODEL_PLANE);
+	seg.setMethodType (pcl17::SAC_RANSAC);
 	seg.setMaxIterations (1000);
 	seg.setDistanceThreshold (0.01);
 
 	// Create the filtering object
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
+	pcl17::ExtractIndices<pcl17::PointXYZ> extract;
 
 	// Segment the largest planar component from the remaining cloud
 	seg.setInputCloud (table_cloud_pcl);
@@ -381,7 +381,7 @@ void active_segment::trackAndUpdate(){
 
 
 
-void active_segment::getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
+void active_segment::getPushPoint(pcl17::PointCloud<pcl17::PointXYZ> push_ray,
 		geometry_msgs::Point &push_loc){
 
     float t;
@@ -390,13 +390,13 @@ void active_segment::getPushPoint(pcl::PointCloud<pcl::PointXYZ> push_ray,
     t /= (table_coefficients_->values[0]*push_ray.points[1].x +
     		table_coefficients_->values[1]*push_ray.points[1].y+ table_coefficients_->values[2]*push_ray.points[1].z);
 
-    pcl::PointXYZ push_point;
+    pcl17::PointXYZ push_point;
     push_loc.x = t*push_ray.points[1].x;push_loc.y = t*push_ray.points[1].y; push_loc.z = t*push_ray.points[1].z;
 
 }
 
 void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
-		pcl::PointCloud<pcl::PointXYZ> &ray){
+		pcl17::PointCloud<pcl17::PointXYZ> &ray){
 
 	// Project Vertex to 3D
 	ROS_DEBUG("Entering base conversion function, pt.value x %f %f",point.x_,point.y_);
@@ -404,15 +404,15 @@ void active_segment::projectVertex3DBASE(graph::Vertex_ros point,
 	cv::Point2d push_2d(point.x_,point.y_);
 	cv::Point3d push_3d = left_cam_.projectPixelTo3dRay(push_2d); // getting push location in 3D
 
-	ray.push_back(pcl::PointXYZ(0,0,0));
-	ray.push_back(pcl::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
+	ray.push_back(pcl17::PointXYZ(0,0,0));
+	ray.push_back(pcl17::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
 	ray.header = cam_info_.header;
 
 	ROS_DEBUG("Creating Ray in base frame");
 	ROS_VERIFY(listener_.waitForTransform(base_frame_,cam_info_.header.frame_id,
 			ros::Time::now(), ros::Duration(5.0)));
 
-	ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, ray,
+	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,
 			ray, listener_));
 	ROS_DEBUG("Converting cloud complete");
 
@@ -431,7 +431,7 @@ double active_segment::getPushDirection(const geometry_msgs::Pose &start_directi
 	for(graph::ros_graph::IGraph_it iter_= node->graph_.graph_.begin();
 			iter_!=node->graph_.graph_.end(); ++iter_){
 
-		pcl::PointCloud<pcl::PointXYZ> ray_1;
+		pcl17::PointCloud<pcl17::PointXYZ> ray_1;
 		projectVertex3DBASE(iter_->edge_.first,ray_1);
 		geometry_msgs::Point push_loc_1;
 		getPushPoint(ray_1,push_loc_1);
@@ -440,7 +440,7 @@ double active_segment::getPushDirection(const geometry_msgs::Pose &start_directi
 		mean_point.z += push_loc_1.z;
 
 
-		pcl::PointCloud<pcl::PointXYZ> ray_2;
+		pcl17::PointCloud<pcl17::PointXYZ> ray_2;
 		projectVertex3DBASE(iter_->edge_.second,ray_2);
 		geometry_msgs::Point push_loc_2;
 		getPushPoint(ray_2,push_loc_2);
@@ -915,7 +915,7 @@ void active_segment::controlGraph(){
 		}
     	// find the max node
 		ROS_DEBUG("Pushing max vertex");
-		pcl::PointCloud<pcl::PointXYZ> push_3d_pcl;
+		pcl17::PointCloud<pcl17::PointXYZ> push_3d_pcl;
 		projectVertex3DBASE(graph_iter_[0].graph_.findMaxVertex(),push_3d_pcl);
 //		geometry_msgs::PoseStamped view_pose;
 		ROS_INFO_STREAM("The 3D pushing location in BASE FRAME IS is "<<push_3d_pcl.points[0]<<" "<<

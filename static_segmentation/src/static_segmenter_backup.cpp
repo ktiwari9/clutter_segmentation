@@ -22,8 +22,8 @@
 #include "static_segmentation/StaticSegment.h"
 #include "static_segmentation/static_segmenter.hpp"
 #include <graph_module/graph_module.hpp>
-#include <pcl/point_cloud.h>
-#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl17/point_cloud.h>
+#include <pcl17/kdtree/kdtree_flann.h>
 #include <ros/ros.h>
 
 bool DEBUG = false;
@@ -89,7 +89,7 @@ void static_segment::getMasksFromClusters(const std::vector<sensor_msgs::PointCl
 		size_t size = mask.step * mask.height;
 		mask.data.resize(size);
 
-		pcl_ros::transformPointCloud(P, clusters[i], cloud_proj);
+		pcl17_ros::transformPointCloud(P, clusters[i], cloud_proj);
 
 		for (unsigned int j = 0; j < cloud_proj.width; j++) {
 
@@ -168,14 +168,14 @@ graph_module::EGraph static_segment::computeCGraph(sensor_msgs::ImagePtr &return
 		    }
 		  }
 		 */
-		//	ROS_VERIFY(pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
+		//	ROS_VERIFY(pcl17_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
 		//		tabletop_srv_.response.clusters[i], transform_cloud,
 		//		listener_));
 
 		//-------------->// TODO: CORRECT THIS NAIVE FIX LATER<------------------------//
 		try {
 			tabletop_srv_.response.clusters[i].header.stamp = ros::Time(0);// <---- Change this later
-			pcl_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
+			pcl17_ros::transformPointCloud(graphsegment_srv_.response.segment.header.frame_id,
 					tabletop_srv_.response.clusters[i], transform_cloud,
 					listener_);
 		} catch (tf::TransformException& ex) {
@@ -414,11 +414,11 @@ void static_segment::updateNewNodeList(){
 
 	// compare tracked nodes with new nodes (nearest neighbour and Descriptor match)
 	// and add nodes if needed
-	pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+	pcl17::PointCloud<pcl17::PointXYZI>::Ptr point_cloud(new pcl17::PointCloud<pcl17::PointXYZI>);
 
 	// Cloud transfer process to initialize for kd tree search
 	for(local_graph_it node_it_= old_node_list_.begin(); node_it_ != old_node_list_.end(); ++node_it_){
-		pcl::PointXYZI point;
+		pcl17::PointXYZI point;
 		point.x = node_it_->x_;
 		point.y = node_it_->y_;
 		point.z = 0;
@@ -431,13 +431,13 @@ void static_segment::updateNewNodeList(){
 	// Place holder vector
 	local_graph new_nodes;
 	for(local_graph_it node_it_= node_list_.begin(); node_it_ != node_list_.end(); ++node_it_){
-		pcl::PointXYZI new_point;
+		pcl17::PointXYZI new_point;
 		new_point.x = node_it_->x_;
 		new_point.y = node_it_->y_;
 		new_point.z = 0;
 		new_point.intensity = node_it_->index_;
 
-		pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kdtree(new pcl::KdTreeFLANN<pcl::PointXYZI>);
+		pcl17::KdTreeFLANN<pcl17::PointXYZI>::Ptr kdtree(new pcl17::KdTreeFLANN<pcl17::PointXYZI>);
 
 		kdtree->setInputCloud(point_cloud);
 		std::vector<int> pointIdxRadiusSearch;
