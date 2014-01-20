@@ -154,6 +154,8 @@ private:
 
 	// Data required for feature extraction
 	pcl17::PointCloud<pcl17::PointXYZ>::Ptr input_cloud_,processed_cloud_;
+	pcl17::PointCloud<PoinRGBType>::Ptr input_rgb_cloud_;
+
 	cv::Mat input_image_, mask_image_;
 	image_geometry::PinholeCameraModel left_cam_;
 	sensor_msgs::CameraInfo cam_info_;

@@ -52,7 +52,7 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-				nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),
+				nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),
 				processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
@@ -460,8 +460,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		if(updated){
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty()){
                         ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
@@ -589,7 +589,10 @@ bool extract_features::updateTopics(){
 
 	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(input_cloud_topic_,nh_, ros::Duration(5.0));
 	ROS_INFO("feature_learning::extract_features: Got input pointcloud from topic %s",input_cloud_topic_.c_str());
-	pcl17::fromROSMsg (*ros_cloud, *input_cloud_);
+	//input_rgb_cloud_
+	//pcl17::fromROSMsg (*ros_cloud, *input_cloud_);
+	pcl17::fromROSMsg (*ros_cloud, *input_rgb_cloud_);
+	pcl17::copyPointCloud(*input_rgb_cloud_,*input_cloud_);
 	ROS_INFO("feature_learning::extract_features: Converted input pointcloud to ros message");
 
 	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_cloud_->header.frame_id,
