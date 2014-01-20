@@ -47,22 +47,22 @@
 #include "feature_learning/feature_base_class.hpp"
 #include "feature_learning/ExtractFeatures.h"
 #include <learn_appearance/texton_hist.h>
-#include <pcl/surface/convex_hull.h>
+#include <pcl17/surface/convex_hull.h>
 #include <sensor_msgs/CameraInfo.h>
-#include "pcl_ros/transforms.h"
+#include "pcl17_ros/transforms.h"
 //Grasp Template Includes
-#include <pcl/point_types.h>
-#include <pcl/features/usc.h> // Unique shape context feature
-#include <pcl/features/3dsc.h> // Unique shape context feature
-#include <pcl/filters/crop_box.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/features/organized_edge_detection.h>
+#include <pcl17/point_types.h>
+#include <pcl17/features/usc.h> // Unique shape context feature
+#include <pcl17/features/3dsc.h> // Unique shape context feature
+#include <pcl17/filters/crop_box.h>
+#include <pcl17/filters/passthrough.h>
+#include <pcl17/ModelCoefficients.h>
+#include <pcl17/sample_consensus/method_types.h>
+#include <pcl17/sample_consensus/model_types.h>
+#include <pcl17/segmentation/sac_segmentation.h>
+#include <pcl17/segmentation/extract_clusters.h>
+#include <pcl17/filters/extract_indices.h>
+#include <pcl17/features/organized_edge_detection.h>
 //Tabletopsegmenter includes
 #include "tabletop_segmenter/TabletopSegmentation.h"
 
@@ -82,9 +82,9 @@ public:
 
 protected:
 
-	typedef pcl::PointXYZ PointType;
-	typedef pcl::PointXYZRGB PoinRGBType;
-	typedef pcl::Normal PointNT;
+	typedef pcl17::PointXYZ PointType;
+	typedef pcl17::PointXYZRGB PoinRGBType;
+	typedef pcl17::Normal PointNT;
 
 	ros::NodeHandle nh_;
 	tf::TransformListener listener_;
@@ -126,16 +126,16 @@ public:
 
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
-	void testfeatureClass(cv::Mat image, const pcl::PointCloud<PointType>::Ptr &cloud,
+	void testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
 			const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center);
 
-	pcl::PointCloud<PointType> preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
-			pcl::PointCloud<pcl::PointXYZ> &processed_cloud);
+	pcl17::PointCloud<PointType> preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+			pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud);
 
-	pcl::PointCloud<PointType> preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
-			pcl::PointCloud<pcl::PointXYZ> &processed_cloud);
+	pcl17::PointCloud<PointType> preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+			pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud);
 
-	std::vector<pcl::PointCloud<PointType> > extract_templates(const pcl::PointCloud<PointType> &centroids);
+	std::vector<pcl17::PointCloud<PointType> > extract_templates(const pcl17::PointCloud<PointType> &centroids);
 
 	bool serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response);
 
@@ -153,12 +153,12 @@ private:
 	ros::ServiceServer extract_feature_srv_;
 
 	// Data required for feature extraction
-	pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud_,processed_cloud_;
+	pcl17::PointCloud<pcl17::PointXYZ>::Ptr input_cloud_,processed_cloud_;
 	cv::Mat input_image_, mask_image_;
 	image_geometry::PinholeCameraModel left_cam_;
 	sensor_msgs::CameraInfo cam_info_;
 	sensor_msgs::ImagePtr ros_image_;
-	pcl::ModelCoefficients::Ptr table_coefficients_;
+	pcl17::ModelCoefficients::Ptr table_coefficients_;
 
 	geometry_msgs::PointStamped action_point_;
 

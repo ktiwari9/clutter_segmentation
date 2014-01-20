@@ -69,19 +69,19 @@
 #include <opencv2/core/eigen.hpp>
 
 //PCL includes
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/pcl_base.h>
-#include <pcl/PointIndices.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/keypoints/uniform_sampling.h>
-#include <pcl/features/fpfh.h>
-#include <pcl/features/fpfh_omp.h>
-#include <pcl/features/normal_3d_omp.h>
-#include <pcl/features/organized_edge_detection.h>
+#include <pcl17/point_cloud.h>
+#include <pcl17/point_types.h>
+#include <pcl17/io/pcd_io.h>
+#include <pcl17/pcl_base.h>
+#include <pcl17/PointIndices.h>
+#include <pcl17/ModelCoefficients.h>
+#include <pcl17/features/normal_3d.h>
+#include <pcl17/filters/voxel_grid.h>
+#include <pcl17/keypoints/uniform_sampling.h>
+#include <pcl17/features/fpfh.h>
+#include <pcl17/features/fpfh_omp.h>
+#include <pcl17/features/normal_3d_omp.h>
+#include <pcl17/features/organized_edge_detection.h>
 
 //Graph Module includes
 #include "graph_module/EGraph.h"
@@ -89,11 +89,11 @@
 
 // Feature computation includes
 #include <learn_appearance/texton_hist.h>
-#include <pcl/surface/convex_hull.h>
+#include <pcl17/surface/convex_hull.h>
 
 //Grasp Template Includes
 //#include <grasp_template/heightmap_sampling.h>
-#include <pcl/features/usc.h> // Unique shape context feature
+#include <pcl17/features/usc.h> // Unique shape context feature
 
 namespace feature_learning {
 
@@ -102,9 +102,9 @@ class feature_class {
 
 protected:
 
-	typedef pcl::PointXYZ PointType;
-	typedef pcl::Normal PointNT;
-	typedef pcl::PointCloud<PointType> PointCloud;
+	typedef pcl17::PointXYZ PointType;
+	typedef pcl17::Normal PointNT;
+	typedef pcl17::PointCloud<PointType> PointCloud;
 	typedef typename PointCloud::Ptr PointCloudPtr;
 
 	cv::Mat local_image_,local_segment_;

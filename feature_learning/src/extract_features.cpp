@@ -43,7 +43,7 @@
 #include <usc_utilities/assert.h>
 
 //pcl publisher
-#include <pcl_ros/point_cloud.h>
+#include <pcl17_ros/point_cloud.h>
 
 using namespace graph_based_segmentation;
 
@@ -52,8 +52,8 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-				nh_(nh), nh_priv_("~"),input_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
-				processed_cloud_(new pcl::PointCloud<pcl::PointXYZ>),table_coefficients_(new pcl::ModelCoefficients ()){
+				nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),
+				processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("input_cloud_topic",input_cloud_topic_,std::string("/tabletop_segmentation"));
@@ -64,8 +64,8 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 1);
 	m_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/template_markers", 1);
-    pcd_pub_ = nh_.advertise<pcl::PointCloud<PointType> >("/template_patches", 1);
-    edge_cloud_ = nh_.advertise<pcl::PointCloud<PointType> >("/template_basis", 1);
+    pcd_pub_ = nh_.advertise<pcl17::PointCloud<PointType> >("/template_patches", 1);
+    edge_cloud_ = nh_.advertise<pcl17::PointCloud<PointType> >("/template_basis", 1);
 
 	marker_.header.stamp = ros::Time();
 	marker_.ns = "extract_features";
@@ -161,20 +161,20 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	return holes;
 }
 
-pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
-		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
+pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+		pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud){
 
 
 	ROS_INFO("feature_learning::extract_features: Initializing edge computation features");
 	// Local Declarations
 	processed_cloud.clear();
-	pcl::PointCloud<PointType>::Ptr filtered_cloud (new pcl::PointCloud<PointType>);
-	pcl::PointCloud<PointNT>::Ptr cloud_normals (new pcl::PointCloud<PointNT>);
-	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
+	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
+	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType>);
 	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
 
-	//pcl::NormalEstimationOMP<PointType, PointNT> ne;
-	pcl::NormalEstimation<PointType, PointNT> ne;
+	//pcl17::NormalEstimationOMP<PointType, PointNT> ne;
+	pcl17::NormalEstimation<PointType, PointNT> ne;
 	ne.setInputCloud (input_cloud_);
         //ne.setNumberOfThreads(6);
 
@@ -195,43 +195,43 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 
 	ROS_INFO("feature_learning::extract_features: Initializing organized edge detection");
 
-	pcl::OrganizedEdgeFromNormals<PointType,PointNT, pcl::Label> oed;
+	pcl17::OrganizedEdgeFromNormals<PointType,PointNT, pcl17::Label> oed;
 	oed.setInputCloud (input_cloud_);
 	oed.setInputNormals (cloud_normals);
 	//oed.setDepthDisconThreshold (0.02); // 2cm
 	//oed.setMaxSearchNeighbors (50);
-	pcl::PointCloud<pcl::Label> labels;
-	std::vector<pcl::PointIndices> label_indices;
+	pcl17::PointCloud<pcl17::Label> labels;
+	std::vector<pcl17::PointIndices> label_indices;
 	ROS_INFO("feature_learning::extract_features: Computing organized edges");
 	oed.compute (labels, label_indices);
 
-/*	pcl::PointCloud<PointType>::Ptr occluding_edges (new pcl::PointCloud<PointType>),
-	        occluded_edges (new pcl::PointCloud<PointType>),
-	        boundary_edges (new pcl::PointCloud<PointType>),
-	        high_curvature_edges (new pcl::PointCloud<PointType>),
-	        rgb_edges (new pcl::PointCloud<PointType>);
+/*	pcl17::PointCloud<PointType>::Ptr occluding_edges (new pcl17::PointCloud<PointType>),
+	        occluded_edges (new pcl17::PointCloud<PointType>),
+	        boundary_edges (new pcl17::PointCloud<PointType>),
+	        high_curvature_edges (new pcl17::PointCloud<PointType>),
+	        rgb_edges (new pcl17::PointCloud<PointType>);
 
-	pcl::copyPointCloud (*input_cloud_, label_indices[0].indices, *boundary_edges);
-	pcl::copyPointCloud (*input_cloud_, label_indices[1].indices, *occluding_edges);
-	pcl::copyPointCloud (*input_cloud_, label_indices[2].indices, *occluded_edges);
-	pcl::copyPointCloud (*input_cloud_, label_indices[3].indices, *high_curvature_edges);
-	pcl::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
+	pcl17::copyPointCloud (*input_cloud_, label_indices[0].indices, *boundary_edges);
+	pcl17::copyPointCloud (*input_cloud_, label_indices[1].indices, *occluding_edges);
+	pcl17::copyPointCloud (*input_cloud_, label_indices[2].indices, *occluded_edges);
+	pcl17::copyPointCloud (*input_cloud_, label_indices[3].indices, *high_curvature_edges);
+	pcl17::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
 	*/
 
 	// Now cluster the edges and return them to the user
-	pcl::PointCloud<PointType> edge_list;
-	pcl::PointCloud<PointType> edges;
+	pcl17::PointCloud<PointType> edge_list;
+	pcl17::PointCloud<PointType> edges;
 
 	int counter = 0;
 	ROS_INFO("feature_learning::extract_features: Clustering edges");
 
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
-		pcl::PointCloud<PointType>::Ptr edge_points (new pcl::PointCloud<PointType>);
-		pcl::copyPointCloud (*input_cloud_, label_indices[i].indices, *edge_points);
+		pcl17::PointCloud<PointType>::Ptr edge_points (new pcl17::PointCloud<PointType>);
+		pcl17::copyPointCloud (*input_cloud_, label_indices[i].indices, *edge_points);
 
-		std::vector<pcl::PointIndices> cluster_indices;
-		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		std::vector<pcl17::PointIndices> cluster_indices;
+		pcl17::EuclideanClusterExtraction<pcl17::PointXYZ> ec;
 		ec.setClusterTolerance (0.01); // 2cm
 		ec.setMinClusterSize (50);
 		ec.setMaxClusterSize (2500);
@@ -239,9 +239,9 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 		ec.setInputCloud (edge_points);
 		ec.extract (cluster_indices);
 
-		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+		for (std::vector<pcl17::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 		{
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+			pcl17::PointCloud<pcl17::PointXYZ>::Ptr cloud_cluster (new pcl17::PointCloud<pcl17::PointXYZ>);
 			for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
 				cloud_cluster->points.push_back (edge_points->points[*pit]); //*
 
@@ -250,7 +250,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 
 			Eigen::Vector4f centroid;
 			edges += *cloud_cluster;
-			pcl::compute3DCentroid(*cloud_cluster,centroid);
+			pcl17::compute3DCentroid(*cloud_cluster,centroid);
 			PointType center_point;
 			center_point.x = centroid[0];center_point.y = centroid[1];center_point.z = centroid[2];
 			edge_list.push_back(center_point);
@@ -273,15 +273,15 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat i
 	return edge_list;
 }
 
-pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
-		pcl::PointCloud<pcl::PointXYZ> &processed_cloud){
+pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
+		pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud){
 
 	// Local Declarations
-	pcl::PointCloud<PointType> edge_list;
+	pcl17::PointCloud<PointType> edge_list;
 
 	processed_cloud.clear();
-	pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud (new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::PassThrough<pcl::PointXYZ> pass;
+	pcl17::PointCloud<pcl17::PointXYZ>::Ptr filtered_cloud (new pcl17::PointCloud<pcl17::PointXYZ>);
+	pcl17::PassThrough<pcl17::PointXYZ> pass;
 
 	// Mean and covariance declarations
 	Eigen::Matrix3f covariance;
@@ -289,7 +289,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat i
 
 	// Getting mean of point cloud to estimate the nominal cutting plane
 	ROS_INFO("feature_learning::extract_features: Input cloud size %d ",input_cloud_->size());
-	pcl::computeMeanAndCovarianceMatrix(*input_cloud_,covariance,cloud_mean);
+	pcl17::computeMeanAndCovarianceMatrix(*input_cloud_,covariance,cloud_mean);
 
 	// Getting holes in the image
 	ROS_INFO("feature_learning::extract_features: Getting holes in input image");
@@ -321,9 +321,9 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat i
 		ROS_DEBUG("feature_learning::extract_features: Projecting pixel to 3D");
 		cv::Point3d push_3d = model.projectPixelTo3dRay(mean_point);
 
-		pcl::PointCloud<pcl::PointXYZ> ray;
-		ray.push_back(pcl::PointXYZ(0,0,0));
-		ray.push_back(pcl::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
+		pcl17::PointCloud<pcl17::PointXYZ> ray;
+		ray.push_back(pcl17::PointXYZ(0,0,0));
+		ray.push_back(pcl17::PointXYZ((float)push_3d.x,(float)push_3d.y,(float)push_3d.z));
 		ray.header.frame_id =  model.tfFrame();
 		ray.header.stamp = ros::Time::now();
 
@@ -332,7 +332,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat i
 		ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),
 				ray.header.stamp, ros::Duration(5.0)));
 
-		ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, ray,
+		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,
 				ray, listener_));
 
 /*
@@ -373,7 +373,7 @@ pcl::PointCloud<pcl::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat i
 
 }
 
-void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<PointType>::Ptr &cloud,
+void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
 		const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center){
 
 	feature_class feature;
@@ -410,19 +410,19 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl::PointCloud<Poi
 
 }
 
-std::vector<pcl::PointCloud<pcl::PointXYZ> > extract_features::extract_templates(const pcl::PointCloud<pcl::PointXYZ> &centroids){
+std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templates(const pcl17::PointCloud<pcl17::PointXYZ> &centroids){
 
-	pcl::PointCloud<PointType>::Ptr filtered_cloud (new pcl::PointCloud<PointType>);
-	pcl::PassThrough<PointType> pass;
+	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+	pcl17::PassThrough<PointType> pass;
 
-	std::vector<pcl::PointCloud<PointType> > output_template_list;
+	std::vector<pcl17::PointCloud<PointType> > output_template_list;
 
-	pcl::PointCloud<PointType> template_cloud;
+	pcl17::PointCloud<PointType> template_cloud;
 
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
 		// Trying a pass through filter
-		filtered_cloud.reset(new pcl::PointCloud<PointType>);
+		filtered_cloud.reset(new pcl17::PointCloud<PointType>);
 		pass.setInputCloud (input_cloud_);
 		pass.setFilterFieldName ("z");
 		pass.setFilterLimits (centroids.points[t].z - (BOX_HEIGHT_Z/2), centroids.points[t].z + (BOX_HEIGHT_Z/2));
@@ -457,27 +457,27 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		if(updated){
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			//pcl::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			pcl::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty())
 				return false;
 			else
 			{
 
-				std::vector<pcl::PointCloud<PointType> > templates = extract_templates(cluster_centers);
+				std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
 
 				for (size_t t = 0; t < templates.size(); t++){
 
-					pcl::PointCloud<PointType>::Ptr temp_cloud(new pcl::PointCloud<PointType>(templates[t]));
+					pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[t]));
 
 					testfeatureClass(input_image_,temp_cloud,left_cam_,filename_,cluster_centers.points[t]);
 
 					action_point_.header.stamp = ros::Time::now();
 
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
-					//pcl::toROSMsg(*input_cloud_,*ros_cloud);
-                    pcl::toROSMsg(templates[t],*ros_cloud);
+					//pcl17::toROSMsg(*input_cloud_,*ros_cloud);
+                    pcl17::toROSMsg(templates[t],*ros_cloud);
 					ros_cloud->header = input_cloud_->header;
 					ROS_INFO("feature_learning::extract_features: Writing bag");
 					try
@@ -549,7 +549,7 @@ void extract_features::getMasksFromClusters(const std::vector<sensor_msgs::Point
 		size_t size = mask.step * mask.height;
 		mask.data.resize(size);
 
-		pcl_ros::transformPointCloud(P, clusters[i], cloud_proj);
+		pcl17_ros::transformPointCloud(P, clusters[i], cloud_proj);
 
 		for (unsigned int j = 0; j < cloud_proj.width; j++) {
 
@@ -584,13 +584,13 @@ bool extract_features::updateTopics(){
 
 	sensor_msgs::PointCloud2ConstPtr ros_cloud = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(input_cloud_topic_,nh_, ros::Duration(5.0));
 	ROS_INFO("feature_learning::extract_features: Got input pointcloud from topic %s",input_cloud_topic_.c_str());
-	pcl::fromROSMsg (*ros_cloud, *input_cloud_);
+	pcl17::fromROSMsg (*ros_cloud, *input_cloud_);
 	ROS_INFO("feature_learning::extract_features: Converted input pointcloud to ros message");
 
 	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_cloud_->header.frame_id,
 			input_cloud_->header.stamp, ros::Duration(5.0)));
 
-	ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_,*input_cloud_,*input_cloud_,listener_));
+	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_,*input_cloud_,*input_cloud_,listener_));
 
 	graph_segment convertor;
 	input_image_ = convertor.returnCVImage(*input_image);
@@ -631,7 +631,7 @@ bool extract_features::updateTopics(){
 
 		try {
 			tabletop_srv_.response.clusters[i].header.stamp = ros::Time(0);// TODO: <---- Change this later
-			pcl_ros::transformPointCloud(input_image->header.frame_id,
+			pcl17_ros::transformPointCloud(input_image->header.frame_id,
 					tabletop_srv_.response.clusters[i], transform_cloud,
 					listener_);
 		} catch (tf::TransformException& ex) {
@@ -646,29 +646,29 @@ bool extract_features::updateTopics(){
 	// Getting table points
 	tf::Transform table_tf;
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_clouds(new pcl::PointCloud<pcl::PointXYZ>());
+	pcl17::PointCloud<pcl17::PointXYZ>::Ptr cluster_clouds(new pcl17::PointCloud<pcl17::PointXYZ>());
 
 	for(size_t cloud_count = 0;cloud_count< tabletop_srv_.response.clusters.size(); cloud_count++)
 	{
 		sensor_msgs::PointCloud2 cluster_points;
 
-		pcl_ros::transformPointCloud(tabletop_srv_.response.clusters[cloud_count].header.frame_id,
+		pcl17_ros::transformPointCloud(tabletop_srv_.response.clusters[cloud_count].header.frame_id,
 				table_tf,tabletop_srv_.response.clusters[cloud_count],
 				cluster_points);
 
 		ROS_VERIFY(listener_.waitForTransform(base_frame_,cluster_points.header.frame_id,
 				cluster_points.header.stamp, ros::Duration(5.0)));
-		ROS_VERIFY(pcl_ros::transformPointCloud(base_frame_, cluster_points,
+		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, cluster_points,
 				cluster_points, listener_));
-		pcl::PointCloud<pcl::PointXYZ>::Ptr temp_clouds(new pcl::PointCloud<pcl::PointXYZ>());
+		pcl17::PointCloud<pcl17::PointXYZ>::Ptr temp_clouds(new pcl17::PointCloud<pcl17::PointXYZ>());
 
-		pcl::fromROSMsg(cluster_points, *temp_clouds);
+		pcl17::fromROSMsg(cluster_points, *temp_clouds);
 		*cluster_clouds += *temp_clouds;
 	}
 
 	*input_cloud_ = *cluster_clouds;
 
-	pcl::io::savePCDFileASCII ("/tmp/converted_cluster_clouds.pcd", *cluster_clouds);
+	pcl17::io::savePCDFileASCII ("/tmp/converted_cluster_clouds.pcd", *cluster_clouds);
 
 	// Now getting transformed masks from transformed clusters
 	std::vector<sensor_msgs::Image> bbl_masks;

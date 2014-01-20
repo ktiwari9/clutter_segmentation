@@ -43,7 +43,7 @@
 namespace feature_learning{
 
 feature_class::feature_class():
-			local_cloud_(new pcl::PointCloud<feature_class::PointType>),initialized_(false){
+			local_cloud_(new pcl17::PointCloud<feature_class::PointType>),initialized_(false){
 	// Empty Constructor
 }
 
@@ -78,26 +78,26 @@ bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &c
 
 void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 
-	pcl::PointCloud<PointNT>::Ptr cloud_normals (new pcl::PointCloud<PointNT>);
-	pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
+	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
+	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType>);
 
 	float model_ss_ (0.02f); // make it 0.25 if too slow TODO: fix this heuristic!
 	do{
 
-		pcl::PointCloud<int> keypoint_indices;
-		pcl::UniformSampling<PointType> uniform_sampling;
+		pcl17::PointCloud<int> keypoint_indices;
+		pcl17::UniformSampling<PointType> uniform_sampling;
 		uniform_sampling.setInputCloud (local_cloud_);
 		uniform_sampling.setRadiusSearch (model_ss_);
 		uniform_sampling.compute (keypoint_indices);
-		pcl::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
+		pcl17::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
 		ROS_INFO("Writing PCD Files");
-		pcl::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
+		pcl17::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
 		model_ss_ += 0.005;
 		ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
 
 	}while(local_cloud_->size() > 800);
 
-	pcl::NormalEstimationOMP<PointType, PointNT> ne;
+	pcl17::NormalEstimationOMP<PointType, PointNT> ne;
 	ne.setInputCloud (local_cloud_);
 
 	// Create an empty kdtree representation, and pass it to the normal estimation object.
@@ -113,7 +113,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	ne.compute (*cloud_normals);
 
 	// Create the FPFH estimation class, and pass the input dataset+normals to it
-	pcl::FPFHEstimationOMP <PointType, PointNT, pcl::FPFHSignature33> fpfh;
+	pcl17::FPFHEstimationOMP <PointType, PointNT, pcl17::FPFHSignature33> fpfh;
 	fpfh.setInputCloud (local_cloud_);
 	fpfh.setInputNormals (cloud_normals);
 	// alternatively, if cloud is of tpe PointNormal, do fpfh.setInputNormals (cloud);
@@ -123,7 +123,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	fpfh.setSearchMethod (tree);
 
 	// Output datasets
-	pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
+	pcl17::PointCloud<pcl17::FPFHSignature33>::Ptr fpfhs (new pcl17::PointCloud<pcl17::FPFHSignature33> ());
 
 	// Use all neighbors in a sphere of radius 5cm
 	// IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
