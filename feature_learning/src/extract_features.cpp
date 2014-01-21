@@ -52,8 +52,8 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-				nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),
-				processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
+						nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),
+						processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("input_cloud_topic",input_cloud_topic_,std::string("/tabletop_segmentation"));
@@ -64,8 +64,8 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 1);
 	m_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/template_markers", 1);
-    pcd_pub_ = nh_.advertise<pcl17::PointCloud<PointType> >("/template_patches", 1);
-    edge_cloud_ = nh_.advertise<pcl17::PointCloud<PointType> >("/template_basis", 1);
+	pcd_pub_ = nh_.advertise<pcl17::PointCloud<PointType> >("/template_patches", 1);
+	edge_cloud_ = nh_.advertise<pcl17::PointCloud<PoinRGBType> >("/template_basis", 1);
 
 	marker_.header.stamp = ros::Time();
 	marker_.ns = "extract_features";
@@ -94,27 +94,27 @@ extract_features::extract_features(std::string filename){
 extract_features::~extract_features(){}
 
 visualization_msgs::Marker extract_features::getMarker(int i){
-        
-	visualization_msgs::Marker local_marker;
- 
-        local_marker.header.stamp = ros::Time();
-        local_marker.ns = "extract_features";
-        local_marker.id = i;
-        local_marker.type = visualization_msgs::Marker::SPHERE;
-        local_marker.action = visualization_msgs::Marker::ADD;
-        local_marker.scale.x = 0.05;
-        local_marker.scale.y = 0.05;
-        local_marker.scale.z = 0.05;
-        local_marker.color.a = 1.0;
-        local_marker.color.r = 0.0;
-        local_marker.color.g = 1.0;
-        local_marker.color.b = 0.0;
-        local_marker.pose.orientation.x = 0.0;
-        local_marker.pose.orientation.y = 0.0;
-        local_marker.pose.orientation.z = 0.0;
-        local_marker.pose.orientation.w = 1.0;
 
-        return local_marker;
+	visualization_msgs::Marker local_marker;
+
+	local_marker.header.stamp = ros::Time();
+	local_marker.ns = "extract_features";
+	local_marker.id = i;
+	local_marker.type = visualization_msgs::Marker::SPHERE;
+	local_marker.action = visualization_msgs::Marker::ADD;
+	local_marker.scale.x = 0.05;
+	local_marker.scale.y = 0.05;
+	local_marker.scale.z = 0.05;
+	local_marker.color.a = 1.0;
+	local_marker.color.r = 0.0;
+	local_marker.color.g = 1.0;
+	local_marker.color.b = 0.0;
+	local_marker.pose.orientation.x = 0.0;
+	local_marker.pose.orientation.y = 0.0;
+	local_marker.pose.orientation.z = 0.0;
+	local_marker.pose.orientation.w = 1.0;
+
+	return local_marker;
 
 }
 
@@ -168,15 +168,15 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	ROS_INFO("feature_learning::extract_features: Initializing edge computation features");
 	// Local Declarations
 	processed_cloud.clear();
-	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+	pcl17::PointCloud<PoinRGBType>::Ptr filtered_cloud (new pcl17::PointCloud<PoinRGBType>);
 	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
-	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType>);
+	pcl17::search::KdTree<PoinRGBType>::Ptr tree (new pcl17::search::KdTree<PoinRGBType>);
 	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
 
-	pcl17::NormalEstimationOMP<PointType, PointNT> ne;
+	pcl17::NormalEstimationOMP<PoinRGBType, PointNT> ne;
 	//pcl17::NormalEstimation<PointType, PointNT> ne;
-	ne.setInputCloud (input_cloud_);
-        ne.setNumberOfThreads(6);
+	ne.setInputCloud (input_rgb_cloud_);
+	ne.setNumberOfThreads(6);
 
 
 	// Create an empty kdtree representation, and pass it to the normal estimation object.
@@ -195,8 +195,8 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 
 	ROS_INFO("feature_learning::extract_features: Initializing organized edge detection");
 
-	pcl17::OrganizedEdgeFromNormals<PointType,PointNT, pcl17::Label> oed;
-	oed.setInputCloud (input_cloud_);
+	pcl17::OrganizedEdgeFromNormals<PoinRGBType,PointNT, pcl17::Label> oed;
+	oed.setInputCloud (input_rgb_cloud_);
 	oed.setInputNormals (cloud_normals);
 	oed.setDepthDisconThreshold (0.005); // 2cm
 	oed.setMaxSearchNeighbors (500);
@@ -206,7 +206,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	oed.compute (labels, label_indices);
 	ROS_INFO("feature_learning::extract_features: Computed labels size:%d", labels.points.size());
 
-/*	pcl17::PointCloud<PointType>::Ptr occluding_edges (new pcl17::PointCloud<PointType>),
+	/*	pcl17::PointCloud<PointType>::Ptr occluding_edges (new pcl17::PointCloud<PointType>),
 	        occluded_edges (new pcl17::PointCloud<PointType>),
 	        boundary_edges (new pcl17::PointCloud<PointType>),
 	        high_curvature_edges (new pcl17::PointCloud<PointType>),
@@ -217,34 +217,34 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	pcl17::copyPointCloud (*input_cloud_, label_indices[2].indices, *occluded_edges);
 	pcl17::copyPointCloud (*input_cloud_, label_indices[3].indices, *high_curvature_edges);
 	pcl17::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
-	*/
+	 */
 
 	// Now cluster the edges and return them to the user
 	pcl17::PointCloud<PointType> edge_list;
-	pcl17::PointCloud<PointType> edges;
+	pcl17::PointCloud<PoinRGBType> edges;
 
 	int counter = 0;
 	ROS_INFO("feature_learning::extract_features: Clustering edges, Number of Edges found: %d",label_indices.size());
 
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
-		pcl17::PointCloud<PointType>::Ptr edge_points (new pcl17::PointCloud<PointType>);
-		pcl17::copyPointCloud (*input_cloud_, label_indices[i].indices, *edge_points);
+		pcl17::PointCloud<PoinRGBType>::Ptr edge_points (new pcl17::PointCloud<PoinRGBType>);
+		pcl17::copyPointCloud (*input_rgb_cloud_, label_indices[i].indices, *edge_points);
 		ROS_INFO("feature_learning::extract_features: Clustering edges of Type %d, with %d points",i,label_indices[i].indices.size());
-                ROS_INFO("feature_learning::extract_features: Corresponding cloud size %d",edge_points->points.size());
+		ROS_INFO("feature_learning::extract_features: Corresponding cloud size %d",edge_points->points.size());
 		std::vector<pcl17::PointIndices> cluster_indices;
-		pcl17::EuclideanClusterExtraction<pcl17::PointXYZ> ec;
+		pcl17::EuclideanClusterExtraction<PoinRGBType> ec;
 		ec.setClusterTolerance (0.01); // 2cm
 		ec.setMinClusterSize (50);
 		ec.setMaxClusterSize (2500);
 		ec.setSearchMethod (tree);
 		ec.setInputCloud (edge_points);
 		ec.extract (cluster_indices);
-                ROS_INFO("feature_learning::extract_features: % d clusters found for edges of type %d",cluster_indices.size(),i);
+		ROS_INFO("feature_learning::extract_features: % d clusters found for edges of type %d",cluster_indices.size(),i);
 
 		for (std::vector<pcl17::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 		{
-			pcl17::PointCloud<pcl17::PointXYZ>::Ptr cloud_cluster (new pcl17::PointCloud<pcl17::PointXYZ>);
+			pcl17::PointCloud<PoinRGBType>::Ptr cloud_cluster (new pcl17::PointCloud<PoinRGBType>);
 			for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
 				cloud_cluster->points.push_back (edge_points->points[*pit]); //*
 
@@ -269,7 +269,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	}
 	ROS_INFO("feature_learning::extract_features: Publishing edges and markers");
 
-	edges.header = input_cloud_->header;
+	edges.header = input_rgb_cloud_->header;
 	edges.header.stamp = ros::Time();
 	edge_cloud_.publish(edges.makeShared());
 	m_array_pub_.publish(marker_array_);
@@ -338,7 +338,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,
 				ray, listener_));
 
-/*
+		/*
 		// Now get intersection of Ray and cloud XY plane
 
 		 * TODO: This may only work if plane calculation is correct, so verify this
@@ -356,7 +356,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 
 
 		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
-*/
+		 */
 
 		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
 
@@ -464,12 +464,12 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty()){
-                        ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
+				ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
 				return false;
-                        }
+			}
 			else
 			{
-                                ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
+				ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
 				std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
 
 				for (size_t t = 0; t < templates.size(); t++){
@@ -482,7 +482,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
 					//pcl17::toROSMsg(*input_cloud_,*ros_cloud);
-                    pcl17::toROSMsg(templates[t],*ros_cloud);
+					pcl17::toROSMsg(templates[t],*ros_cloud);
 					ros_cloud->header = input_cloud_->header;
 					ROS_INFO("feature_learning::extract_features: Writing bag");
 					try
@@ -592,13 +592,15 @@ bool extract_features::updateTopics(){
 	//input_rgb_cloud_
 	//pcl17::fromROSMsg (*ros_cloud, *input_cloud_);
 	pcl17::fromROSMsg (*ros_cloud, *input_rgb_cloud_);
-	pcl17::copyPointCloud(*input_rgb_cloud_,*input_cloud_);
 	ROS_INFO("feature_learning::extract_features: Converted input pointcloud to ros message");
 
-	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_cloud_->header.frame_id,
-			input_cloud_->header.stamp, ros::Duration(5.0)));
+	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_rgb_cloud_->header.frame_id,
+			input_rgb_cloud_->header.stamp, ros::Duration(5.0)));
 
-	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_,*input_cloud_,*input_cloud_,listener_));
+	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_,*input_rgb_cloud_,*input_rgb_cloud_,listener_));
+
+	pcl17::copyPointCloud(*input_rgb_cloud_,*input_cloud_);
+	input_cloud_->header = input_rgb_cloud_->header;
 
 	graph_segment convertor;
 	input_image_ = convertor.returnCVImage(*input_image);

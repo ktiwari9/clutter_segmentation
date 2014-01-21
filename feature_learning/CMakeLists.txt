@@ -59,6 +59,7 @@ target_link_libraries(test_texton learn_appearance)
 rosbuild_add_executable(test_holes src/test_hole_creation.cpp)
 rosbuild_add_executable(test_shot src/test_feature_extraction.cpp)
 rosbuild_add_executable(feature_extractor_test src/feature_tester_pr2.cpp)
+rosbuild_add_executable(edge_extractor_test src/test_edge_extraction.cpp)
 
 
 
