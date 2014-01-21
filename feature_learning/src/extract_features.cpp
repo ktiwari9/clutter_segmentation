@@ -360,7 +360,9 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
 		 */
 
-		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = table_height_;//push_point.z = ray.points[1].z;
+		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
+                if(push_point.z < table_height_)
+                  push_point.z = table_height_;
                 
 		visualization_msgs::Marker location_marker = getMarker(counter);
 		counter++;
@@ -469,8 +471,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		if(updated){
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty()){
 				ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
