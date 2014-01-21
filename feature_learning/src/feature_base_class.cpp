@@ -74,6 +74,7 @@ bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &c
 	inputCloud(cloud);
 
 	centroid_ = centroid;
+        return true;
 }
 
 void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
@@ -81,6 +82,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
 	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType>);
 
+        if(local_cloud_->size() > 800){
 	float model_ss_ (0.02f); // make it 0.25 if too slow TODO: fix this heuristic!
 	do{
 
@@ -96,7 +98,7 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 		ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
 
 	}while(local_cloud_->size() > 800);
-
+        }
 	pcl17::NormalEstimationOMP<PointType, PointNT> ne;
 	ne.setInputCloud (local_cloud_);
 

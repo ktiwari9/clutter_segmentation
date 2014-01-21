@@ -9,7 +9,7 @@
         <arg name="camera_info_in" default="$(arg kinect_frame_prefix)/depth_registered/camera_info" />
         <arg name="camera_rgb_in" default="$(arg kinect_frame_prefix)/rgb/image_color" />
 
-        <node pkg="feature_learning" type="extract_features" name="extract_features" args="feature_files" output="screen">
+        <node pkg="feature_learning" type="extract_features" name="extract_features" args="/tmp/feature_files" output="screen">
         <!--topic remapping-->
         <param name="tabletop_service" value="$(arg tabletop_segmentation_service)" />
         <param name="input_cloud_topic" value="$(arg cloud_points_in)" />
