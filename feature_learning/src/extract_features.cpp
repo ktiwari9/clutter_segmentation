@@ -360,7 +360,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
 		 */
 
-		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
+		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = table_height_;//push_point.z = ray.points[1].z;
                 
 		visualization_msgs::Marker location_marker = getMarker(counter);
 		counter++;
@@ -642,6 +642,48 @@ bool extract_features::updateTopics(){
 		return false;
 	}
 
+                // transforming table points from table frame to "/BASE FRAME"
+
+        tf::Transform table_tf;
+        tf::poseMsgToTF(tabletop_srv_.response.table.pose.pose,table_tf);
+        Eigen::Matrix4f table_transform;
+        sensor_msgs::PointCloud2 transform_table_cloud;
+
+
+        pcl17_ros::transformPointCloud(tabletop_srv_.response.table.pose.header.frame_id,
+                        table_tf,tabletop_srv_.response.table.table_points,
+                        transform_table_cloud);
+
+        ROS_VERIFY(listener_.waitForTransform(base_frame_, transform_table_cloud.header.frame_id,
+                        transform_table_cloud.header.stamp, ros::Duration(5.0)));
+        ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, transform_table_cloud,
+                        transform_table_cloud, listener_));
+
+        pcl17::PointCloud<pcl17::PointXYZ>::Ptr table_cloud_pcl(new pcl17::PointCloud<pcl17::PointXYZ>());
+        pcl17::fromROSMsg(transform_table_cloud, *table_cloud_pcl);
+
+        pcl17::PointIndices::Ptr inliers (new pcl17::PointIndices ());
+        // Create the segmentation object
+        pcl17::SACSegmentation<pcl17::PointXYZ> seg;
+        // Optional
+        seg.setOptimizeCoefficients (true);
+        // Mandatory
+        seg.setModelType (pcl17::SACMODEL_PLANE);
+        seg.setMethodType (pcl17::SAC_RANSAC);
+        seg.setMaxIterations (1000);
+        seg.setDistanceThreshold (0.01);
+
+        // Segment the largest planar component from the remaining cloud
+        seg.setInputCloud (table_cloud_pcl);
+        seg.segment (*inliers, *table_coefficients_);
+        
+        pcl17::PointCloud<pcl17::PointXYZ>::Ptr table_base_points(new pcl17::PointCloud<pcl17::PointXYZ>());
+        pcl17::copyPointCloud (*table_cloud_pcl, *inliers, *table_base_points);
+        
+       Eigen::Vector4f table_centroid;
+       pcl17::compute3DCentroid(*table_base_points,table_centroid);
+       table_height_ = table_centroid[2]; 
+
 	//convert clusters to honeybee frame
 	ROS_INFO("feature_learning::extract_features: Transforming clusters to color camera frame");
 
@@ -665,7 +707,7 @@ bool extract_features::updateTopics(){
 	}
 
 	// Getting table points
-	tf::Transform table_tf;
+	tf::Transform table_tf_b;
         ROS_INFO("feature_learning::extract_features: Cluster headers are frame %s ", tabletop_srv_.response.clusters[0].header.frame_id.c_str());
         pcl17::PointCloud<pcl17::PointXYZ>::Ptr cluster_clouds(new pcl17::PointCloud<pcl17::PointXYZ>());
 
@@ -674,7 +716,7 @@ bool extract_features::updateTopics(){
 		sensor_msgs::PointCloud2 cluster_points;
 
 		pcl17_ros::transformPointCloud(tabletop_srv_.response.clusters[cloud_count].header.frame_id,
-				table_tf,tabletop_srv_.response.clusters[cloud_count],
+				table_tf_b,tabletop_srv_.response.clusters[cloud_count],
 				cluster_points);
 
 		ROS_VERIFY(listener_.waitForTransform(base_frame_,cluster_points.header.frame_id,

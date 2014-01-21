@@ -94,8 +94,8 @@ protected:
 	visualization_msgs::Marker marker_;
 	visualization_msgs::MarkerArray marker_array_;
 
-
-	//Eigen::MatrixXf publish_feature_; TODO: check if we need this later
+        float table_height_;
+        //Eigen::MatrixXf publish_feature_; TODO: check if we need this later
 
 	bool initialized_;
 
