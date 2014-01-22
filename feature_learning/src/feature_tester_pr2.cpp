@@ -56,34 +56,33 @@
 
 bool callAndRecordFeature(){
 
-        feature_learning::ExtractFeatures extract_feature_srv;
+	feature_learning::ExtractFeatures extract_feature_srv;
 
-        std::string feature_service("/extract_features_srv");
-        // Now get the response from the static segment server and record the adjacency matrix
-        extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
-        bool call_succeeded = false;
+	std::string feature_service("/extract_features_srv");
+	// Now get the response from the static segment server and record the adjacency matrix
+	extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
+	bool call_succeeded = false;
 
-        while(!call_succeeded){
+	while(!call_succeeded){
 
-                if (!ros::service::call(feature_service, extract_feature_srv))
-                   {
-//                   ROS_ERROR("Call to segmentation service failed");
-                     exit(0);
-                   }
+		if (!ros::service::call(feature_service, extract_feature_srv))
+		{
+			ROS_ERROR("Call to segmentation service failed");
+		}
 
-                if(ros::service::call(feature_service,extract_feature_srv)){
-                        call_succeeded = true;
-//                      ROS_INFO("Service Call succeeded");
-                }
+		if(ros::service::call(feature_service,extract_feature_srv)){
+			call_succeeded = true;
+			ROS_INFO("Service Call succeeded");
+		}
 
-               if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
-                {
-//               ROS_ERROR("Segmentation service returned error");
-                 exit(0);
-                }
+		if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
+		{
+			ROS_ERROR("Segmentation service returned error");
+			return false;
+		}
 
-        }
-        return true;
+	}
+	return true;
 }
 
 
@@ -100,21 +99,21 @@ int main(int argc, char **argv){
 
 	//Now set a bool variable to check till user quits
 	bool repeat = true;
-	int iteration_number = 1;
-
-        // Record matrix once before and once after the action
-        bool success_before = callAndRecordFeature();
         
 	while(repeat)
 	{
 
-		// CURRENT IMPLEMENTATION OF ONLY ONE WHOLE BREAKING EVENT FOR THE ENTIRE ADJACENCY MATRIX
-		// NORMALIZED UPDATE
-		// TODO: THINK ABOUT EXTENDING TO INDIVIDUAL EDGES
-                char answer;
-		std::cout<<"Calling feature extraction again (y/n) :"<<std::endl;
-                
-		bool success_after = callAndRecordFeature();
+		bool success = callAndRecordFeature();
+
+		if(success)
+			ROS_INFO("Call succeeded ");
+		else
+			ROS_INFO("Call failed ");
+
+		char answer;
+		std::cout<<"Call feature extraction again (y/n) :"<<std::endl;
+		std::cin>>answer;
+
 		if(std::cin.fail() || answer == 'n')
 			repeat = false;                
                 
