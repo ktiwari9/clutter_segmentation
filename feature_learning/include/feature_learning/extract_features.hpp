@@ -97,7 +97,7 @@ protected:
         float table_height_;
         //Eigen::MatrixXf publish_feature_; TODO: check if we need this later
 
-	bool initialized_;
+	bool initialized_, holes_;
 
 	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
@@ -127,7 +127,7 @@ public:
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
 	void testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
-			const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center);
+			const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center, int index);
 
 	pcl17::PointCloud<PointType> preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 			pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud);
@@ -163,7 +163,8 @@ private:
 	pcl17::ModelCoefficients::Ptr table_coefficients_;
 
 	geometry_msgs::PointStamped action_point_;
-
+        
+        std::vector<cv::Point2d> center_points_;
 
 };
 

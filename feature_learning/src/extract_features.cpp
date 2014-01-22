@@ -52,7 +52,7 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-						nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),
+						nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),holes_(false),
 						processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
@@ -164,7 +164,7 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 		pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud){
 
-
+        holes_ = false;
 	ROS_INFO("feature_learning::extract_features: Initializing edge computation features");
 	// Local Declarations
 	processed_cloud.clear();
@@ -281,6 +281,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud){
 
 	// Local Declarations
+        holes_ = true;
 	pcl17::PointCloud<PointType> edge_list;
 
 	processed_cloud.clear();
@@ -324,6 +325,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		cv::Point2f sub_mask_center(m_c.m10/m_c.m00, m_c.m01/m_c.m00);
 		cv::Point2d mean_point(sub_mask_center.x, sub_mask_center.y);
 		ROS_DEBUG("feature_learning::extract_features: Projecting pixel to 3D");
+                center_points_.push_back(mean_point);
 		cv::Point3d push_3d = model.projectPixelTo3dRay(mean_point);
 
 		pcl17::PointCloud<pcl17::PointXYZ> ray;
@@ -383,7 +385,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 }
 
 void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
-		const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center){
+		const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center, int index){
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
@@ -398,26 +400,9 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<P
 
 	pcl17::PointCloud<PointType> centroid_base_point;
 
-	centroid_base_point.push_back(pcl17::PointXYZ(0,0,0));
-	centroid_base_point.push_back(center);
-	centroid_base_point.header.frame_id =  base_frame_;
-	centroid_base_point.header.stamp = input_cloud_->header.stamp;
-
-
-
-	ROS_VERIFY(listener_.waitForTransform(model.tfFrame(), base_frame_,
-			action_point_.header.stamp, ros::Duration(5.0)));
-
-	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, centroid_base_point,
-			centroid_base_point, listener_));
-
-	cv::Point3d  template_im_centroid;
-	template_im_centroid.x = static_cast<float>(centroid_base_point.points[1].x); template_im_centroid.y = static_cast<float>(centroid_base_point.points[1].y); template_im_centroid.z = static_cast<float>(centroid_base_point.points[1].z);
-
-	model.project3dToPixel(template_im_centroid,uv_image);
-	// cropping feature image to remove recitification artificats
-    ROS_INFO("feature_learning::extract_features: Cropping image to remove recitification artifacrs");
-
+    ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",center_points_[index].x,center_points_[index].y);
+    uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+    
     if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
     {
     	cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
@@ -428,8 +413,9 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<P
    		image(faceRect).copyTo(image);
     }
 
-    //cv::Rect faceRect(uv_image.x - 50 , uv_image.y - 50, uv_image.y + 50,uv_image.y + 50);
-	cv::imwrite("/tmp/sampleRect.jpg",image);
+        std::stringstream temp_filename;
+        temp_filename<<"/tmp/sampleRect_"<<index<<".jpg";
+	cv::imwrite(temp_filename.str(),image);
 
 
         ROS_INFO("feature_learning::extract_features: Initializing feature class for given template of size %d",cloud->points.size());
@@ -468,7 +454,11 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
 	pcl17::PointCloud<PointType> template_cloud;
 	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
+        std::vector<cv::Point2d> new_points(center_points_);
 
+        if(holes_)
+         center_points_.clear();
+        
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
 		// Trying a pass through filter
@@ -490,6 +480,9 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
                 if(filtered_cloud->size() == 0)
                   continue;
+                if(holes_)
+                  center_points_.push_back(new_points[t]);
+               
            	output_template_list.push_back(*filtered_cloud);
 		template_cloud += *filtered_cloud;
 	}
@@ -528,7 +521,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
                                         if(temp_cloud->points.size() == 0)
                                            continue;
 
-					testfeatureClass(input_image_,temp_cloud,left_cam_,filename_,cluster_centers.points[t]);
+					testfeatureClass(input_image_,temp_cloud,left_cam_,filename_,cluster_centers.points[t],t);
 					action_point_.header.stamp = ros::Time::now();
 
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
