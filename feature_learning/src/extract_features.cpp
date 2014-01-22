@@ -387,13 +387,51 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<P
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
-	// cropping feature image to remove recitification artificats
-        ROS_INFO("feature_learning::extract_features: Cropping image to remove recitification artifacrs");
-	//cv::Rect faceRect(75,75,768,576);
-	//image(faceRect).copyTo(image);
 
+	// Now only get the image around the current template
+	cv::Point2d  uv_image;
+
+	// Getting the centroid of the template
 	action_point_.point.x = center.x; action_point_.point.y = center.y; action_point_.point.z = center.z;
 	action_point_.header.frame_id = base_frame_;
+	action_point_.header.stamp = input_cloud_->header.stamp;
+
+	pcl17::PointCloud<PointType> centroid_base_point;
+
+	centroid_base_point.push_back(pcl17::PointXYZ(0,0,0));
+	centroid_base_point.push_back(center);
+	centroid_base_point.header.frame_id =  base_frame_;
+	centroid_base_point.header.stamp = input_cloud_->header.stamp;
+
+
+
+	ROS_VERIFY(listener_.waitForTransform(model.tfFrame(), base_frame_,
+			action_point_.header.stamp, ros::Duration(5.0)));
+
+	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, centroid_base_point,
+			centroid_base_point, listener_));
+
+	cv::Point3d  template_im_centroid;
+	template_im_centroid.x = static_cast<float>(centroid_base_point.points[1].x); template_im_centroid.y = static_cast<float>(centroid_base_point.points[1].y); template_im_centroid.z = static_cast<float>(centroid_base_point.points[1].z);
+
+	model.project3dToPixel(template_im_centroid,uv_image);
+	// cropping feature image to remove recitification artificats
+    ROS_INFO("feature_learning::extract_features: Cropping image to remove recitification artifacrs");
+
+    if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
+    {
+    	cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
+    	image(faceRect).copyTo(image);
+    }
+    else{
+    	cv::Rect faceRect(uv_image.x - 50 ,uv_image.y - 50, 100, 100);
+   		image(faceRect).copyTo(image);
+    }
+
+    //cv::Rect faceRect(uv_image.x - 50 , uv_image.y - 50, uv_image.y + 50,uv_image.y + 50);
+	cv::imwrite("/tmp/sampleRect.jpg",image);
+
+
         ROS_INFO("feature_learning::extract_features: Initializing feature class for given template of size %d",cloud->points.size());
 	feature.initialized_ = feature.initializeFeatureClass(image,cloud,action_point_.point);
 
