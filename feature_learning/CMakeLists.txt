@@ -19,7 +19,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 set(GRAPH_DIR ${PROJECT_SOURCE_DIR}/../graph_module)
-
+#set(DLIB_DIR ${PROJECT_SOURCE_DIR}/../dlib-18.5)
 #uncomment if you have defined messages
 rosbuild_genmsg()
 #uncomment if you have defined services
@@ -45,10 +45,12 @@ endif()
 
 find_package(Eigen REQUIRED)
 
-include_directories(${Eigen_INCLUDE_DIRS} ${GRAPH_DIR}/include)
+include_directories(${Eigen_INCLUDE_DIRS} ${GRAPH_DIR}/include ${DLIB_DIR})
 link_directories(${GRAPH_DIR}/lib)
+#include(${DLIB_DIR}/dlib/cmake)
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
+
 rosbuild_add_library(feature_base src/feature_base_class.cpp)
 target_link_libraries(feature_base learn_appearance)
 #rosbuild_add_boost_directories()
@@ -60,6 +62,20 @@ rosbuild_add_executable(test_holes src/test_hole_creation.cpp)
 rosbuild_add_executable(test_shot src/test_feature_extraction.cpp)
 rosbuild_add_executable(feature_extractor_test src/feature_tester_pr2.cpp)
 rosbuild_add_executable(edge_extractor_test src/test_edge_extraction.cpp)
+rosbuild_add_executable(svm_test src/svm_ex.cpp)
+target_link_libraries(svm_test dlib)
 
+# We are going to use a macro to add all the example programs.  However,
+# usually you will only create one executable in your cmake projects.
+# Therefore, you would just need to invoke ADD_EXECUTABLE() and
+# TARGET_LINK_LIBRARIES() as shown below.  
+#//MACRO(add_example name)
+#//   ADD_EXECUTABLE(${name} ${name}.cpp)
+#//   TARGET_LINK_LIBRARIES(${name} dlib )
+#//ENDMACRO()
+
+
+#here we apply our macros 
+#//add_example(assignment_learning_ex)
 
 

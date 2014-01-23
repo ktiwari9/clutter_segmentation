@@ -1,0 +1,18 @@
+<package>
+  <description brief="dlib_wrapper">
+
+     dlib_wrapper
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/dlib_wrapper</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+ <export>
+    <cpp cflags="-I${prefix}/dlib-18.5" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib"/>
+ </export>
+</package>
+
+
