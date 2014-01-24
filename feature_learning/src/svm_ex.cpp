@@ -20,13 +20,79 @@
 
 #include <iostream>
 #include <dlib/svm.h>
+#include <Eigen/Dense>
 
 using namespace std;
 using namespace dlib;
 
 
-int main()
+
+void load(std::string filename, Eigen::MatrixXf& m)
 {
+
+	ifstream input_file(filename.c_str());
+	std::vector<float> input_vector;
+	std::cout<<" Reading input file "<<std::endl;
+	std::copy(std::istream_iterator<float>(input_file), // this denotes "start of stream"
+			std::istream_iterator<float>(),   // this denodes "end of stream"
+			std::back_inserter< std::vector< float > >(input_vector));
+	std::cout<<" Printing to screen "<<std::endl;
+	//std::copy(input_vector.begin(), input_vector.end(), std::ostream_iterator<float>(std::cout, " "));
+	std::cout<<std::endl;
+	std::cout<<" Converting to eigen map "<<std::endl;
+	Eigen::Map<Eigen::MatrixXf> value(input_vector.data(),1,input_vector.size());
+	m = value;
+	// Test to check if data is being loaded correctly
+}
+
+
+
+int main(int argc, char **argv)
+{
+	if(argc < 2)
+	{
+		std::cout<<" Please provide a filename sequence for features"<<std::endl;
+		return -1;
+	}
+	std::string filename;
+	std::ifstream input_stream(argv[1]);
+
+	std::vector<Eigen::MatrixXf> feature_list;
+	int cols;
+	while(input_stream.good()){
+
+		std::getline(input_stream, filename);
+		if(filename.empty() || filename.at(0) == '#') // skip blank lines or comments
+			continue;
+
+		std::cout<<" Processing "<<filename<<std::endl;
+
+		Eigen::MatrixXf new_feature;
+		load(filename, new_feature);
+		cols = new_feature.cols();
+		feature_list.push_back(new_feature);
+		std::cout<< new_feature<<std::endl;
+	}
+
+	std::cout<<" Number of cols is : "<<cols<<std::endl;
+
+	// Now try loading the data in to the native data type
+	// TODO: Figure out input size to make compile time constant
+	typedef matrix<double,80,1> input_data;
+	std::vector<input_data> test_samples;
+
+	for(int i = 0 ; i < feature_list.size() ; i++)
+	{
+		input_data new_datum;
+		for(int j = 0 ; j < cols ; j++)
+			{
+			Eigen::MatrixXf current_sample = feature_list[i];
+			new_datum(j) = static_cast<double>(current_sample(0,j));
+			}
+		test_samples.push_back(new_datum);
+	}
+
+
     // The svm functions use column vectors to contain a lot of the data on which they
     // operate. So the first thing we do here is declare a convenient typedef.  
 
@@ -239,11 +305,11 @@ int main()
     // trainer object and the number of basis vectors to use and returns a new trainer
     // object that applies the necessary post processing during the creation of decision
     // function objects.
-    cout << "\ncross validation accuracy with only 10 support vectors: " 
+    cout << "\ncross validation accuracy with only 10 support vectors: "
          << cross_validate_trainer(reduced2(trainer,10), samples, labels, 3);
 
     // Lets print out the original cross validation score too for comparison.
-    cout << "cross validation accuracy with all the original support vectors: " 
+    cout << "cross validation accuracy with all the original support vectors: "
          << cross_validate_trainer(trainer, samples, labels, 3);
 
     // When you run this program you should see that, for this problem, you can reduce the
