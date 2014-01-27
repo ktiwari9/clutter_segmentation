@@ -1,0 +1,40 @@
+<package>
+  <description brief="action_manager_pr2">
+
+     action_manager_pr2
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/action_manager_pr2</url>
+  
+  <depend package="roscpp" />
+  <depend package="tf"/>
+  <depend package="tf_conversions"/>
+  <depend package="visualization_msgs" />
+  <depend package="sensor_msgs"/>
+  <depend package="geometry_msgs" />
+  <depend package="trajectory_msgs"/>
+  <depend package="kinematics_msgs"/>
+  <depend package="pcl17"/>
+  <depend package="pcl17_ros"/>
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
+  <depend package="image_geometry" />
+  <depend package="static_segmentation" />
+  <depend package="graph_module" />
+  <depend package="usc_utilities" />
+  <depend package="conversions"/>
+  <depend package="pr2_controllers_msgs"/>
+  <depend package="pr2_controller_interface"/>
+  <depend package="pr2_mechanism_model"/>
+  <depend package="pr2_common_action_msgs"/>
+  <depend package="arm_navigation_msgs"/>  	
+  <depend package="pluginlib"/>
+  <depend package="actionlib"/>
+  <depend package="mapping_rviz_plugin"/>  
+  
+</package>
+
+
