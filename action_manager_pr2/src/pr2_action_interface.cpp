@@ -45,7 +45,7 @@
 namespace action_manager_pr2{
 
 action_manager::action_manager(ros::NodeHandle & nh):
-	nh_(nh),nh_priv_("~"),marker_("/rviz_control"){
+	nh_priv_("~"),marker_("/rviz_control"){
 
 	nh_priv_.param<std::string>("gripper_r_server",gripper_r_srv_,std::string("r_gripper_controller/gripper_action"));
 	nh_priv_.param<std::string>("gripper_l_server",gripper_l_srv_,std::string("l_gripper_controller/gripper_action"));
@@ -1037,6 +1037,18 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	}
 }
 
-
-
 } // end of namespace
+
+int main(int argc, char **argv){
+
+	ros::init (argc, argv, "pr2_action_manager");
+	ros::NodeHandle nh;
+	action_manager_pr2::action_manager aa(nh);
+
+	ros::spin();
+	return 0;
+
+}
+//TODO: Make an action server
+
+
