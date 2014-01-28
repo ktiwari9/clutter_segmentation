@@ -78,6 +78,10 @@ public:
 
 	void goalReturned(const actionlib::SimpleClientGoalState& state, const ControllerResultConstPtr& result){
 
+		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Finished in state [%s]", state.toString().c_str());
+		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Answer: %d", result->result);
+		ros::shutdown();
+
 	}
 };
 
@@ -94,17 +98,17 @@ bool callAndRecordFeature(){
 
 		if (!ros::service::call(feature_service, extract_feature_srv))
 		{
-			ROS_ERROR("Call to segmentation service failed");
+			ROS_ERROR("feature_learning_pr2::feature_learner_pr2 Call to segmentation service failed");
 		}
 
 		if(ros::service::call(feature_service,extract_feature_srv)){
 			call_succeeded = true;
-			ROS_INFO("Service Call succeeded");
+			ROS_INFO("feature_learning_pr2::feature_learner_pr2 Service Call succeeded");
 		}
 
 		if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
 		{
-			ROS_ERROR("Segmentation service returned error");
+			ROS_ERROR("feature_learning_pr2::feature_learner_pr2 Segmentation service returned error");
 			return false;
 		}
 
@@ -116,10 +120,11 @@ bool callAndRecordFeature(){
 int main(int argc, char **argv){
 
 	ros::init(argc,argv,"test_adjacency_recorder");
+	action_client_pr2 ac("Controller");
 
 	if(argc < 1)
 	{
-		ROS_INFO("execute_action_client: Usage: execute_action_client <reward_filename>");
+		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Usage: execute_action_client <reward_filename>");
 		return -1;
 	}
 
@@ -133,9 +138,24 @@ int main(int argc, char **argv){
 		bool success = callAndRecordFeature();
 
 		if(success)
-			ROS_INFO("Call succeeded ");
+			ROS_INFO("feature_learning_pr2::feature_learner_pr2: Call succeeded ");
 		else
-			ROS_INFO("Call failed ");
+			ROS_INFO("feature_learning_pr2::feature_learner_pr2: Call failed ");
+
+		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Calling action server");
+
+
+		action_manager_msgs::Controller local_goal;
+		local_goal.target	= action_manager_msgs::Controller::HEAD;
+		local_goal.head.action = action_manager_msgs::Head::LOOK;
+		local_goal.head.frame_id = "/base_link";
+		geometry_msgs::Point target_point;
+		target_point.x = 5.0; target_point.y = 1.0; target_point.z = 1.2;
+		local_goal.head.pose.position = target_point;
+		local_goal.header.stamp = ros::Time::now();
+
+		ac.goal_.controller = local_goal;
+		ac.sendGoal();
 
 		char answer;
 		std::cout<<"Call feature extraction again (y/n) :"<<std::endl;
