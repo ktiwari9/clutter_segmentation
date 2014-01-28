@@ -1,0 +1,4 @@
+<launch>
+<node pkg="feature_learning" type="action_client" name="action_client" args="$(find feature_learning)/demonstrations/trial" output="screen">
+</node>		
+</launch>

@@ -45,11 +45,14 @@
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <arm_navigation_msgs/MoveArmAction.h>
 #include <arm_navigation_msgs/utils.h>
+#include <actionlib/server/simple_action_server.h>
 #include <actionlib/client/simple_action_client.h>
 #include <pr2_controllers_msgs/JointTrajectoryAction.h>
 #include <tf/transform_datatypes.h>
 #include <kinematics_msgs/GetPositionIK.h>
 #include <tf/transform_listener.h>
+#include "action_manager_pr2/ControllerAction.h"
+#include "action_manager_msgs/Controller.h"
 
 // USC Utilities for markers
 #include <usc_utilities/rviz_marker_manager.h>
@@ -68,7 +71,8 @@ public:
 	typedef actionlib::SimpleActionClient<pr2_controllers_msgs::Pr2GripperCommandAction> GripperClient;
 	typedef actionlib::SimpleActionClient<arm_navigation_msgs::MoveArmAction> MoveArmClient;
 	typedef actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> TrajectoryClient;
-
+	typedef actionlib::SimpleActionServer<action_manager_pr2::ControllerAction> ActionServer;
+	typedef ActionServer::GoalHandle GoalHandle;
 
 private:
 
@@ -88,6 +92,12 @@ protected:
 
 	ros::Publisher pose_publisher_;
 
+	//Declaring action server and related variables
+	ActionServer as_;
+	action_manager_pr2::ControllerFeedback feedback_;
+	action_manager_pr2::ControllerResult result_;
+	std::string action_name_;
+
 	kinematics_msgs::GetPositionIK ik_service_client_;
 
 	usc_utilities::RvizMarkerManager marker_;
@@ -99,8 +109,8 @@ protected:
 	std::string r_ik_service_name_, l_ik_service_name_,joint_states_service_;
 
 
-	// topics to listen to
-	std::string controller_topic_;
+	// topics and frames
+	std::string controller_topic_, frame_id_;
 
 	//frames_ids of interest
 	std::string head_point_frame_, group_name_;
@@ -115,14 +125,18 @@ protected:
 
 public:
 
-	action_manager(ros::NodeHandle &nh);
+	action_manager(ros::NodeHandle &nh, const std::string action_name);
 
 	~action_manager();
 
-	bool controlGripper(int hand = 0, int goal = 0);
-	// goal 0 for open and 1 for close, hand 0 for right and 1 for left
+	void execute(const action_manager_pr2::ControllerGoalConstPtr& goal);
 
-	bool controlHead(std::string pointing_frame_id, geometry_msgs::PointStamped target_point, int action = 0); // 0 for point 1 to track
+	bool controlGripper(int hand = 1, int goal = 0);
+	// goal 0 for open and 1 for close, hand 1 for right and 0 for left
+
+	bool controlHead(const std::string& pointing_frame_id, const geometry_msgs::PointStamped& target_point, int action = 0); // 0 for point 1 to track
+
+	bool controlArm(const geometry_msgs::PoseStamped& start_pose, const geometry_msgs::PoseStamped& end_pose, const std::string& frame_id, int arm = 1, int action = 0, int direction = 0);
 
 	std::vector<std::string> getJointNames(bool right = true);
 

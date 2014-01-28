@@ -44,8 +44,9 @@
 
 namespace action_manager_pr2{
 
-action_manager::action_manager(ros::NodeHandle & nh):
-	nh_priv_("~"),marker_("/rviz_control"){
+action_manager::action_manager(ros::NodeHandle & nh, const std::string action_name):
+	nh_(nh), as_(nh,action_name, boost::bind(&action_manager::execute,this,_1),false), nh_priv_("~"),
+	marker_("/rviz_control"),action_name_(action_name){
 
 	nh_priv_.param<std::string>("gripper_r_server",gripper_r_srv_,std::string("r_gripper_controller/gripper_action"));
 	nh_priv_.param<std::string>("gripper_l_server",gripper_l_srv_,std::string("l_gripper_controller/gripper_action"));
@@ -110,14 +111,112 @@ action_manager::action_manager(ros::NodeHandle & nh):
       ROS_INFO("action_manager::pr2_action_interface: Waiting for the left joint_trajectory_action server");
     }
 
-
-
+    // Staring the action server
+    as_.start();
 }
 
 action_manager::~action_manager(){
 
 	delete gripper_r_client_; delete gripper_l_client_; delete point_head_client_;
 	delete arm_r_client_; delete arm_l_client_; delete r_traj_client_; delete l_traj_client_;
+}
+
+void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& goal){
+
+	ROS_INFO("action_manager::pr2_action_interface: Received goal to control %d ",goal->controller.target);
+
+	bool success = false;
+	int action, direction, arm, gripper;
+	std::string frame_id;
+    geometry_msgs::PointStamped target_point;
+    geometry_msgs::PoseStamped start_pose, end_pose;
+
+
+	switch(goal->controller.target){
+
+	case (action_manager_msgs::Controller::HEAD):
+
+    		ROS_INFO("action_manager::pr2_action_interface: Controlling head");
+	        target_point.point = goal->controller.head.pose.position;
+	        target_point.header.frame_id = goal->controller.head.frame_id;
+	        target_point.header.stamp = goal->controller.header.stamp;
+	        frame_id = goal->controller.head.frame_id;
+	        action = goal->controller.head.action;
+	        success = controlHead(frame_id,target_point,action);
+
+	break;
+
+	case (action_manager_msgs::Controller::GRIPPER):
+
+			ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
+	        gripper = goal->controller.gripper.gripper; action = goal->controller.gripper.action;
+	        success = controlGripper(gripper,action);
+	break;
+
+	case (action_manager_msgs::Controller::ARM):
+
+			ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
+	        start_pose.pose = goal->controller.arm.start_pose;
+	        start_pose.header.frame_id = goal->controller.arm.frame_id;
+	        start_pose.header.stamp = goal->controller.header.stamp;
+
+	        end_pose.pose = goal->controller.arm.end_pose;
+	        end_pose.header.frame_id = goal->controller.arm.frame_id;
+	        end_pose.header.stamp = goal->controller.header.stamp;
+	        frame_id = goal->controller.arm.frame_id;
+
+	        action = goal->controller.arm.action;
+	        arm = goal->controller.arm.arm;
+	        direction = goal->controller.arm.direction;
+
+	        success = controlArm(start_pose,end_pose,frame_id,arm,action,direction);
+	break;
+
+	default:
+		ROS_INFO("action_manager::pr2_action_interface: Incorrect target choice"); success = false; break;
+	}
+
+	if(as_.isPreemptRequested() || !ros::ok()){
+
+		ROS_INFO("action_manager::pr2_action_interface: %s Preempted ",action_name_.c_str());
+		as_.setPreempted();
+		success = false;
+		return;
+	}
+	if(success)
+		result_.result  = result_.SUCCEEDED;
+	else
+		result_.result  = result_.FAILED;
+
+	as_.setSucceeded(result_);
+}
+
+bool action_manager::controlArm(const geometry_msgs::PoseStamped& start_pose, const geometry_msgs::PoseStamped& end_pose, const std::string& frame_id, int arm, int action, int direction){
+
+	bool success;
+
+	switch(action){
+
+	case(0):
+			success = tuck(arm); break;
+
+	case(1):
+			success = stretch(arm);	break;
+
+	case(2):
+			frame_id_ = frame_id;
+			success = graspPlaceAction(start_pose,end_pose); break;
+
+	case(3):
+            frame_id_ = frame_id;
+			success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
+
+	default:
+		success = false; break;
+
+	}
+
+	return success;
 }
 
 std::vector<std::string> action_manager::getJointNames(bool right){
@@ -156,22 +255,9 @@ bool action_manager::controlGripper(int hand, int goal){
 		command.command.max_effort = -1.0; // close gently
 	}
 
-	if(hand) // 1 for left gripper
+	if(hand) // 1 for right gripper
 	{
 
-		gripper_l_client_->sendGoal(command);
-		gripper_l_client_->waitForResult();
-		if(gripper_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-		{
-			ROS_INFO("action_manager::pr2_action_interface: The left gripper actuated!");
-			return true;
-		}
-		else{
-			ROS_INFO("action_manager::pr2_action_interface: The left gripper failed to actuate.");
-			return false;
-		}
-	}
-	else{
 		gripper_r_client_->sendGoal(command);
 		gripper_r_client_->waitForResult();
 		if(gripper_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
@@ -184,9 +270,22 @@ bool action_manager::controlGripper(int hand, int goal){
 			return false;
 		}
 	}
+	else{
+		gripper_l_client_->sendGoal(command);
+		gripper_l_client_->waitForResult();
+		if(gripper_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+		{
+			ROS_INFO("action_manager::pr2_action_interface: The left gripper actuated!");
+			return true;
+		}
+		else{
+			ROS_INFO("action_manager::pr2_action_interface: The left gripper failed to actuate.");
+			return false;
+		}
+	}
 }
 
-bool action_manager::controlHead(std::string pointing_frame_id, geometry_msgs::PointStamped target_point, int action){
+bool action_manager::controlHead(const std::string& pointing_frame_id, const geometry_msgs::PointStamped& target_point, int action){
 
     pr2_controllers_msgs::PointHeadGoal goal;
     goal.target = target_point;
@@ -937,29 +1036,29 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 	// Move to a position that is 10cm above the grasp point
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
-	bool success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,"ompl",right);
+	bool success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
 
 	if(success)
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
-		success = controlGripper(!right,0); //Open Gripper
+		success = controlGripper(right,0); //Open Gripper
 		//TODO: Check if this pipeline works
 		// first provide new position
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.12);
-		success = moveGripperToPosition(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,ik_seed_pos,right);
-		success = controlGripper(!right,1); // Close Gripper
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		success = controlGripper(right,1); // Close Gripper
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Grasp Successful");
 		// Now lift the gripper
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
-		success = moveGripperToPosition(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 
 		// Now PLACE action
 		tf::poseMsgToTF(place_pose.pose,push_tf);
-		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,"ompl",right);
-		success = controlGripper(!right,0); //Open Gripper
+		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
+		success = controlGripper(right,0); //Open Gripper
 		success = stretch(right); //Open Gripper
 		return true;
 	}
@@ -993,17 +1092,17 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	case (FROM_LEFT_UPRIGHT):
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
 	default:
-		ROS_INFO("Undefined approach direction"); return false;
+		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
 
-	bool success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,"ompl",right);
+	bool success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
 
 	if(success)
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
-		success = controlGripper(!right,1); //Close Gripper
+		success = controlGripper(right,1); //Close Gripper
 		// Move to a position that is 5cm relatively in front of the manipulation position
 		switch (approach){
 
@@ -1018,16 +1117,16 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		case (FROM_LEFT_UPRIGHT):
 			push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
 		default:
-			ROS_INFO("Undefined approach direction"); return false;
+			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 		}
 		//TODO: Check if this pipeline works
 		// first provide new position
-		success = moveGripperToPosition(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
 		// Now lift the gripper
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
-		success = moveGripperToPosition(push_tf.getOrigin(),"/base_link",FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 		success = stretch(right);
 		return true;
 	}
@@ -1042,13 +1141,11 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 int main(int argc, char **argv){
 
 	ros::init (argc, argv, "pr2_action_manager");
-	ros::NodeHandle nh;
-	action_manager_pr2::action_manager aa(nh);
-
+	ros::NodeHandle nh("~");
+	std::string action_name = "Controller";
+	action_manager_pr2::action_manager aa(nh,action_name);
 	ros::spin();
-	return 0;
-
 }
-//TODO: Make an action server
+
 
 

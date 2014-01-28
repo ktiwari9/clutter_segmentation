@@ -9,6 +9,6 @@ int32 GRIPPER_L=0
 int32 action
 
 # Action for Gripper 0 for close and 1 for open
-int32 CLOSE=0
-int32 OPEN=1
+int32 CLOSE=1
+int32 OPEN=0
 

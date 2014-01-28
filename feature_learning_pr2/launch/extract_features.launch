@@ -1,0 +1,7 @@
+<launch>
+	<arg name="robot" default="armrobot"/>
+	<node pkg="feature_learning" type="extract_features" name="extract_features" 
+			args="$(find feature_learning)/demonstrations/trial" output="screen">
+	</node>
+		<rosparam file="$(find feature_learning)/config/template_config_$(arg robot).yaml" command="load"/>
+</launch>

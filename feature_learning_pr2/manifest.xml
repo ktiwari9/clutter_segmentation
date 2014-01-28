@@ -1,0 +1,16 @@
+<package>
+  <description brief="feature_learning_pr2">
+
+     feature_learning_pr2
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/feature_learning_pr2</url>
+
+  <depend package="feature_learning"/>
+  <depend package="action_manager_pr2"/>
+
+</package>
+ 
