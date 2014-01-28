@@ -1,0 +1,13 @@
+# Define the goal
+action_manager_msgs/Controller controller
+---
+# Define the result
+int32 result
+int32 SUCCEEDED=0
+int32 FAILED=1
+---
+# Define the feedback mesage
+int32 status
+int32 NOT_STARTED=0
+int32 EXECUTING=1
+int32 COMPLETED=2

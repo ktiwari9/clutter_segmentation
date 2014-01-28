@@ -33,6 +33,7 @@
 <path>/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/fuerte-unstable-devel/pcl17_ros/lib</path>
 <path>/opt/ros/fuerte/stacks/bond_core/smclib/src</path>
 <path>/opt/ros/fuerte/stacks/pr2_common_actions/pr2_common_action_msgs/src</path>
+<path>/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/action_manager_msgs/src</path>
 <path>/opt/ros/fuerte/stacks/geometry/tf/src</path>
 <path>/opt/ros/fuerte/stacks/geometry/tf/lib</path>
 <path>/opt/ros/fuerte/stacks/nodelet_core/nodelet/src</path>

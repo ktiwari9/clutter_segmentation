@@ -8,9 +8,6 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
-rosbuild_find_ros_package(actionlib_msgs)
-include(${actionlib_msgs_PACKAGE_PATH}/cmake/actionbuild.cmake)
-genaction()
 
 rosbuild_init()
 
@@ -22,30 +19,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #uncomment if you have defined messages
 rosbuild_genmsg()
 #uncomment if you have defined services
-rosbuild_gensrv()
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
-
-set(TBB_INSTALL_DIR "/usr")
-find_package(TBB QUIET)
-if(TBB_FOUND)
-  message("Found TBB.")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_TBB")
-  set(LIBS ${LIBS} ${TBB_LIBRARIES})
-endif(TBB_FOUND)
-
-FIND_PACKAGE( OpenMP QUIET)
-if(OPENMP_FOUND)
-  message("Found OPENMP.")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-
-find_package(Eigen REQUIRED)
-
-include_directories(${Eigen_INCLUDE_DIRS})
+#rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
@@ -54,6 +28,3 @@ include_directories(${Eigen_INCLUDE_DIRS})
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
-rosbuild_add_executable(simple_gripper src/simple_gripper.cpp)
-rosbuild_add_executable(point_head src/point_head.cpp)
-rosbuild_add_executable(pr2_action_interface src/pr2_action_interface.cpp)

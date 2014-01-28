@@ -1,0 +1,15 @@
+<package>
+  <description brief="action_manager_msgs">
+
+     action_manager_msgs
+
+  </description>
+  <author>Bharath Sankaran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/action_manager_msgs</url>
+  <depend package="geometry_msgs"/>
+
+</package>
+
+
