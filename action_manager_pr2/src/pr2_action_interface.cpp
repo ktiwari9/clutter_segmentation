@@ -1144,9 +1144,9 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 
 int main(int argc, char **argv){
 
-	ros::init (argc, argv, "pr2_action_interface");
+	ros::init (argc, argv, "/pr2_action_interface");
 	ros::NodeHandle nh("~");
-	std::string action_name = "Controller";
+	std::string action_name = "/pr2_action_interface";
 	action_manager_pr2::action_manager aa(nh,action_name);
 	ros::spin();
 }

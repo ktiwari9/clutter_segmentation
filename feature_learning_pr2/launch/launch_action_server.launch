@@ -1,6 +1,4 @@
 <launch>
-  <include file="$(find static_segmentation)/launch/static_segmenter_pr2.launch" />
-  <include file="$(find feature_learning)/launch/extract_features_pr2.launch" />
   
   <arg name="gripper_r_server" default="r_gripper_controller/gripper_action" />
   <arg name="gripper_l_server" default="l_gripper_controller/gripper_action" />

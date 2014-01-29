@@ -64,7 +64,7 @@ private:
 
 public:
 	action_client_pr2(std::string name):ac_(name,true){
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Waiting for action server to start.");
+		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Waiting for action server to start. name %s",name.c_str());
 		    ac_.waitForServer();
 		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Action server started, sending goal.");
 	}
@@ -90,6 +90,8 @@ bool callAndRecordFeature(){
 	feature_learning::ExtractFeatures extract_feature_srv;
 
 	std::string feature_service("/extract_features_srv");
+        extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
+        extract_feature_srv.request.filename = "/tmp/feature_test_";
 	// Now get the response from the static segment server and record the adjacency matrix
 	//extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
 
@@ -100,6 +102,7 @@ bool callAndRecordFeature(){
 		if (!ros::service::call(feature_service, extract_feature_srv))
 		{
 			ROS_ERROR("feature_learning_pr2::feature_learner_pr2 Call to segmentation service failed");
+                        return false;
 		}
 
 		if(ros::service::call(feature_service,extract_feature_srv)){
@@ -122,7 +125,7 @@ bool callAndRecordFeature(){
 int main(int argc, char **argv){
 
 	ros::init(argc,argv,"test_adjacency_recorder");
-	action_client_pr2 ac("Controller");
+	action_client_pr2 ac("/pr2_action_interface");
 
 	if(argc < 1)
 	{
@@ -138,7 +141,7 @@ int main(int argc, char **argv){
 	{
 
 		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Calling feature service");
-		bool success = callAndRecordFeature();
+		bool success = true;//callAndRecordFeature();
 
 		if(success)
 			ROS_INFO("feature_learning_pr2::feature_learner_pr2: Call succeeded ");
