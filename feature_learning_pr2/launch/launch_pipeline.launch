@@ -1,5 +1,5 @@
 <launch>
-  <include file="$(find static_segmentation)/launch/static_segmenter.launch" />
+  <include file="$(find static_segmentation)/launch/static_segmenter_pr2.launch" />
   <include file="$(find action_manager_pr2)/launch/move_arm.launch" />
   <include file="$(find feature_learning)/launch/extract_features_pr2.launch" />
   

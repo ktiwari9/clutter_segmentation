@@ -114,6 +114,7 @@ bool callAndRecordFeature(){
 		}
 
 	}
+	ROS_INFO("feature_learning_pr2::feature_learner_pr2: Feature Service succeeded");
 	return true;
 }
 
@@ -136,6 +137,7 @@ int main(int argc, char **argv){
 	while(repeat)
 	{
 
+		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Calling feature service");
 		bool success = callAndRecordFeature();
 
 		if(success)
@@ -156,6 +158,7 @@ int main(int argc, char **argv){
 		local_goal.header.stamp = ros::Time::now();
 
 		ac.goal_.controller = local_goal;
+		ROS_INFO("Sending goal target:%d",ac.goal_.controller.target);
 		ac.sendGoal();
 
 		char answer;

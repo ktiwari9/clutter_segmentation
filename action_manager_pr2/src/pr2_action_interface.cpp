@@ -61,6 +61,7 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
 	nh_priv_.param<std::string>("joint_states_service",joint_states_service_,std::string("return_joint_states"));
 
 
+	ROS_INFO("action_manager::pr2_action_interface: Initializing clients");
     //Initialize the client for the Action interface to the gripper controllers
 	gripper_r_client_ = new GripperClient(gripper_r_srv_,true);
 	gripper_l_client_ = new GripperClient(gripper_l_srv_,true);
@@ -77,6 +78,7 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
     r_traj_client_ = new TrajectoryClient(r_joint_srv_, true);
     l_traj_client_ = new TrajectoryClient(l_joint_srv_, true);
 
+    ROS_INFO("action_manager::pr2_action_interface: Waiting for servers to come up");
     //wait for head controller action server to come up
     while(!point_head_client_->waitForServer(ros::Duration(5.0))){
       ROS_INFO("action_manager::pr2_action_interface: Waiting for the point_head_action server to come up");
@@ -112,6 +114,7 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
     }
 
     // Staring the action server
+    ROS_INFO("action_manager::pr2_action_interface: Starting action server");
     as_.start();
 }
 
