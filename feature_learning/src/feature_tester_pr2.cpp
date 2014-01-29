@@ -60,7 +60,7 @@ bool callAndRecordFeature(){
 
 	std::string feature_service("/extract_features_srv");
 	// Now get the response from the static segment server and record the adjacency matrix
-	extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
+	//extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
 	bool call_succeeded = false;
 
 	while(!call_succeeded){

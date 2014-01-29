@@ -1,7 +1,13 @@
-# empty request , node listens to required topics on its own
-int32 EMPTY = 1
-int32 FULL = 2
-int32 call
+# request with feature filename and test or train, node listens to required topics on its own
+string filename
+
+# train or test tag
+int32 action
+int32 TRAIN = 0
+int32 TEST = 1
+
+#observed reward from previous trial
+float32 reward
 
 ---
 

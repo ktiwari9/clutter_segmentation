@@ -303,6 +303,7 @@ bool action_manager::controlHead(const std::string& pointing_frame_id, const geo
     	//take at least 0.5 seconds to get there
     	goal.min_duration = ros::Duration(0.5);
     	point_head_client_->waitForResult(ros::Duration(2));
+    	point_head_client_->sendGoal(goal);
 
 		if(point_head_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
 		{
@@ -1140,7 +1141,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 
 int main(int argc, char **argv){
 
-	ros::init (argc, argv, "pr2_action_manager");
+	ros::init (argc, argv, "pr2_action_interface");
 	ros::NodeHandle nh("~");
 	std::string action_name = "Controller";
 	action_manager_pr2::action_manager aa(nh,action_name);

@@ -42,6 +42,7 @@
 #include "feature_learning/extract_features.hpp"
 #include <usc_utilities/assert.h>
 
+
 //pcl publisher
 #include <pcl17_ros/point_cloud.h>
 
@@ -86,10 +87,7 @@ extract_features::extract_features(ros::NodeHandle& nh):
 
 }
 
-extract_features::extract_features(std::string filename){
-
-	filename_ = filename;
-}
+extract_features::extract_features(){}
 
 extract_features::~extract_features(){}
 
@@ -385,7 +383,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 }
 
 void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
-		const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center, int index){
+		const image_geometry::PinholeCameraModel& model, const PointType& center, int index){
 
 	feature_class feature;
 	Eigen::MatrixXf final_feature;
@@ -426,7 +424,7 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<P
 	ROS_INFO("feature_learning::extract_features: Feature computation complete");
 	// Use bag writer to write before and after bags with topics and name the Eigen matrix as the same thing
 	std::stringstream eigen_filename;
-	eigen_filename<<filename<<"_features_"<<writer_counter<<".txt";
+	eigen_filename<<filename_<<".txt";
 	ofstream ofs(eigen_filename.str().c_str(),ios::out | ios::trunc);
 	if(ofs)
 	{
@@ -495,40 +493,63 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
+	// registering filenname for recording
+	filename_ = request.filename;
+	setInitialized(initialized());
+
 	ROS_INFO("feature_learning::extract_features: Executing service, initialized %d",initialized_);
-	if(initialized_){
+
+	if(initialized_)
+	{
 		ROS_INFO("feature_learning::extract_features: Updating all the data for processing");
 		bool updated = updateTopics();
-		if(updated){
+		if(updated)
+		{
+			bool test = static_cast<bool>(request.action);
 
-			ROS_INFO("feature_learning::extract_features: Computing features");
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
-
-			if(cluster_centers.empty()){
-				ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
+			if(test)
+			{
+				// The use the svm or something
+				ROS_INFO("feature_learning::extract_features: Need to test svm");
+				response.result = ExtractFeatures::Response::FAILURE;
 				return false;
 			}
-			else
+			else // Training Pipeline
 			{
-				ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
-				std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
-				ROS_INFO("feature_learning::extract_features: %d templates extracted ", templates.size());
-				for (size_t t = 0; t < templates.size(); t++){
+				ROS_INFO("feature_learning::extract_features: Computing features");
+				pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+				//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+				if(cluster_centers.empty())
+				{
+					ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
+					response.result = ExtractFeatures::Response::FAILURE;
+					return false;
+				}
+				else
+				{
+					ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
+					std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
+					ROS_INFO("feature_learning::extract_features: %d templates extracted ", templates.size());
+					int random_index = returnRandIndex(templates.size());
+					ROS_INFO("feature_learning::extract_features: %d index selected for training ", random_index);
 
-					pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[t]));
+					pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[random_index]));
 					ROS_INFO("feature_learning::extract_features: Extracting features from template of size %d",temp_cloud->points.size());
+
 					if(temp_cloud->points.size() == 0)
-						continue;
+					{
+						ROS_INFO("feature_learning::extract_features: Random Template failed");
+						response.result = ExtractFeatures::Response::FAILURE;
+						return false;
+					}
 
-					testfeatureClass(input_image_,temp_cloud,left_cam_,filename_,cluster_centers.points[t],t);
-					action_point_.header.stamp = ros::Time::now();
+					testfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
 
-					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
-					//pcl17::toROSMsg(*input_cloud_,*ros_cloud);
-					pcl17::toROSMsg(templates[t],*ros_cloud);
-					ros_cloud->header = input_cloud_->header;
 					ROS_INFO("feature_learning::extract_features: Writing bag");
+					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
+					pcl17::toROSMsg(templates[random_index],*ros_cloud);
+					ros_cloud->header = input_cloud_->header;
+
 					try
 					{
 						bag_.write(input_cloud_topic_, ros::Time::now(), ros_cloud);
@@ -545,24 +566,24 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 					ROS_INFO("feature_learning::extract_features: returning success");
 					response.action_location = action_point_;
 					response.result = ExtractFeatures::Response::SUCCESS;
+
+					return true;
 				}
-				return true;
 			}
 		}
-		else{
-
-			ROS_INFO("feature_learning::extract_features: returning failed");
+		else
+		{
+			ROS_INFO("feature_learning::extract_features: Topics not updated");
 			response.result = ExtractFeatures::Response::FAILURE;
 			return false;
 		}
 	}
-	else{
-
+	else
+	{
 		ROS_INFO("feature_learning::extract_features: returning failed");
 		response.result = ExtractFeatures::Response::FAILURE;
 		return false;
 	}
-
 
 }
 
@@ -789,12 +810,10 @@ bool extract_features::updateTopics(){
 }
 
 
-bool extract_features::initialized(std::string filename){
-
-	filename_ = filename;
+bool extract_features::initialized(){
 
 	std::stringstream bag_name;
-	bag_name<<filename<<"_"<<writer_counter<<".bag";
+	bag_name<<filename_<<".bag";
 
 	try
 	{
@@ -804,7 +823,7 @@ bool extract_features::initialized(std::string filename){
 	catch (rosbag::BagIOException ex)
 	{
 		ROS_DEBUG("feature_learning::extract_features: Problem when opening demo file >%s< : %s.",
-				filename.c_str(), ex.what());
+				filename_.c_str(), ex.what());
 		return false;
 	}
 	return true;
@@ -815,15 +834,8 @@ bool extract_features::initialized(std::string filename){
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "extract_feature_srv");
 	ros::NodeHandle nh;
-	if(argc < 2)
-	{
-		std::cout<<" Please provide a filename sequence to save to"<<std::endl;
-		return -1;
-	}
-	std::string filename(argv[1]);
 
 	feature_learning::extract_features feature(nh);
-	feature.setInitialized(feature.initialized(filename));
 
 	ros::spin();
 	return 0;

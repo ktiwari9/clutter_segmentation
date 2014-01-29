@@ -1,3 +1,33 @@
 <launch>
   <include file="$(find static_segmentation)/launch/static_segmenter.launch" />
+  <include file="$(find action_manager_pr2)/launch/move_arm.launch" />
+  <include file="$(find feature_learning)/launch/extract_features_pr2.launch" />
+  
+  <arg name="gripper_r_server" default="r_gripper_controller/gripper_action" />
+  <arg name="gripper_l_server" default="l_gripper_controller/gripper_action" />
+  <arg name="head_server" default="/head_traj_controller/point_head_action" />
+  <arg name="head_pointing_frame" default="head_mount_kinect_depth_optical_frame" />
+  <arg name="arm_r_server" default="move_right_arm" />
+  <arg name="arm_l_server" default="move_left_arm" />
+  <arg name="right_joint_server" default="r_arm_controller/joint_trajectory_action" />
+  <arg name="left_joint_server" default="l_arm_controller/joint_trajectory_action" />
+  <arg name="right_ik_service" default="pr2_right_arm_kinematics/get_ik" />
+  <arg name="left_ik_service" default="pr2_left_arm_kinematics/get_ik" />
+  <arg name="joint_states_service" default="return_joint_states" />      
+ 
+  <node pkg="action_manager_pr2" type="pr2_action_interface" name="pr2_action_interface" respawn="true" output="screen">
+        <!--topic remapping-->
+        <param name="gripper_r_server" value="$(arg gripper_r_server)" />
+        <param name="gripper_l_server" value="$(arg gripper_l_server)" />
+        <param name="head_server" value="$(arg head_server)" />
+        <param name="head_pointing_frame" value="$(arg head_pointing_frame)" />
+        <param name="arm_r_server" value="$(arg arm_r_server)" />
+        <param name="arm_l_server" value="$(arg arm_l_server)" />
+        <param name="right_joint_server" value="$(arg right_joint_server)" />
+        <param name="left_joint_server" value="$(arg left_joint_server)" />
+        <param name="right_ik_service" value="$(arg right_ik_service)" />
+        <param name="left_ik_service" value="$(arg left_ik_service)" />
+        <param name="joint_states_service" value="$(arg joint_states_service)" />
+ </node>
+
 </launch>

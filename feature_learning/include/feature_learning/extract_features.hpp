@@ -43,6 +43,9 @@
 #include <string>
 #include <vector>
 #include <opencv2/highgui/highgui.hpp>
+// random number generation includes
+#include <stdlib.h>
+#include <time.h>
 
 #include "feature_learning/feature_base_class.hpp"
 #include "feature_learning/ExtractFeatures.h"
@@ -76,10 +79,6 @@ namespace feature_learning {
 
 class extract_features {
 
-public:
-
-	std::string filename_;
-
 protected:
 
 	typedef pcl17::PointXYZ PointType;
@@ -101,6 +100,7 @@ protected:
 
 	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
+	std::string filename_;
 
 	static const double BOX_WIDTH_X = 0.10; // in m
 	static const double BOX_LENGTH_Y = 0.10; // in m
@@ -112,22 +112,24 @@ protected:
 
 public:
 
-	extract_features(std::string filename);
+	extract_features();
 
 	extract_features(ros::NodeHandle& nh);
 
 	~extract_features();
 
+	bool initialized();
+
 	void setInitialized(bool initialized){initialized_ = initialized;}
 
-	bool initialized(std::string filename);
+	int returnRandIndex(int size){ srand(time(NULL)); /* initialize the random seed*/ return rand() % size;}
 
 	bool updateTopics();
 
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
 	void testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
-			const image_geometry::PinholeCameraModel& model, const std::string filename, const PointType& center, int index);
+			const image_geometry::PinholeCameraModel& model, const PointType& center, int index);
 
 	pcl17::PointCloud<PointType> preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
 			pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud);
