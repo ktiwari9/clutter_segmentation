@@ -305,8 +305,9 @@ bool action_manager::controlHead(const std::string& pointing_frame_id, const geo
     { // Point head action
     	//take at least 0.5 seconds to get there
     	goal.min_duration = ros::Duration(0.5);
-    	point_head_client_->waitForResult(ros::Duration(2));
     	point_head_client_->sendGoal(goal);
+    	point_head_client_->waitForResult();
+
 
 		if(point_head_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
 		{

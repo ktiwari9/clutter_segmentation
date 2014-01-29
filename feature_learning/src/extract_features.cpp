@@ -512,7 +512,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 				// The use the svm or something
 				ROS_INFO("feature_learning::extract_features: Need to test svm");
 				response.result = ExtractFeatures::Response::FAILURE;
-				return false;
+				return true;
 			}
 			else // Training Pipeline
 			{
@@ -523,7 +523,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 				{
 					ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
 					response.result = ExtractFeatures::Response::FAILURE;
-					return false;
+					return true;
 				}
 				else
 				{
@@ -540,7 +540,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 					{
 						ROS_INFO("feature_learning::extract_features: Random Template failed");
 						response.result = ExtractFeatures::Response::FAILURE;
-						return false;
+						return true;
 					}
 
 					testfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
@@ -575,14 +575,14 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		{
 			ROS_INFO("feature_learning::extract_features: Topics not updated");
 			response.result = ExtractFeatures::Response::FAILURE;
-			return false;
+			return true;
 		}
 	}
 	else
 	{
 		ROS_INFO("feature_learning::extract_features: returning failed");
 		response.result = ExtractFeatures::Response::FAILURE;
-		return false;
+		return true;
 	}
 
 }
