@@ -33,6 +33,12 @@
      <rosparam command="load" file="$(find pr2_arm_navigation_perception)/config/self_filter_$(arg arm_config).yaml" />
   </node>
 
+  <!-- attached_object filter stereo points -->
+  <node pkg="planning_environment" type="filter_attached_objects" name="filter_attached_objects_stereo" output="screen">
+    <remap from="cloud_in" to="/narrow_stereo_textured/points2_filtered" />
+    <remap from="cloud_out" to="/narrow_stereo_textured/points2_filtered_attached" />
+    <param name="sensor_frame" type="string" value="narrow_stereo_optical_frame" />			
+  </node>
 
   <node pkg="collider" type="collider_node" name="collider_node" respawn="true" output="screen">
      <param name="fixed_frame" type="string" value="base_link" />
