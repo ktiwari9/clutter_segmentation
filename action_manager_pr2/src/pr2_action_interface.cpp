@@ -139,11 +139,11 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 
 	case (action_manager_msgs::Controller::HEAD):
 
-    		ROS_INFO("action_manager::pr2_action_interface: Controlling head");
+    		ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
 	        target_point.point = goal->controller.head.pose.position;
 	        target_point.header.frame_id = goal->controller.head.frame_id;
 	        target_point.header.stamp = goal->controller.header.stamp;
-	        frame_id = goal->controller.head.frame_id;
+	        frame_id = "high_def_frame";
 	        action = goal->controller.head.action;
 	        success = controlHead(frame_id,target_point,action);
 
