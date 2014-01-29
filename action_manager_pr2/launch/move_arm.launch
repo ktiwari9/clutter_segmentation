@@ -10,7 +10,7 @@
   <include file="$(find pr2_arm_navigation_planning)/launch/ompl_planning.launch"/>
   
   <!-- load filtering -->
-  <include file="$(find pr2_arm_navigation_filtering)/launch/both_arms_filter.launch"/>
+  <include file="$(find pr2_arm_navigation_filtering)/launch/both_arms_filters.launch"/>
   
   <!-- load ik -->
   <include file="$(find pr2_arm_navigation_kinematics)/launch/right_arm_collision_free_ik.launch"/>
