@@ -92,29 +92,19 @@ public:
 
 		std::string feature_service("/extract_features_srv");
 
-		bool call_succeeded = false;
+		ros::service::waitForService(feature_service);
 
-		while(!call_succeeded){
-
-			if (!ros::service::call(feature_service, extract_feature_srv))
-			{
-				ROS_ERROR("feature_learning_pr2::svm_pr2_trainer Call to segmentation service failed");
-				return false;
-			}
-
-			if(ros::service::call(feature_service,extract_feature_srv)){
-				call_succeeded = true;
-				ROS_INFO("feature_learning_pr2::svm_pr2_trainer Service Call succeeded");
-				action_point_ = extract_feature_srv.response.action_location;
-			}
-
-			if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
-			{
-				ROS_ERROR("feature_learning_pr2::svm_pr2_trainer Segmentation service returned error");
-				return false;
-			}
-
+		if(ros::service::call(feature_service,extract_feature_srv)){
+			ROS_INFO("feature_learning_pr2::svm_pr2_trainer Service Call succeeded");
+			action_point_ = extract_feature_srv.response.action_location;
 		}
+
+		if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
+		{
+			ROS_ERROR("feature_learning_pr2::svm_pr2_trainer Segmentation service returned error");
+			return false;
+		}
+
 		return true;
 	}
 
