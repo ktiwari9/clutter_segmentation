@@ -75,9 +75,24 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+// DLIB SVM includes
+#include <dlib/svm.h>
+#include <Eigen/Dense>
+
+using namespace dlib;
+
 namespace feature_learning {
 
 class extract_features {
+
+public:
+
+	//SVM Typedefs
+	typedef matrix<double,80,1> FeatureVector; // Matrix Data type
+    typedef radial_basis_kernel<FeatureVector> KernelType;
+    typedef probabilistic_decision_function<KernelType> ProbabilisticFunctType;
+    typedef normalized_function<ProbabilisticFunctType> PfunctType;
+
 
 protected:
 
@@ -100,15 +115,15 @@ protected:
 
 	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
-	std::string filename_;
+	std::string filename_, svm_filename_;
 
 	static const double BOX_WIDTH_X = 0.10; // in m
 	static const double BOX_LENGTH_Y = 0.10; // in m
 	static const double BOX_HEIGHT_Z = 0.05; // in m
 
-	std::string topicFeatureInputCloud() const {return "/XTION/rgb/points";};
-	std::string topicFeatureCameraInfo() const {return "/Honeybee/left/camera_info";};
-	std::string topicFeatureCameraInput() const {return "/Honeybee/left/image_rect_color";};
+	// D-Lib SVM includes
+	vector_normalizer<FeatureVector> normalizer_;
+	PfunctType learned_pfunct_;
 
 public:
 
@@ -122,13 +137,16 @@ public:
 
 	void setInitialized(bool initialized){initialized_ = initialized;}
 
-	int returnRandIndex(int size){ srand(time(NULL)); /* initialize the random seed*/ return rand() % size;}
+	int returnRandIndex(int size){ std::srand(std::time(NULL)); /* initialize the random seed*/ return std::rand() % size;}
 
 	bool updateTopics();
 
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
-	void testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
+	void trainfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
+			const image_geometry::PinholeCameraModel& model, const PointType& center, int index);
+
+	double testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
 			const image_geometry::PinholeCameraModel& model, const PointType& center, int index);
 
 	pcl17::PointCloud<PointType> preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
@@ -145,6 +163,8 @@ public:
 			const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks);
 
 	visualization_msgs::Marker getMarker(int id);
+
+	FeatureVector convertEigenToFeature(const Eigen::MatrixXf& feature);
 
 private:
 

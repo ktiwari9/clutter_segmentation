@@ -168,6 +168,8 @@ int main(int argc, char **argv)
     // here we make an instance of the svm_nu_trainer object that uses our kernel type.
     svm_nu_trainer<kernel_type> trainer;
 
+
+
     // Now we loop over some different nu and gamma values to see how good they are.  Note
     // that this is a very simple way to try out a few possible parameter choices.  You
     // should look at the model_selection_ex.cpp program for examples of more sophisticated
@@ -312,13 +314,15 @@ int main(int argc, char **argv)
     cout << "cross validation accuracy with all the original support vectors: "
          << cross_validate_trainer(trainer, samples, labels, 3);
 
+
     // When you run this program you should see that, for this problem, you can reduce the
-    // number of basis vectors down to 10 without hurting the cross validation accuracy. 
+    // number of basis vectors down to 10 without hurting the cross validation accuracy.
 
 
     // To get the reduced decision function out we would just do this:
     learned_function.function = reduced2(trainer,10).train(samples, labels);
-    // And similarly for the probabilistic_decision_function: 
+    // And similarly for the probabilistic_decision_function:
     learned_pfunct.function = train_probabilistic_decision_function(reduced2(trainer,10), samples, labels, 3);
+
 }
 

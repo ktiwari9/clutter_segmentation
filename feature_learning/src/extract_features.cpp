@@ -61,6 +61,7 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	nh_priv_.param<std::string>("input_camera_info",input_camera_info_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("input_image_topic",input_image_topic_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("base_frame",base_frame_,std::string("/tabletop_segmentation"));
+	nh_priv_.param<std::string>("svm_load",svm_filename_,std::string("saved_svm_function.dat"));
 
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 1);
@@ -84,6 +85,13 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	marker_.pose.orientation.y = 0.0;
 	marker_.pose.orientation.z = 0.0;
 	marker_.pose.orientation.w = 1.0;
+
+	ROS_INFO("feature_learning::extract_features: Loading SVM files");
+
+	ifstream fin(svm_filename_.c_str(),ios::binary);
+    deserialize(learned_pfunct_, fin);
+
+    ROS_INFO("feature_learning::extract_features: Loaded SVM files");
 
 }
 
@@ -382,7 +390,17 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 
 }
 
-void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
+extract_features::FeatureVector extract_features::convertEigenToFeature(const Eigen::MatrixXf& feature){
+
+	FeatureVector datum;
+	for(int j = 0 ; j < feature.cols(); j++)
+	{
+		datum(j) = static_cast<double>(feature(0,j));
+	}
+
+	return datum;
+}
+void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
 		const image_geometry::PinholeCameraModel& model, const PointType& center, int index){
 
 	feature_class feature;
@@ -440,6 +458,55 @@ void extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<P
 	writer_counter++;
 	ROS_INFO_STREAM("feature_learning::extract_features: Updated counter number "<< writer_counter<<" written to "<<eigen_filename.str());
 
+
+}
+
+double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
+		const image_geometry::PinholeCameraModel& model, const PointType& center, int index){
+
+	feature_class feature;
+	Eigen::MatrixXf final_feature;
+
+	// Now only get the image around the current template
+	cv::Point2d  uv_image;
+
+	// Getting the centroid of the template
+	action_point_.point.x = center.x; action_point_.point.y = center.y; action_point_.point.z = center.z;
+	action_point_.header.frame_id = base_frame_;
+	action_point_.header.stamp = input_cloud_->header.stamp;
+
+	pcl17::PointCloud<PointType> centroid_base_point;
+
+	ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",center_points_[index].x,center_points_[index].y);
+	uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+
+	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
+	{
+		cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
+		image(faceRect).copyTo(image);
+	}
+	else{
+		cv::Rect faceRect(uv_image.x - 50 ,uv_image.y - 50, 100, 100);
+		image(faceRect).copyTo(image);
+	}
+
+	std::stringstream temp_filename;
+	temp_filename<<"/tmp/sampleRect_test_"<<index<<".jpg";
+	cv::imwrite(temp_filename.str(),image);
+
+
+	ROS_INFO("feature_learning::extract_features: Initializing feature class for given template of size %d",cloud->points.size());
+	feature.initialized_ = feature.initializeFeatureClass(image,cloud,action_point_.point);
+
+	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
+	feature.computeFeature(final_feature);
+	ROS_INFO("feature_learning::extract_features: Feature computation complete");
+
+	FeatureVector new_sample = convertEigenToFeature(final_feature);
+
+	double label = learned_pfunct_(new_sample);
+
+	return label;
 
 }
 
@@ -507,29 +574,51 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 		{
 			bool test = static_cast<bool>(request.action);
 
-			if(test)
+			ROS_INFO("feature_learning::extract_features: Computing features");
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+
+			if(cluster_centers.empty())
 			{
-				// The use the svm or something
-				ROS_INFO("feature_learning::extract_features: Need to test svm");
+				ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
 				response.result = ExtractFeatures::Response::FAILURE;
 				return true;
 			}
-			else // Training Pipeline
+			else
 			{
-				ROS_INFO("feature_learning::extract_features: Computing features");
-				pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-				//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
-				if(cluster_centers.empty())
+				ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
+				std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
+				ROS_INFO("feature_learning::extract_features: %d templates extracted ", templates.size());
+
+				if(test)
 				{
-					ROS_INFO("feature_learning::extract_features: Empty Cluster Centers");
-					response.result = ExtractFeatures::Response::FAILURE;
+					// Getting the data storage templates
+					double max_prob = 0; //geometry_msgs::PointStamped best_action_point;
+					for(size_t i = 0; i < templates.size(); i++)
+					{
+						pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[static_cast<int>(i)]));
+						ROS_INFO("feature_learning::extract_features: Extracting features from template of size %d",temp_cloud->points.size());
+						if(temp_cloud->points.size() == 0)
+							continue;
+
+						double class_prob = testfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[static_cast<int>(i)],
+								static_cast<int>(i));
+
+						if(class_prob > max_prob)
+						{
+							response.action_location = action_point_;
+							response.result = ExtractFeatures::Response::SUCCESS;
+						}
+
+					}
+
+					if(max_prob == 0)
+						response.result = ExtractFeatures::Response::FAILURE;
 					return true;
 				}
-				else
+				else // Training Pipeline
 				{
-					ROS_INFO("feature_learning::extract_features: Extracting templates from Cluster Centers");
-					std::vector<pcl17::PointCloud<PointType> > templates = extract_templates(cluster_centers);
-					ROS_INFO("feature_learning::extract_features: %d templates extracted ", templates.size());
+
 					int random_index = returnRandIndex(templates.size());
 					ROS_INFO("feature_learning::extract_features: %d index selected for training ", random_index);
 
@@ -543,7 +632,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 						return true;
 					}
 
-					testfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
+					trainfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
 
 					ROS_INFO("feature_learning::extract_features: Writing bag");
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
