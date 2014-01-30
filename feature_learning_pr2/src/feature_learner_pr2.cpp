@@ -90,8 +90,8 @@ bool callAndRecordFeature(){
 	feature_learning::ExtractFeatures extract_feature_srv;
 
 	std::string feature_service("/extract_features_srv");
-        extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
-        extract_feature_srv.request.filename = "/tmp/feature_test_";
+	extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
+	extract_feature_srv.request.filename = "/tmp/feature_test_";
 	// Now get the response from the static segment server and record the adjacency matrix
 	//extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
 
@@ -102,7 +102,7 @@ bool callAndRecordFeature(){
 		if (!ros::service::call(feature_service, extract_feature_srv))
 		{
 			ROS_ERROR("feature_learning_pr2::feature_learner_pr2 Call to segmentation service failed");
-                        return false;
+			return false;
 		}
 
 		if(ros::service::call(feature_service,extract_feature_srv)){

@@ -65,7 +65,7 @@ private:
 	Client ac_;
 
 public:
-	action_client_pr2(std::string name):ac_(name,true){
+	action_client_pr2(std::string name):ac_(name,true),action_result_(false){
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Waiting for action server to start.");
 		    ac_.waitForServer();
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Action server started, sending goal.");
@@ -75,6 +75,7 @@ public:
 
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Populating Goal Message.");
 		ac_.sendGoal(goal_,boost::bind(&action_client_pr2::goalReturned,this,_1,_2),Client::SimpleActiveCallback(),Client::SimpleFeedbackCallback());
+		ac_.waitForResult();
 
 	}
 
@@ -98,6 +99,7 @@ public:
 			if (!ros::service::call(feature_service, extract_feature_srv))
 			{
 				ROS_ERROR("feature_learning_pr2::svm_pr2_trainer Call to segmentation service failed");
+				return false;
 			}
 
 			if(ros::service::call(feature_service,extract_feature_srv)){
@@ -119,17 +121,11 @@ public:
 	void actuateHead(){
 
 		goal_.controller.target = action_manager_msgs::Controller::HEAD;
-
 		goal_.controller.header.stamp = ros::Time::now();
-
-		std::string frame_id;
-		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter frame id (/base_link):");
-		std::cin >> frame_id;
-		goal_.controller.head.frame_id = frame_id;
-		goal_.controller.header.frame_id = frame_id;
+		goal_.controller.head.frame_id = "/base_link";
 
 		float x,y,z;
-		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter position (5.0 1.0 1.2): \n x y z:");
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter position (5.0 1.0 1.2) in base_link: \n x y z:");
 		std::cin >> x >> y >> z;
 
 		goal_.controller.head.pose.position.x = x;
@@ -141,9 +137,9 @@ public:
 		std::cin >> target;
 
 		if(target)
-			goal_.controller.head.action = 1;
+			goal_.controller.head.action = action_manager_msgs::Head::TRACK;
 		else
-			goal_.controller.head.action = 0;
+			goal_.controller.head.action = action_manager_msgs::Head::LOOK;
 	}
 
 	void actuateGripper(){
@@ -247,43 +243,42 @@ int main(int argc, char **argv){
 		case(1) :
 				ac.actuateHead();
 		        ac.sendGoal(); // Technically no difference between tracking and looking
-		        break;
+		break;
 
 		case(2) :
 				ac.actuateGripper();
 				ac.sendGoal();
-				break;
+		break;
 
 		case(3) :
 				ac.actuateArm();
-
 				extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
 				target_filename << base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
-
 				extract_feature_srv.request.filename = target_filename.str();
 
 				ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service");
-                                if(ac.goal_.controller.arm.action > 2){
-				success = ac.callAndRecordFeature(extract_feature_srv);
-				if(success)
+				if(ac.goal_.controller.arm.action > 2)
 				{
-					ac.goal_.controller.arm.start_pose.position = ac.action_point_.point;
-					ac.sendGoal();
+					success = ac.callAndRecordFeature(extract_feature_srv);
+					if(success)
+						{
+						ac.goal_.controller.arm.start_pose.position = ac.action_point_.point;
+						ac.sendGoal();
+						}
+					else
+						ac.action_result_ = false;
 				}
 				else
-					ac.action_result_ = true;
-                                }
-                                else
-                                   ac.sendGoal();
-                                   ac.action_result_ = true;
-
-				break;
+					ac.sendGoal();
+		break;
 
 		default:
 			ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Incorrect selection");
+			ac.action_result_ = false;
+			break;
 		}
 
-		if(!ac.action_result_)
+		if(ac.action_result_)
 		{
 			int label;
 			ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action succeeded , Enter label:");
@@ -297,7 +292,7 @@ int main(int argc, char **argv){
 				ofs.close();
 			}
 			else
-				ROS_ERROR("eature_learning_pr2::svm_pr2_trainer: Could not open output file");
+				ROS_ERROR("feature_learning_pr2::svm_pr2_trainer: Could not open output file");
 		}
 		else
 			ROS_INFO("Pipeline failed");

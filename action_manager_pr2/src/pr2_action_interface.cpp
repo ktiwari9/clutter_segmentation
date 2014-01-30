@@ -683,6 +683,38 @@ bool action_manager::isAtPos(const std::vector<double>& pos_vec, bool right){
 	return true;
 }
 
+bool action_manager::moveToSide(bool right){
+
+	if(right)
+		ROS_INFO(" action_manager::pr2_action_interface: zeroing right arm ");
+	else
+		ROS_INFO(" action_manager::pr2_action_interface: zeroing left arm ");
+
+	std::vector<double> tuck_pos_vec;
+	if (right){
+		double tuck_pos[] = {-2.135, 0.803, -1.732, -1.905, -2.369, -1.680, 1.398};
+		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
+		//location = [0.05, -0.65, -0.05] 'torso_lift_link'
+	}else{
+		double tuck_pos[] = {2.135, 0.803, 1.732, -1.905, 2.369, -1.680, 1.398};
+		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
+		//location = [0.05, 0.65, -0.05] 'torso_lift_link'
+	}
+
+	if (!isAtPos(tuck_pos_vec,right)){
+		return goToJointPos(tuck_pos_vec,3.0,true,right);
+	}
+
+	if(right)
+		ROS_INFO(" action_manager::pr2_action_interface: right arm is in zero pos ");
+	else
+		ROS_INFO(" action_manager::pr2_action_interface: left arm is in zero pos ");
+
+	return true;
+
+}
+
+
 bool action_manager::tuck(bool right){
 
 	if(right)
@@ -1049,6 +1081,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
 		success = controlGripper(right,0); //Open Gripper
+		success = moveToSide(right);
 		//TODO: Check if this pipeline works
 		// first provide new position
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.12);
@@ -1064,7 +1097,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		tf::poseMsgToTF(place_pose.pose,push_tf);
 		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 		success = controlGripper(right,0); //Open Gripper
-		success = stretch(right); //Open Gripper
+		success = moveToSide(right); //Open Gripper
 		return true;
 	}
 	else{
@@ -1082,7 +1115,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	tf::Pose push_tf;
 	tf::poseMsgToTF(pose.pose,push_tf);
 	ROS_INFO("action_manager::pr2_action_interface: Converting pose complete");
-
+	bool success = moveToSide(right);
 	// Move to a position that is 5cm relatively in front of the manipulation position
 	switch (approach){
 
@@ -1100,7 +1133,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
 
-	bool success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
+	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
 
@@ -1132,7 +1165,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		// Now lift the gripper
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
-		success = stretch(right);
+		success = moveToSide(right);
 		return true;
 	}
 	else{

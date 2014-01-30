@@ -211,6 +211,10 @@ public:
 	// Move arm into stretched out position.
 	bool stretch( bool right = true);
 
+	bool moveToSide(bool right = true);
+
+	bool goZero();
+
 	bool moveArmToPoseWithCart(const geometry_msgs::PoseStamped& pose, bool right = true);
 
 	// Various Behaviors that are executed by the arm thats nearest to the base_link pose

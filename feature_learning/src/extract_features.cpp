@@ -560,8 +560,10 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
-	// registering filenname for recording
-	filename_ = request.filename;
+	// registering filenname for recording : TODO: check if this can avoid the multiple call problem
+	if(!request.filename.empty())
+		filename_ = request.filename;
+
 	setInitialized(initialized());
 
 	ROS_INFO("feature_learning::extract_features: Executing service, initialized %d",initialized_);
