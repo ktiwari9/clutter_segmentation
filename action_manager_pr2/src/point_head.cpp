@@ -46,7 +46,7 @@ public:
     goal.pointing_frame = "high_def_frame";
 
     //take at least 0.5 seconds to get there
-    //goal.min_duration = ros::Duration(0.5); // NOTE: Commented out for smoother gripper tracking
+    goal.min_duration = ros::Duration(0.5); // NOTE: Commented out for smoother gripper tracking
 
     //and go no faster than 1 rad/s
     goal.max_velocity = 1.0;
@@ -55,7 +55,7 @@ public:
     point_head_client_->sendGoal(goal);
 
     //wait for it to get there (abort after 2 secs to prevent getting stuck)
-    //point_head_client_->waitForResult(ros::Duration(2)); // commented out for smoother tracking
+    point_head_client_->waitForResult(ros::Duration(2)); // commented out for smoother tracking
   }
 
   //! Shake the head from left to right n times  
@@ -65,10 +65,10 @@ public:
     while (ros::ok() && ++count <= n )
     {
       //Looks at a point forward (x=5m), slightly left (y=1m), and 1.2m up
-      lookAt("base_link", 5.0, 1.0, 1.2);
+      lookAt("/base_link", 5.0, 1.0, 1.2);
 
       //Looks at a point forward (x=5m), slightly right (y=-1m), and 1.2m up
-      lookAt("base_link", 5.0, -1.0, 1.2);
+      lookAt("/base_link", 5.0, -1.0, 1.2);
       
     }
   }
