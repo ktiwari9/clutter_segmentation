@@ -88,8 +88,8 @@ extract_features::extract_features(ros::NodeHandle& nh):
 
 	ROS_INFO("feature_learning::extract_features: Loading SVM files");
 
-	ifstream fin(svm_filename_.c_str(),ios::binary);
-    deserialize(learned_pfunct_, fin);
+//	ifstream fin(svm_filename_.c_str(),ios::binary);
+//    deserialize(learned_pfunct_, fin);
 
     ROS_INFO("feature_learning::extract_features: Loaded SVM files");
 

@@ -217,7 +217,7 @@ public:
 int main(int argc, char **argv){
 
 	ros::init(argc,argv,"svm_pr2_trainer");
-	action_client_pr2 ac("Controller");
+	action_client_pr2 ac("/pr2_action_interface");
 
 	//Now set a bool variable to check till user quits
 	if(argc < 2)
@@ -263,6 +263,7 @@ int main(int argc, char **argv){
 				extract_feature_srv.request.filename = target_filename.str();
 
 				ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service");
+                                if(ac.goal_.controller.arm.action > 2){
 				success = ac.callAndRecordFeature(extract_feature_srv);
 				if(success)
 				{
@@ -271,6 +272,10 @@ int main(int argc, char **argv){
 				}
 				else
 					ac.action_result_ = true;
+                                }
+                                else
+                                   ac.sendGoal();
+                                   ac.action_result_ = true;
 
 				break;
 
