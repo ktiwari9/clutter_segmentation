@@ -15,9 +15,11 @@ int32 action
 # action constants
 int32 TUCK=0
 int32 STRETCH=1
+int32 HOME=2
+int32 GOZERO=3
 # need to specify place location for GRASP action
-int32 GRASP=2
-int32 PUSH=3
+int32 GRASP=4
+int32 PUSH=5
 
 # Push direction
 int32 direction

@@ -82,7 +82,7 @@ public:
 	void goalReturned(const actionlib::SimpleClientGoalState& state, const ControllerResultConstPtr& result){
 
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Finished in state [%s]", state.toString().c_str());
-		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Answer: %d", result->result);
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Action Manager Return value: %d", result->result);
 		action_result_ = result->result;
 		//ros::shutdown();
 
@@ -161,11 +161,11 @@ public:
 
 		goal_.controller.target = action_manager_msgs::Controller::ARM;
 		int action;
-		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (0-TUCK, 1-STRETCH, 2-GRASP, 3-PUSH):");
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (0-TUCK, 1-STRETCH,2-HOME,3-GOZERO,4-GRASP,5-PUSH):");
 		std::cin >> action;
 		goal_.controller.arm.action = action;
 		goal_.controller.arm.frame_id = "/base_link";
-		if(action < 2)
+		if(action < 4)
 		{
 			int arm;
 			ROS_INFO("Select Arm (0-LEFT,1-RIGHT)");
@@ -175,7 +175,7 @@ public:
 		}
 		else
 		{
-			if(action == 2)
+			if(action == 4)
 			{
 				float x,y,z;
 				ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
@@ -227,7 +227,7 @@ int main(int argc, char **argv){
 		std::cin >> choice;
 
 		feature_learning::ExtractFeatures extract_feature_srv;
-		bool success;
+		bool success=false;
 		switch(choice){
 
 		case(1) :
@@ -247,7 +247,7 @@ int main(int argc, char **argv){
 				extract_feature_srv.request.filename = target_filename.str();
 
 				ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service");
-				if(ac.goal_.controller.arm.action > 2)
+				if(ac.goal_.controller.arm.action > 3)
 				{
 					success = ac.callAndRecordFeature(extract_feature_srv);
 					if(success)
@@ -267,8 +267,10 @@ int main(int argc, char **argv){
 			ac.action_result_ = false;
 			break;
 		}
+					
+                ROS_INFO("Extract Feature Result %d",success);
 
-		if(ac.action_result_)
+		if(ac.action_result_ && success)
 		{
 			int label;
 			ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action succeeded , Enter label:");

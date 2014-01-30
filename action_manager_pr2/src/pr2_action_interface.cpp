@@ -206,11 +206,17 @@ bool action_manager::controlArm(const geometry_msgs::PoseStamped& start_pose, co
 	case(1):
 			success = stretch(arm);	break;
 
-	case(2):
+        case(2):
+                        success = moveToSide(arm); break;
+        
+        case(3):
+                        success = goZero(); break; 
+
+	case(4):
 			frame_id_ = frame_id;
 			success = graspPlaceAction(start_pose,end_pose); break;
 
-	case(3):
+	case(5):
             frame_id_ = frame_id;
 			success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
 
@@ -681,6 +687,15 @@ bool action_manager::isAtPos(const std::vector<double>& pos_vec, bool right){
 			return false;
 	}
 	return true;
+}
+
+bool action_manager::goZero(){
+
+      bool success;
+      success = moveToSide(true);
+      if(success)
+        success = moveToSide(false);
+      return success;
 }
 
 bool action_manager::moveToSide(bool right){
