@@ -174,7 +174,6 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	ROS_INFO("feature_learning::extract_features: Initializing edge computation features");
 	// Local Declarations
 	processed_cloud.clear();
-	pcl17::PointCloud<PoinRGBType>::Ptr filtered_cloud (new pcl17::PointCloud<PoinRGBType>);
 	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
 	pcl17::search::KdTree<PoinRGBType>::Ptr tree (new pcl17::search::KdTree<PoinRGBType>);
 	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
@@ -520,11 +519,14 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 	std::vector<pcl17::PointCloud<PointType> > output_template_list;
 
 	pcl17::PointCloud<PointType> template_cloud;
-	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
-	std::vector<cv::Point2d> new_points(center_points_);
+	ROS_INFO("feature_learning::extract_features: Starting cloud resizing %d",input_cloud_->points.size());
+	std::vector<cv::Point2d> new_points;
 
 	if(holes_)
+	{
+		new_points = center_points_;
 		center_points_.clear();
+	}
 
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
@@ -579,8 +581,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			bool test = static_cast<bool>(request.action);
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-		//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+		    pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty())
 			{
