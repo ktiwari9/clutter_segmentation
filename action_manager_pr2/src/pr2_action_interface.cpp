@@ -1050,12 +1050,13 @@ double action_manager::distanceFromFrame(const geometry_msgs::PoseStamped& pose,
 	// First finding nearest Arm
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
-
-	ROS_VERIFY(listener.waitForTransform("/base_link",frame_id,
-			pose.header.stamp, ros::Duration(5.0)));
+        ROS_INFO("Transform frame is %s",frame_id.c_str());
+        if(frame_id.compare("/base_link") != 0){
+	listener.waitForTransform("/base_link",frame_id,
+			ros::Time(), ros::Duration(10.0));
 
 	listener.lookupTransform("/base_link",frame_id,
-			pose.header.stamp, transform);
+			ros::Time(), transform);}
 
 	tf::Pose tf_push_pose;
 	tf::poseMsgToTF(pose.pose,tf_push_pose);
