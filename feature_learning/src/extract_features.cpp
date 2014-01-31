@@ -579,8 +579,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			bool test = static_cast<bool>(request.action);
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			//pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty())
 			{
@@ -616,6 +616,16 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 					}
 
+					// Now transform the action point;
+					/*try {
+						ROS_VERIFY(listener_.waitForTransform(base_frame_, action_point_.header.frame_id,action_point_.header.stamp, ros::Duration(10.0)));
+						ROS_VERIFY(listener_.transformPoint(base_frame_, action_point_,action_point_));
+					} catch (tf::TransformException ex) {
+						ROS_ERROR("feature_learning::extract_features: %s",ex.what());
+					}*/
+
+					ROS_INFO("feature_learning::extract_features: Action point header frame: %s",action_point_.header.frame_id.c_str());
+
 					if(max_prob == 0)
 						response.result = ExtractFeatures::Response::FAILURE;
 					return true;
@@ -638,12 +648,12 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 					trainfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
 
-					ROS_INFO("feature_learning::extract_features: Writing bag");
+/*					ROS_INFO("feature_learning::extract_features: Writing bag");
 					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
 					pcl17::toROSMsg(templates[random_index],*ros_cloud);
-					ros_cloud->header = input_cloud_->header;
+					ros_cloud->header = input_cloud_->header;*/
 
-					try
+/*					try
 					{
 						bag_.write(input_cloud_topic_, ros::Time::now(), ros_cloud);
 						bag_.write(input_image_topic_, ros::Time::now(), ros_image_);
@@ -654,7 +664,16 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 						ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
 								bag_.getFileName().c_str(), ex.what());
 
-					}
+					}*/
+					// Now transform the action point;
+					/*try {
+						ROS_VERIFY(listener_.waitForTransform(base_frame_, action_point_.header.frame_id,action_point_.header.stamp, ros::Duration(10.0)));
+						ROS_VERIFY(listener_.transformPoint(base_frame_, action_point_,action_point_));
+					} catch (tf::TransformException ex) {
+						ROS_ERROR("feature_learning::extract_features: %s",ex.what());
+					}*/
+
+					ROS_INFO("feature_learning::extract_features: Action point header frame: %s",action_point_.header.frame_id.c_str());
 
 					ROS_INFO("feature_learning::extract_features: returning success");
 					response.action_location = action_point_;
@@ -914,8 +933,9 @@ bool extract_features::updateTopics(){
 
 bool extract_features::initialized(){
 
-	std::stringstream bag_name;
+/*	std::stringstream bag_name;
 	bag_name<<filename_<<".bag";
+	ROS_INFO("feature_learning::extract_features: Initializing service with new bag %s ", filename_.c_str());
 
 	try
 	{
@@ -927,7 +947,7 @@ bool extract_features::initialized(){
 		ROS_DEBUG("feature_learning::extract_features: Problem when opening demo file >%s< : %s.",
 				filename_.c_str(), ex.what());
 		return false;
-	}
+	}*/
 	return true;
 }
 

@@ -164,7 +164,7 @@ public:
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (0-TUCK, 1-STRETCH,2-HOME,3-GOZERO,4-GRASP,5-PUSH):");
 		std::cin >> action;
 		goal_.controller.arm.action = action;
-		goal_.controller.arm.frame_id = "/base_link";
+		//goal_.controller.arm.frame_id = "/base_link";
 		if(action < 4)
 		{
 			int arm;
@@ -246,13 +246,16 @@ int main(int argc, char **argv){
 		target_filename << base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
 		extract_feature_srv.request.filename = target_filename.str();
 
-		ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service");
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service with filename %s",target_filename.str().c_str());
 		if(ac.goal_.controller.arm.action > 3)
 		{
 			success = ac.callAndRecordFeature(extract_feature_srv);
 			if(success)
 			{
 				ac.goal_.controller.arm.start_pose.position = ac.action_point_.point;
+				ac.goal_.controller.arm.frame_id = ac.action_point_.header.frame_id;
+				ac.goal_.controller.header.frame_id = ac.action_point_.header.frame_id;
+				ac.goal_.controller.header.stamp = ac.action_point_.header.stamp;
 				ac.sendGoal();
 			}
 			else

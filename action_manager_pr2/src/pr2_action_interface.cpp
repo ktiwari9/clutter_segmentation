@@ -171,6 +171,7 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 	action = goal->controller.arm.action;
 	arm = goal->controller.arm.arm;
 	direction = goal->controller.arm.direction;
+	ROS_INFO("action_manager::pr2_action_interface: Start Pose Frame id: %s",goal->controller.arm.frame_id.c_str());
 
 	success = controlArm(start_pose,end_pose,frame_id,arm,action,direction);
 	break;
