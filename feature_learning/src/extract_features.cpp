@@ -417,8 +417,35 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 	pcl17::PointCloud<PointType> centroid_base_point;
 
-	ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",center_points_[index].x,center_points_[index].y);
-	uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+	cv::Point2d push_2d;
+	if(!holes_){
+
+		ROS_DEBUG("feature_learning::extract_features: Converting centroid to camera frame");
+
+		pcl17::PointCloud<pcl17::PointXYZ> ray;
+		ray.push_back(pcl17::PointXYZ(0,0,0));
+		ray.push_back(pcl17::PointXYZ(center));
+		ray.header.frame_id =  base_frame_;
+		ray.header.stamp = ros::Time::now();
+
+		try {
+			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
+			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
+		} catch (tf::TransformException ex) {
+			ROS_ERROR("%s",ex.what());
+		}
+
+		cv::Point3d push_3d;
+		push_3d.x = static_cast<double>(ray.points[1].x);
+		push_3d.y = static_cast<double>(ray.points[1].y);
+		push_3d.z = static_cast<double>(ray.points[1].z);
+
+		model.project3dToPixel(push_3d,push_2d);
+
+	}
+
+	ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",push_2d.x,push_2d.y);
+	uv_image.x = push_2d.x; uv_image.y = push_2d.y;
 
 	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
 	{

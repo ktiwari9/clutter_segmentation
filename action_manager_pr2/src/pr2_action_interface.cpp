@@ -1090,7 +1090,9 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 	// Move to a position that is 10cm above the grasp point
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
-	bool success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
+	bool success = moveToSide(right);
+
+	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
 
@@ -1098,7 +1100,6 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
 		success = controlGripper(right,0); //Open Gripper
-		success = moveToSide(right);
 		//TODO: Check if this pipeline works
 		// first provide new position
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.12);
@@ -1150,7 +1151,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
 
-	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
+	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
 
@@ -1176,12 +1177,12 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		}
 		//TODO: Check if this pipeline works
 		// first provide new position
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
 		// Now lift the gripper
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
 		success = moveToSide(right);
 		return true;
 	}
