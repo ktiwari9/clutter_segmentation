@@ -1,36 +1,36 @@
 /*********************************************************************
-*
-*  Copyright (c) 2014, Computational Learning and Motor Control Laboratory
-*  University of Southern California
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************
+ *
+ *  Copyright (c) 2014, Computational Learning and Motor Control Laboratory
+ *  University of Southern California
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************
 /**
  * \author Bharath Sankaran and Christian Bersch
  *
@@ -45,8 +45,8 @@
 namespace action_manager_pr2{
 
 action_manager::action_manager(ros::NodeHandle & nh, const std::string action_name):
-	nh_(nh), as_(nh,action_name, boost::bind(&action_manager::execute,this,_1),false), nh_priv_("~"),
-	marker_("/rviz_control"),action_name_(action_name){
+			nh_(nh), as_(nh,action_name, boost::bind(&action_manager::execute,this,_1),false), nh_priv_("~"),
+			marker_("/rviz_control"),action_name_(action_name){
 
 	nh_priv_.param<std::string>("gripper_r_server",gripper_r_srv_,std::string("r_gripper_controller/gripper_action"));
 	nh_priv_.param<std::string>("gripper_l_server",gripper_l_srv_,std::string("l_gripper_controller/gripper_action"));
@@ -62,60 +62,60 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
 
 
 	ROS_INFO("action_manager::pr2_action_interface: Initializing clients");
-    //Initialize the client for the Action interface to the gripper controllers
+	//Initialize the client for the Action interface to the gripper controllers
 	gripper_r_client_ = new GripperClient(gripper_r_srv_,true);
 	gripper_l_client_ = new GripperClient(gripper_l_srv_,true);
 
 
-    //Initialize the client for the Action interface to the head controller
-    point_head_client_ = new PointHeadClient(head_srv_, true);
+	//Initialize the client for the Action interface to the head controller
+	point_head_client_ = new PointHeadClient(head_srv_, true);
 
-    //Initialize the client for the Action interface to the arm controllers
-    arm_r_client_ = new MoveArmClient(arm_r_srv_, true);
-    arm_l_client_ = new MoveArmClient(arm_l_srv_, true);
+	//Initialize the client for the Action interface to the arm controllers
+	arm_r_client_ = new MoveArmClient(arm_r_srv_, true);
+	arm_l_client_ = new MoveArmClient(arm_l_srv_, true);
 
-    //Initialize the client for the Action interface to the arm controllers
-    r_traj_client_ = new TrajectoryClient(r_joint_srv_, true);
-    l_traj_client_ = new TrajectoryClient(l_joint_srv_, true);
+	//Initialize the client for the Action interface to the arm controllers
+	r_traj_client_ = new TrajectoryClient(r_joint_srv_, true);
+	l_traj_client_ = new TrajectoryClient(l_joint_srv_, true);
 
-    ROS_INFO("action_manager::pr2_action_interface: Waiting for servers to come up");
-    //wait for head controller action server to come up
-    while(!point_head_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the point_head_action server to come up");
-    }
-    //wait for the gripper action server to come up
-    while(!gripper_r_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_controller/gripper_action action server to come up");
-    }
+	ROS_INFO("action_manager::pr2_action_interface: Waiting for servers to come up");
+	//wait for head controller action server to come up
+	while(!point_head_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the point_head_action server to come up");
+	}
+	//wait for the gripper action server to come up
+	while(!gripper_r_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_controller/gripper_action action server to come up");
+	}
 
-    //wait for the gripper action server to come up
-    while(!gripper_l_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_controller/gripper_action action server to come up");
-    }
+	//wait for the gripper action server to come up
+	while(!gripper_l_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_controller/gripper_action action server to come up");
+	}
 
-    //wait for the gripper action server to come up
-    while(!arm_r_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the move_right_arm action server to come up");
-    }
+	//wait for the gripper action server to come up
+	while(!arm_r_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the move_right_arm action server to come up");
+	}
 
-    //wait for the gripper action server to come up
-    while(!arm_l_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the move_left_arm action server to come up");
-    }
+	//wait for the gripper action server to come up
+	while(!arm_l_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the move_left_arm action server to come up");
+	}
 
-    // wait for action server to come up
-    while(!r_traj_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the right joint_trajectory_action server");
-    }
+	// wait for action server to come up
+	while(!r_traj_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the right joint_trajectory_action server");
+	}
 
-    // wait for action server to come up
-    while(!l_traj_client_->waitForServer(ros::Duration(5.0))){
-      ROS_INFO("action_manager::pr2_action_interface: Waiting for the left joint_trajectory_action server");
-    }
+	// wait for action server to come up
+	while(!l_traj_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the left joint_trajectory_action server");
+	}
 
-    // Staring the action server
-    ROS_INFO("action_manager::pr2_action_interface: Starting action server");
-    as_.start();
+	// Staring the action server
+	ROS_INFO("action_manager::pr2_action_interface: Starting action server");
+	as_.start();
 }
 
 action_manager::~action_manager(){
@@ -131,48 +131,48 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 	bool success = false;
 	int action, direction, arm, gripper;
 	std::string frame_id;
-    geometry_msgs::PointStamped target_point;
-    geometry_msgs::PoseStamped start_pose, end_pose;
+	geometry_msgs::PointStamped target_point;
+	geometry_msgs::PoseStamped start_pose, end_pose;
 
 
 	switch(goal->controller.target){
 
 	case (action_manager_msgs::Controller::HEAD):
 
-    		ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
-	        target_point.point = goal->controller.head.pose.position;
-	        target_point.header.frame_id = goal->controller.head.frame_id;
-	        target_point.header.stamp = goal->controller.header.stamp;
-	        frame_id = "high_def_frame";
-	        action = goal->controller.head.action;
-	        success = controlHead(frame_id,target_point,action);
+    				ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
+	target_point.point = goal->controller.head.pose.position;
+	target_point.header.frame_id = goal->controller.head.frame_id;
+	target_point.header.stamp = goal->controller.header.stamp;
+	frame_id = "high_def_frame";
+	action = goal->controller.head.action;
+	success = controlHead(frame_id,target_point,action);
 
 	break;
 
 	case (action_manager_msgs::Controller::GRIPPER):
 
-			ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
-	        gripper = goal->controller.gripper.gripper; action = goal->controller.gripper.action;
-	        success = controlGripper(gripper,action);
+					ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
+	gripper = goal->controller.gripper.gripper; action = goal->controller.gripper.action;
+	success = controlGripper(gripper,action);
 	break;
 
 	case (action_manager_msgs::Controller::ARM):
 
-			ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
-	        start_pose.pose = goal->controller.arm.start_pose;
-	        start_pose.header.frame_id = goal->controller.arm.frame_id;
-	        start_pose.header.stamp = goal->controller.header.stamp;
+					ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
+	start_pose.pose = goal->controller.arm.start_pose;
+	start_pose.header.frame_id = goal->controller.arm.frame_id;
+	start_pose.header.stamp = goal->controller.header.stamp;
 
-	        end_pose.pose = goal->controller.arm.end_pose;
-	        end_pose.header.frame_id = goal->controller.arm.frame_id;
-	        end_pose.header.stamp = goal->controller.header.stamp;
-	        frame_id = goal->controller.arm.frame_id;
+	end_pose.pose = goal->controller.arm.end_pose;
+	end_pose.header.frame_id = goal->controller.arm.frame_id;
+	end_pose.header.stamp = goal->controller.header.stamp;
+	frame_id = goal->controller.arm.frame_id;
 
-	        action = goal->controller.arm.action;
-	        arm = goal->controller.arm.arm;
-	        direction = goal->controller.arm.direction;
+	action = goal->controller.arm.action;
+	arm = goal->controller.arm.arm;
+	direction = goal->controller.arm.direction;
 
-	        success = controlArm(start_pose,end_pose,frame_id,arm,action,direction);
+	success = controlArm(start_pose,end_pose,frame_id,arm,action,direction);
 	break;
 
 	default:
@@ -201,24 +201,24 @@ bool action_manager::controlArm(const geometry_msgs::PoseStamped& start_pose, co
 	switch(action){
 
 	case(0):
-			success = tuck(arm); break;
+					success = tuck(arm); break;
 
 	case(1):
-			success = stretch(arm);	break;
+					success = stretch(arm);	break;
 
-        case(2):
-                        success = moveToSide(arm); break;
-        
-        case(3):
-                        success = goZero(); break; 
+	case(2):
+					success = moveToSide(arm); break;
+
+	case(3):
+					success = goZero(); break;
 
 	case(4):
-			frame_id_ = frame_id;
-			success = graspPlaceAction(start_pose,end_pose); break;
+					frame_id_ = frame_id;
+	success = graspPlaceAction(start_pose,end_pose); break;
 
 	case(5):
-            frame_id_ = frame_id;
-			success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
+            		frame_id_ = frame_id;
+	success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
 
 	default:
 		success = false; break;
@@ -296,23 +296,23 @@ bool action_manager::controlGripper(int hand, int goal){
 
 bool action_manager::controlHead(const std::string& pointing_frame_id, const geometry_msgs::PointStamped& target_point, int action){
 
-    pr2_controllers_msgs::PointHeadGoal goal;
-    goal.target = target_point;
-    goal.pointing_frame = pointing_frame_id;
-    //and go no faster than 1 rad/s
-    goal.max_velocity = 1.0;
-    //and go no faster than 1 rad/s
-    goal.max_velocity = 1.0;
+	pr2_controllers_msgs::PointHeadGoal goal;
+	goal.target = target_point;
+	goal.pointing_frame = pointing_frame_id;
+	//and go no faster than 1 rad/s
+	goal.max_velocity = 1.0;
+	//and go no faster than 1 rad/s
+	goal.max_velocity = 1.0;
 
 
-    if(action) // tracking action
-        point_head_client_->sendGoal(goal);
-    else
-    { // Point head action
-    	//take at least 0.5 seconds to get there
-    	goal.min_duration = ros::Duration(0.5);
-    	point_head_client_->sendGoal(goal);
-    	point_head_client_->waitForResult();
+	if(action) // tracking action
+		point_head_client_->sendGoal(goal);
+	else
+	{ // Point head action
+		//take at least 0.5 seconds to get there
+		goal.min_duration = ros::Duration(0.5);
+		point_head_client_->sendGoal(goal);
+		point_head_client_->waitForResult();
 
 
 		if(point_head_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
@@ -325,8 +325,8 @@ bool action_manager::controlHead(const std::string& pointing_frame_id, const geo
 			ROS_INFO("action_manager::pr2_action_interface: Move Head failed");
 			return false;
 		}
-    }
-    return true;
+	}
+	return true;
 }
 
 bool action_manager::updateJointStates(bool right){
@@ -382,10 +382,10 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 
 	for (unsigned int i = 0 ; i < goalB.motion_plan_request.goal_constraints.joint_constraints.size(); ++i)
 	{
-	    goalB.motion_plan_request.goal_constraints.joint_constraints[i].joint_name = joint_names_[i];
-	    goalB.motion_plan_request.goal_constraints.joint_constraints[i].position = positions[i];
-	    goalB.motion_plan_request.goal_constraints.joint_constraints[i].tolerance_below = 0.1;
-	    goalB.motion_plan_request.goal_constraints.joint_constraints[i].tolerance_above = 0.1;
+		goalB.motion_plan_request.goal_constraints.joint_constraints[i].joint_name = joint_names_[i];
+		goalB.motion_plan_request.goal_constraints.joint_constraints[i].position = positions[i];
+		goalB.motion_plan_request.goal_constraints.joint_constraints[i].tolerance_below = 0.1;
+		goalB.motion_plan_request.goal_constraints.joint_constraints[i].tolerance_above = 0.1;
 	}
 
 
@@ -403,7 +403,7 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 		else
 		{
 			actionlib::SimpleClientGoalState state = arm_r_client_->getState();
-		    success = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
+			success = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
 			if(success)
 				ROS_INFO("action_manager::pr2_action_interface: Action finished: %s",state.toString().c_str());
 			else
@@ -422,7 +422,7 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 		else
 		{
 			actionlib::SimpleClientGoalState state = arm_l_client_->getState();
-		    success = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
+			success = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
 			if(success)
 				ROS_INFO("action_manager::pr2_action_interface: Action finished: %s",state.toString().c_str());
 			else
@@ -543,15 +543,15 @@ bool action_manager::moveWristRollLinktoPoseWithCollisionChecking(const geometry
 
 	if(right){
 		if (!arm_r_client_){
-				ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
-				return false;
-			}
+			ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
+			return false;
+		}
 	}
 	else{
 		if (!arm_l_client_){
-				ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
-				return false;
-			}
+			ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
+			return false;
+		}
 	}
 
 	arm_navigation_msgs::MoveArmGoal goalA;
@@ -691,11 +691,11 @@ bool action_manager::isAtPos(const std::vector<double>& pos_vec, bool right){
 
 bool action_manager::goZero(){
 
-      bool success;
-      success = moveToSide(true);
-      if(success)
-        success = moveToSide(false);
-      return success;
+	bool success;
+	success = moveToSide(true);
+	if(success)
+		success = moveToSide(false);
+	return success;
 }
 
 bool action_manager::moveToSide(bool right){
@@ -819,19 +819,19 @@ tf::StampedTransform action_manager::makePose(const tf::Vector3& position, std::
 	switch (approach){
 
 	case (FRONTAL):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( 0, 0 , 0, 1)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( 0, 0 , 0, 1)); break;
 	case (FROM_BELOW):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, HALF_SQRT_TWO , 0)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, HALF_SQRT_TWO , 0)); break;
 	case (FROM_RIGHT_SIDEWAYS):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( 0 , 0, HALF_SQRT_TWO , HALF_SQRT_TWO)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( 0 , 0, HALF_SQRT_TWO , HALF_SQRT_TWO)); break;
 	case (FROM_RIGHT_UPRIGHT):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , -0.5, 0.5 , 0.5)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , -0.5, 0.5 , 0.5)); break;
 	case (FROM_ABOVE):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, -HALF_SQRT_TWO , 0)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, -HALF_SQRT_TWO , 0)); break;
 	case (FROM_LEFT_SIDEWAYS):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( -HALF_SQRT_TWO , HALF_SQRT_TWO , 0 , 0)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( -HALF_SQRT_TWO , HALF_SQRT_TWO , 0 , 0)); break;
 	case (FROM_LEFT_UPRIGHT):
-			tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , 0.5, -0.5 , 0.5)); break;
+					tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , 0.5, -0.5 , 0.5)); break;
 	}
 
 	return tf_pose_in_baselink;
@@ -891,15 +891,15 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 
 	if(right){
 		if (!arm_r_client_){
-				ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
-				return false;
-			}
+			ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
+			return false;
+		}
 	}
 	else{
 		if (!arm_l_client_){
-				ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
-				return false;
-			}
+			ROS_ERROR("action_manager::pr2_action_interface: collision checking arm server has not been started");
+			return false;
+		}
 	}
 
 	bool finished_before_timeout = true;
@@ -1135,15 +1135,15 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	switch (approach){
 
 	case (FRONTAL):
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getX() - 0.050); break;
+				push_tf.getOrigin().setZ(push_tf.getOrigin().getX() - 0.050); break;
 	case (FROM_RIGHT_SIDEWAYS):
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.050); break;
+				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.050); break;
 	case (FROM_RIGHT_UPRIGHT):
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.050); break;
+				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.050); break;
 	case (FROM_LEFT_SIDEWAYS):
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
+				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
 	case (FROM_LEFT_UPRIGHT):
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
+				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
@@ -1160,15 +1160,15 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		switch (approach){
 
 		case (FRONTAL):
-			push_tf.getOrigin().setZ(push_tf.getOrigin().getX() + 0.150); break;
+					push_tf.getOrigin().setZ(push_tf.getOrigin().getX() + 0.150); break;
 		case (FROM_RIGHT_SIDEWAYS):
-			push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.150); break;
+					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.150); break;
 		case (FROM_RIGHT_UPRIGHT):
-			push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.150); break;
+					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.150); break;
 		case (FROM_LEFT_SIDEWAYS):
-			push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
+					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
 		case (FROM_LEFT_UPRIGHT):
-			push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
+					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
 		default:
 			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 		}

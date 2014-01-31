@@ -43,7 +43,7 @@
 namespace feature_learning{
 
 feature_class::feature_class():
-			local_cloud_(new pcl17::PointCloud<feature_class::PointType>),initialized_(false){
+					local_cloud_(new pcl17::PointCloud<feature_class::PointType>),initialized_(false){
 	// Empty Constructor
 }
 
@@ -74,7 +74,7 @@ bool feature_class::initializeFeatureClass(cv::Mat image, const PointCloudPtr &c
 	inputCloud(cloud);
 
 	centroid_ = centroid;
-        return true;
+	return true;
 }
 
 void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
@@ -82,23 +82,23 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
 	pcl17::search::KdTree<PointType>::Ptr tree (new pcl17::search::KdTree<PointType>);
 
-        if(local_cloud_->size() > 800){
-	float model_ss_ (0.02f); // make it 0.25 if too slow TODO: fix this heuristic!
-	do{
+	if(local_cloud_->size() > 800){
+		float model_ss_ (0.02f); // make it 0.25 if too slow TODO: fix this heuristic!
+		do{
 
-		pcl17::PointCloud<int> keypoint_indices;
-		pcl17::UniformSampling<PointType> uniform_sampling;
-		uniform_sampling.setInputCloud (local_cloud_);
-		uniform_sampling.setRadiusSearch (model_ss_);
-		uniform_sampling.compute (keypoint_indices);
-		pcl17::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
-		ROS_INFO("feature_learning::feature_class: Writing PCD Files");
-		pcl17::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
-		model_ss_ += 0.005;
-		ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
+			pcl17::PointCloud<int> keypoint_indices;
+			pcl17::UniformSampling<PointType> uniform_sampling;
+			uniform_sampling.setInputCloud (local_cloud_);
+			uniform_sampling.setRadiusSearch (model_ss_);
+			uniform_sampling.compute (keypoint_indices);
+			pcl17::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
+			ROS_INFO("feature_learning::feature_class: Writing PCD Files");
+			pcl17::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
+			model_ss_ += 0.005;
+			ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
 
-	}while(local_cloud_->size() > 800);
-        }
+		}while(local_cloud_->size() > 800);
+	}
 	pcl17::NormalEstimationOMP<PointType, PointNT> ne;
 	ne.setInputCloud (local_cloud_);
 
@@ -171,7 +171,7 @@ void feature_class::computeFeature(Eigen::MatrixXf &out_mat){
 				<<"pushFeature :"<<pushFeature.cols()<<std::endl<<pushFeature<<std::endl
 				<<"graspPatch :"<<graspPatch.cols()<<std::endl<<graspPatch<<std::endl
 				<<"Centroid x: "<<centroid_.x<<" y: "<<centroid_.y);
-*/		// Normalized Individual features TODO: Do I need to normalize again?
+		 */		// Normalized Individual features TODO: Do I need to normalize again?
 
 		out_mat<<colorHist,textonMap,entropyMap,pushFeature,centroid_.x,centroid_.y;
 
@@ -219,7 +219,7 @@ void feature_class::computeColorHist(Eigen::MatrixXf &out_mat){
 			hist, 2, histSize, ranges,
 			true, // the histogram is uniform
 			false );
-    cv::normalize( hist, hist, 0, 180, cv::NORM_MINMAX, -1, cv::Mat() );
+	cv::normalize( hist, hist, 0, 180, cv::NORM_MINMAX, -1, cv::Mat() );
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);
@@ -247,19 +247,19 @@ void feature_class::computeTextonMap(Eigen::MatrixXf &out_mat){
 	ROS_INFO("Training texton Feature");
 	//thist.Train(img_gray_float, cv::Mat());
 	thist.InitializeCodebookFromImage(img_gray_float);
-    cv::Mat texton_map = thist.getTextonMap();
-    // collect histogram over table mask for foreground
-    int channels[] = {0};
-    int hist_size[] = {n_textons};
-    float t_ranges[] = {0,n_textons};
-    const float *ranges[] = {t_ranges};
-    cv::MatND hist;
-    cv::calcHist( &texton_map, 1, channels, cv::Mat(),
-  		hist, 1, hist_size, ranges,
-  		true, // the histogram is uniform
-  		false );
-    cv::normalize( hist, hist, 0, 100, cv::NORM_MINMAX, -1, cv::Mat() );
-    ROS_INFO("Converting Texton Feature of size %d %d",hist.cols,hist.rows);
+	cv::Mat texton_map = thist.getTextonMap();
+	// collect histogram over table mask for foreground
+	int channels[] = {0};
+	int hist_size[] = {n_textons};
+	float t_ranges[] = {0,n_textons};
+	const float *ranges[] = {t_ranges};
+	cv::MatND hist;
+	cv::calcHist( &texton_map, 1, channels, cv::Mat(),
+			hist, 1, hist_size, ranges,
+			true, // the histogram is uniform
+			false );
+	cv::normalize( hist, hist, 0, 100, cv::NORM_MINMAX, -1, cv::Mat() );
+	ROS_INFO("Converting Texton Feature of size %d %d",hist.cols,hist.rows);
 	cv::cv2eigen(hist,out_mat);
 	int rows = out_mat.rows(),cols = out_mat.cols();
 	out_mat.conservativeResize(1,rows*cols);

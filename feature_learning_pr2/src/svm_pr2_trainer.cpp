@@ -1,36 +1,36 @@
 /*********************************************************************
-*
-*  Copyright (c) 2013, Computational Learning and Motor Control Laboratory
-*  University of Southern California
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************
+ *
+ *  Copyright (c) 2013, Computational Learning and Motor Control Laboratory
+ *  University of Southern California
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************
 /**
  * \author Bharath Sankaran
  *
@@ -67,7 +67,7 @@ private:
 public:
 	action_client_pr2(std::string name):ac_(name,true),action_result_(false){
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Waiting for action server to start.");
-		    ac_.waitForServer();
+		ac_.waitForServer();
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Action server started, sending goal.");
 	}
 
@@ -231,35 +231,35 @@ int main(int argc, char **argv){
 		switch(choice){
 
 		case(1) :
-				ac.actuateHead();
-		        ac.sendGoal(); // Technically no difference between tracking and looking
+						ac.actuateHead();
+		ac.sendGoal(); // Technically no difference between tracking and looking
 		break;
 
 		case(2) :
-				ac.actuateGripper();
-				ac.sendGoal();
+						ac.actuateGripper();
+		ac.sendGoal();
 		break;
 
 		case(3) :
-				ac.actuateArm();
-				extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
-				target_filename << base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
-				extract_feature_srv.request.filename = target_filename.str();
+						ac.actuateArm();
+		extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
+		target_filename << base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
+		extract_feature_srv.request.filename = target_filename.str();
 
-				ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service");
-				if(ac.goal_.controller.arm.action > 3)
-				{
-					success = ac.callAndRecordFeature(extract_feature_srv);
-					if(success)
-						{
-						ac.goal_.controller.arm.start_pose.position = ac.action_point_.point;
-						ac.sendGoal();
-						}
-					else
-						ac.action_result_ = false;
-				}
-				else
-					ac.sendGoal();
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service");
+		if(ac.goal_.controller.arm.action > 3)
+		{
+			success = ac.callAndRecordFeature(extract_feature_srv);
+			if(success)
+			{
+				ac.goal_.controller.arm.start_pose.position = ac.action_point_.point;
+				ac.sendGoal();
+			}
+			else
+				ac.action_result_ = false;
+		}
+		else
+			ac.sendGoal();
 		break;
 
 		default:
@@ -267,8 +267,8 @@ int main(int argc, char **argv){
 			ac.action_result_ = false;
 			break;
 		}
-					
-                ROS_INFO("Extract Feature Result %d",success);
+
+		ROS_INFO("Extract Feature Result %d",success);
 
 		if(ac.action_result_ && success)
 		{

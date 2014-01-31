@@ -53,8 +53,8 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-								nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),holes_(false),
-								processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
+										nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),holes_(false),
+										processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("input_cloud_topic",input_cloud_topic_,std::string("/tabletop_segmentation"));
@@ -88,10 +88,10 @@ extract_features::extract_features(ros::NodeHandle& nh):
 
 	ROS_INFO("feature_learning::extract_features: Loading SVM files");
 
-//	ifstream fin(svm_filename_.c_str(),ios::binary);
-//    deserialize(learned_pfunct_, fin);
+	//	ifstream fin(svm_filename_.c_str(),ios::binary);
+	//    deserialize(learned_pfunct_, fin);
 
-    ROS_INFO("feature_learning::extract_features: Loaded SVM files");
+	ROS_INFO("feature_learning::extract_features: Loaded SVM files");
 
 }
 
@@ -342,11 +342,13 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 
 		ROS_DEBUG("feature_learning::extract_features: Creating Ray in base frame");
 		ROS_INFO_STREAM("Model frame "<<model.tfFrame());
-		ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),
-				ray.header.stamp, ros::Duration(5.0)));
 
-		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,
-				ray, listener_));
+		try {
+			ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),ray.header.stamp, ros::Duration(10.0)));
+			ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,ray, listener_));
+		} catch (tf::TransformException ex) {
+			ROS_ERROR("%s",ex.what());
+		}
 
 		/*
 		// Now get intersection of Ray and cloud XY plane
@@ -751,10 +753,12 @@ bool extract_features::updateTopics(){
 	input_rgb_cloud_->header = ros_cloud->header;
 	ROS_INFO("feature_learning::extract_features: Converted input pointcloud to ros message between frames");
 
-	ROS_VERIFY(listener_.waitForTransform(base_frame_,input_rgb_cloud_->header.frame_id,
-			input_rgb_cloud_->header.stamp, ros::Duration(5.0)));
-
-	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_,*input_rgb_cloud_,*input_rgb_cloud_,listener_));
+	try {
+		ROS_VERIFY(listener_.waitForTransform(base_frame_,input_rgb_cloud_->header.frame_id,input_rgb_cloud_->header.stamp, ros::Duration(10.0)));
+		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_,*input_rgb_cloud_,*input_rgb_cloud_,listener_));
+	} catch (tf::TransformException ex) {
+		ROS_ERROR("feature_learning::extract_features: %s",ex.what());
+	}
 
 	//pcl17::copyPointCloud(*input_rgb_cloud_,*input_cloud_);
 	//input_cloud_->header = input_rgb_cloud_->header;
@@ -799,10 +803,12 @@ bool extract_features::updateTopics(){
 			table_tf,tabletop_srv_.response.table.table_points,
 			transform_table_cloud);
 
-	ROS_VERIFY(listener_.waitForTransform(base_frame_, transform_table_cloud.header.frame_id,
-			transform_table_cloud.header.stamp, ros::Duration(5.0)));
-	ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, transform_table_cloud,
-			transform_table_cloud, listener_));
+	try {
+		ROS_VERIFY(listener_.waitForTransform(base_frame_, transform_table_cloud.header.frame_id,transform_table_cloud.header.stamp, ros::Duration(10.0)));
+		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, transform_table_cloud,transform_table_cloud, listener_));
+	} catch (tf::TransformException ex) {
+		ROS_ERROR("feature_learning::extract_features: %s",ex.what());
+	}
 
 	pcl17::PointCloud<pcl17::PointXYZ>::Ptr table_cloud_pcl(new pcl17::PointCloud<pcl17::PointXYZ>());
 	pcl17::fromROSMsg(transform_table_cloud, *table_cloud_pcl);
@@ -864,10 +870,15 @@ bool extract_features::updateTopics(){
 				table_tf_b,tabletop_srv_.response.clusters[cloud_count],
 				cluster_points);
 
-		ROS_VERIFY(listener_.waitForTransform(base_frame_,cluster_points.header.frame_id,
-				cluster_points.header.stamp, ros::Duration(5.0)));
-		ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, cluster_points,
-				cluster_points, listener_));
+		try {
+			ROS_VERIFY(listener_.waitForTransform(base_frame_,cluster_points.header.frame_id,
+					cluster_points.header.stamp, ros::Duration(10.0)));
+			ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, cluster_points,
+					cluster_points, listener_));
+		} catch (tf::TransformException ex) {
+			ROS_ERROR("feature_learning::extract_features: %s",ex.what());
+		}
+
 		pcl17::PointCloud<pcl17::PointXYZ>::Ptr temp_clouds(new pcl17::PointCloud<pcl17::PointXYZ>());
 
 		pcl17::fromROSMsg(cluster_points, *temp_clouds);
