@@ -1064,6 +1064,8 @@ double action_manager::distanceFromFrame(const geometry_msgs::PoseStamped& pose,
 	return transform.getOrigin().distance(tf_push_pose.getOrigin());
 }
 
+//angles_left = (1.605, 0.321, 1.297, -1.694, 0.988, -0.376, 12.053) - Pregrasp pose
+//angles_right = (-1.571, 0.374, -1.105, -1.589, -1.119, -0.276, 0.537)- Pregrasp pose
 
 bool action_manager::rightCloser(const geometry_msgs::PoseStamped& push_pose){
 
@@ -1080,6 +1082,11 @@ bool action_manager::rightCloser(const geometry_msgs::PoseStamped& push_pose){
 bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pose,const geometry_msgs::PoseStamped& place_pose){
 
 	bool right = rightCloser(push_pose);
+
+	if(right)
+		ROS_INFO("action_manager::pr2_action_interface: SELECTED RIGHT HAND FOR MOTION");
+	else
+		ROS_INFO("action_manager::pr2_action_interface: SELECTED LEFT HAND FOR MOTION");
 
 	// This assuming input is in the base frame
 	ROS_INFO("action_manager::pr2_action_interface: Converting pose to TF");
@@ -1127,6 +1134,12 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach_direction_t approach){
 
 	bool right = rightCloser(pose);
+
+	if(right)
+		ROS_INFO("action_manager::pr2_action_interface: SELECTED RIGHT HAND FOR MOTION");
+	else
+		ROS_INFO("action_manager::pr2_action_interface: SELECTED LEFT HAND FOR MOTION");
+
 
 	// This assuming input is in the base frame
 	ROS_INFO("action_manager::pr2_action_interface: Converting pose to TF");

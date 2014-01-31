@@ -127,8 +127,6 @@ visualization_msgs::Marker extract_features::getMarker(int i){
 std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 
 	cv::Mat img_gray = mask_image_;
-	//ROS_INFO("Image type: %d",mask_image_.type());
-	//cv::cvtColor(mask_image_,img_gray,CV_BGR2GRAY);
 	std::vector<std::vector<cv::Point> > contours_unordered;
 	// closing all contours via dialation
 	cv::Mat bw_new;
@@ -210,19 +208,6 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	ROS_INFO("feature_learning::extract_features: Computing organized edges");
 	oed.compute (labels, label_indices);
 	ROS_INFO("feature_learning::extract_features: Computed labels size:%d", labels.points.size());
-
-	/*	pcl17::PointCloud<PointType>::Ptr occluding_edges (new pcl17::PointCloud<PointType>),
-	        occluded_edges (new pcl17::PointCloud<PointType>),
-	        boundary_edges (new pcl17::PointCloud<PointType>),
-	        high_curvature_edges (new pcl17::PointCloud<PointType>),
-	        rgb_edges (new pcl17::PointCloud<PointType>);
-
-	pcl17::copyPointCloud (*input_cloud_, label_indices[0].indices, *boundary_edges);
-	pcl17::copyPointCloud (*input_cloud_, label_indices[1].indices, *occluding_edges);
-	pcl17::copyPointCloud (*input_cloud_, label_indices[2].indices, *occluded_edges);
-	pcl17::copyPointCloud (*input_cloud_, label_indices[3].indices, *high_curvature_edges);
-	pcl17::copyPointCloud (*cloud, label_indices[4].indices, *rgb_edges); TODO: Check if this works any ways
-	 */
 
 	// Now cluster the edges and return them to the user
 	pcl17::PointCloud<PointType> edge_list;
@@ -348,26 +333,6 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
 		}
-
-		/*
-		// Now get intersection of Ray and cloud XY plane
-
-		 * TODO: This may only work if plane calculation is correct, so verify this
-
-
-		float t;
-		//		t = (plane_coefficients->values[3] + plane_coefficients->values[0]*ray.points[0].x +
-		//				plane_coefficients->values[1]*ray.points[0].y+ plane_coefficients->values[2]*ray.points[0].z);
-		//		t /= (plane_coefficients->values[0]*ray.points[1].x +
-		//				plane_coefficients->values[1]*ray.points[1].y+ plane_coefficients->values[2]*ray.points[1].z);
-		//		t = (table_coefficients_->values[3] + table_coefficients_->values[0]*ray.points[0].x +
-		//				table_coefficients_->values[1]*ray.points[0].y+ table_coefficients_->values[2]*ray.points[0].z);
-		//		t /= (table_coefficients_->values[0]*ray.points[1].x +
-		//				table_coefficients_->values[1]*ray.points[1].y+ table_coefficients_->values[2]*ray.points[1].z);
-
-
-		//push_point.x = t*ray.points[1].x;push_point.y = t*ray.points[1].y; push_point.z = t*ray.points[1].z;
-		 */
 
 		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
 		if(push_point.z < table_height_)
@@ -589,6 +554,20 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 	return output_template_list;
 }
 
+void extract_features::publishManipulationMarker(){
+
+	visualization_msgs::Marker location_marker = getMarker(1);
+	marker_array_.markers.clear(); // Clear current marker array
+	location_marker.type = visualization_msgs::Marker::CUBE;
+	location_marker.header = action_point_.header;
+	location_marker.color.b = 1.0;
+	location_marker.header.stamp = ros::Time();
+	location_marker.pose.position.x = action_point_.point.x; location_marker.pose.position.y = action_point_.point.y; location_marker.pose.position.z = action_point_.point.z;
+	marker_array_.markers.push_back(location_marker);
+	m_array_pub_.publish(marker_array_);
+
+}
+
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
 	// registering filenname for recording : TODO: check if this can avoid the multiple call problem
@@ -645,15 +624,9 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 					}
 
-					// Now transform the action point;
-					/*try {
-						ROS_VERIFY(listener_.waitForTransform(base_frame_, action_point_.header.frame_id,action_point_.header.stamp, ros::Duration(10.0)));
-						ROS_VERIFY(listener_.transformPoint(base_frame_, action_point_,action_point_));
-					} catch (tf::TransformException ex) {
-						ROS_ERROR("feature_learning::extract_features: %s",ex.what());
-					}*/
-
 					ROS_INFO("feature_learning::extract_features: Action point header frame: %s",action_point_.header.frame_id.c_str());
+
+					publishManipulationMarker();
 
 					if(max_prob == 0)
 						response.result = ExtractFeatures::Response::FAILURE;
@@ -677,34 +650,12 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 
 					trainfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
 
-/*					ROS_INFO("feature_learning::extract_features: Writing bag");
-					sensor_msgs::PointCloud2Ptr ros_cloud(new sensor_msgs::PointCloud2);
-					pcl17::toROSMsg(templates[random_index],*ros_cloud);
-					ros_cloud->header = input_cloud_->header;*/
-
-/*					try
-					{
-						bag_.write(input_cloud_topic_, ros::Time::now(), ros_cloud);
-						bag_.write(input_image_topic_, ros::Time::now(), ros_image_);
-						bag_.write(input_camera_info_, ros::Time::now(), cam_info_);
-					}
-					catch (rosbag::BagIOException ex)
-					{
-						ROS_DEBUG("feature_learning::extract_features: Problem when writing demonstration to file >%s< : %s.",
-								bag_.getFileName().c_str(), ex.what());
-
-					}*/
-					// Now transform the action point;
-					/*try {
-						ROS_VERIFY(listener_.waitForTransform(base_frame_, action_point_.header.frame_id,action_point_.header.stamp, ros::Duration(10.0)));
-						ROS_VERIFY(listener_.transformPoint(base_frame_, action_point_,action_point_));
-					} catch (tf::TransformException ex) {
-						ROS_ERROR("feature_learning::extract_features: %s",ex.what());
-					}*/
-
 					ROS_INFO("feature_learning::extract_features: Action point header frame: %s",action_point_.header.frame_id.c_str());
 
+					publishManipulationMarker();
+
 					ROS_INFO("feature_learning::extract_features: returning success");
+
 					response.action_location = action_point_;
 					response.result = ExtractFeatures::Response::SUCCESS;
 
@@ -807,9 +758,6 @@ bool extract_features::updateTopics(){
 	} catch (tf::TransformException ex) {
 		ROS_ERROR("feature_learning::extract_features: %s",ex.what());
 	}
-
-	//pcl17::copyPointCloud(*input_rgb_cloud_,*input_cloud_);
-	//input_cloud_->header = input_rgb_cloud_->header;
 
 	graph_segment convertor;
 	input_image_ = convertor.returnCVImage(*input_image);
@@ -962,21 +910,6 @@ bool extract_features::updateTopics(){
 
 bool extract_features::initialized(){
 
-/*	std::stringstream bag_name;
-	bag_name<<filename_<<".bag";
-	ROS_INFO("feature_learning::extract_features: Initializing service with new bag %s ", filename_.c_str());
-
-	try
-	{
-		bag_.open(bag_name.str(), rosbag::bagmode::Write);
-
-	}
-	catch (rosbag::BagIOException ex)
-	{
-		ROS_DEBUG("feature_learning::extract_features: Problem when opening demo file >%s< : %s.",
-				filename_.c_str(), ex.what());
-		return false;
-	}*/
 	return true;
 }
 

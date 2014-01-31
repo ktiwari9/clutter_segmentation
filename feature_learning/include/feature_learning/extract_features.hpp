@@ -166,6 +166,8 @@ public:
 
 	FeatureVector convertEigenToFeature(const Eigen::MatrixXf& feature);
 
+	void publishManipulationMarker();
+
 private:
 
 	rosbag::Bag bag_;
