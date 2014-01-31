@@ -46,6 +46,11 @@
 //pcl publisher
 #include <pcl17_ros/point_cloud.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+
 using namespace graph_based_segmentation;
 
 int writer_counter = 1;
@@ -217,6 +222,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	ROS_INFO("feature_learning::extract_features: Clustering edges, Number of Edges found: %d",label_indices.size());
 	marker_array_.markers.clear();
 
+#pragma omp parallel for
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
 		pcl17::PointCloud<PoinRGBType>::Ptr edge_points (new pcl17::PointCloud<PoinRGBType>);
@@ -243,10 +249,12 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 			cloud_cluster->height = 1;
 
 			Eigen::Vector4f centroid;
+#pragma omp critical
 			edges += *cloud_cluster;
 			pcl17::compute3DCentroid(*cloud_cluster,centroid);
 			PointType center_point;
 			center_point.x = centroid[0];center_point.y = centroid[1];center_point.z = centroid[2];
+#pragma omp critical
 			edge_list.push_back(center_point);
 
 			visualization_msgs::Marker location_marker = getMarker(counter);
@@ -255,6 +263,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 			location_marker.header = input_cloud_->header;
 			location_marker.header.stamp = ros::Time();
 			location_marker.pose.position.x = center_point.x; location_marker.pose.position.y = center_point.y; location_marker.pose.position.z = center_point.z;
+#pragma omp critical
 			marker_array_.markers.push_back(location_marker);
 		}
 	}
@@ -302,6 +311,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 
 	marker_array_.markers.clear();
 	int counter = 0;
+#pragma omp parallel for
 	for(size_t i = 0; i < hole_contours.size(); i++)
 	{
 		if(hole_contours[i].size() < 50)
@@ -345,9 +355,12 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		location_marker.header = input_cloud_->header;
 		location_marker.header.stamp = ros::Time();
 		location_marker.pose.position.x = push_point.x; location_marker.pose.position.y = push_point.y; location_marker.pose.position.z = push_point.z;
-		marker_array_.markers.push_back(location_marker);
 
+#pragma omp critical
+		{
+		marker_array_.markers.push_back(location_marker);
 		edge_list.push_back(push_point);
+		}
 	}
 
 	ROS_INFO("feature_learning::extract_features: Publishing Markers");
@@ -376,9 +389,8 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	cv::Point2d  uv_image;
 
 	// Getting the centroid of the template
-	action_point_.point.x = center.x; action_point_.point.y = center.y; action_point_.point.z = center.z;
-	action_point_.header.frame_id = base_frame_;
-	action_point_.header.stamp = input_cloud_->header.stamp;
+	geometry_msgs::Point centroid;
+	centroid.x = center.x; centroid.y = center.y; centroid.z = center.z;
 
 	pcl17::PointCloud<PointType> centroid_base_point;
 
@@ -428,7 +440,7 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 
 	ROS_INFO("feature_learning::extract_features: Initializing feature class for given template of size %d",cloud->points.size());
-	feature.initialized_ = feature.initializeFeatureClass(image,cloud,action_point_.point);
+	feature.initialized_ = feature.initializeFeatureClass(image,cloud,centroid);
 
 	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
 	feature.computeFeature(final_feature);
@@ -520,6 +532,7 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 		center_points_.clear();
 	}
 
+#pragma omp parallel for
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
 		// Trying a pass through filter
@@ -541,11 +554,15 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
 		if(filtered_cloud->size() == 0)
 			continue;
+
+#pragma omp critical
+		{
 		if(holes_)
 			center_points_.push_back(new_points[t]);
 
 		output_template_list.push_back(*filtered_cloud);
 		template_cloud += *filtered_cloud;
+		}
 	}
 
 	template_cloud.header = input_cloud_->header;
@@ -635,29 +652,38 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 				else // Training Pipeline
 				{
 
-					int random_index = returnRandIndex(templates.size());
-					ROS_INFO("feature_learning::extract_features: %d index selected for training ", random_index);
-
-					pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[random_index]));
-					ROS_INFO("feature_learning::extract_features: Extracting features from template of size %d",temp_cloud->points.size());
-
-					if(temp_cloud->points.size() == 0)
+					//int random_index = returnRandIndex(templates.size());
+					ROS_INFO("feature_learning::extract_features: Running Parallel feature processing");
+#pragma omp parallel for
+					for(size_t random_index = 0; random_index < templates.size(); random_index++)
 					{
-						ROS_INFO("feature_learning::extract_features: Random Template failed");
-						response.result = ExtractFeatures::Response::FAILURE;
-						return true;
+						pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[random_index]));
+
+						ROS_INFO("feature_learning::extract_features: Extracting features from template of size %d",temp_cloud->points.size());
+						if(temp_cloud->points.size() == 0)
+							ROS_INFO("feature_learning::extract_features: %d template failed",random_index);
+						else
+						{
+							trainfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
+							geometry_msgs::PointStamped centroid;
+							centroid.point.x = static_cast<double>(cluster_centers.points[random_index].x);
+							centroid.point.y = static_cast<double>(cluster_centers.points[random_index].y);
+							centroid.point.z = static_cast<double>(cluster_centers.points[random_index].z);
+							centroid.header.frame_id = base_frame_;
+							centroid.header.stamp = ros::Time();
+
+							ROS_INFO("feature_learning::extract_features: returning success");
+#pragma omp critical
+							{
+								response.training_centers.push_back(centroid);
+								response.indicies.push_back(random_index);
+							}
+						}
 					}
-
-					trainfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
-
-					ROS_INFO("feature_learning::extract_features: Action point header frame: %s",action_point_.header.frame_id.c_str());
-
-					publishManipulationMarker();
-
-					ROS_INFO("feature_learning::extract_features: returning success");
-
-					response.action_location = action_point_;
-					response.result = ExtractFeatures::Response::SUCCESS;
+					if(response.indicies.size() >= 1)
+						response.result = ExtractFeatures::Response::SUCCESS;
+					else
+						response.result = ExtractFeatures::Response::FAILURE;
 
 					return true;
 				}

@@ -11,6 +11,12 @@ float32 reward
 
 ---
 
+# Return Training Samples
+geometry_msgs/PointStamped[] training_centers
+
+# Return Template indicies to match with centers and templates for parallelization
+int32[] indicies
+
 # Return with the point of action execution
 geometry_msgs/PointStamped action_location
 
