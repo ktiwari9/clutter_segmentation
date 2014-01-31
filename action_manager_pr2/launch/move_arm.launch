@@ -1,7 +1,8 @@
 <launch>
   
   <!-- load perception -->
-  <include file="$(find action_manager_pr2)/launch/laser-perception.launch"/>
+  <include file="$(find action_manager_pr2)/launch/laser-perception.launch"/> 
+  <!-- <include file="$(find action_manager_pr2)/launch/kinect-perception.launch"/> -->
   
   <!-- load planning_environment -->
   <include file="$(find planning_environment)/launch/environment_server.launch"/>
