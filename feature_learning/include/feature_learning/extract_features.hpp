@@ -143,7 +143,7 @@ public:
 
 	std::vector<std::vector<cv::Point> > getHoles(cv::Mat input);
 
-	void trainfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
+	bool trainfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
 			const image_geometry::PinholeCameraModel& model, const PointType& center, int index);
 
 	double testfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,

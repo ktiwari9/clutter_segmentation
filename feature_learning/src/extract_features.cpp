@@ -382,7 +382,7 @@ extract_features::FeatureVector extract_features::convertEigenToFeature(const Ei
 
 	return datum;
 }
-void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
+bool extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<PointType>::Ptr &cloud,
 		const image_geometry::PinholeCameraModel& model, const PointType& center, int index){
 
 	feature_class feature;
@@ -406,10 +406,11 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		ray.header.stamp = ros::Time::now();
 
 		try {
-			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
+			listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0));
 			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
+			return false;
 		}
 
 		cv::Point3d push_3d;
@@ -428,22 +429,22 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
 
-		int window_ex = 60, window_ey = 60;
-		if(uv_image.x + 60 >= image.cols)
-			window_ex = static_cast<int>(floor(image.cols - uv_image.x));
+	int window_ex = 60, window_ey = 60;
+	if(uv_image.x + 60 >= image.cols)
+		window_ex = static_cast<int>(floor(image.cols - uv_image.x));
 
-		if(uv_image.y + 60 >= image.rows)
-			window_ey = static_cast<int>(floor(image.rows - uv_image.y));
+	if(uv_image.y + 60 >= image.rows)
+		window_ey = static_cast<int>(floor(image.rows - uv_image.y));
 
-		int window_fx = 60, window_fy = 60;
-		if(uv_image.x - 60 <= 0)
-			window_fx = static_cast<int>(floor(uv_image.x));
+	int window_fx = 60, window_fy = 60;
+	if(uv_image.x - 60 <= 0)
+		window_fx = static_cast<int>(floor(uv_image.x));
 
-		if(uv_image.y - 60 <= 0)
-			window_fy = static_cast<int>(floor(uv_image.y));
+	if(uv_image.y - 60 <= 0)
+		window_fy = static_cast<int>(floor(uv_image.y));
 
-		cv::Rect faceRect(static_cast<int>(uv_image.x) - window_fx ,static_cast<int>(uv_image.y) - window_fy, window_fx+window_ex, window_fy+window_ey);
-		image(faceRect).copyTo(image);
+	cv::Rect faceRect(static_cast<int>(uv_image.x) - window_fx ,static_cast<int>(uv_image.y) - window_fy, window_fx+window_ex, window_fy+window_ey);
+	image(faceRect).copyTo(image);
 
 
 	std::stringstream temp_filename;
@@ -474,6 +475,7 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	}
 	writer_counter++;
 	ROS_INFO_STREAM("feature_learning::extract_features: Updated counter number "<< writer_counter<<" written to "<<eigen_filename.str());
+	return true;
 
 
 }
@@ -501,10 +503,11 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		ray.header.frame_id =  base_frame_;
 		ray.header.stamp = ros::Time::now();
 		try {
-			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
+			listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0));
 			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
+			return 0;
 		}
 
 		cv::Point3d push_3d;
@@ -522,23 +525,24 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 
 
-	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
-	{
-		cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
-		image(faceRect).copyTo(image);
-	}
-	else
-	{
-		int window_x = 50, window_y = 50;
-		if(uv_image.x + 50 >= image.rows)
-			window_x = static_cast<int>(floor(image.rows - uv_image.x));
+	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
 
-		if(uv_image.y + 50 >= image.cols)
-			window_y = static_cast<int>(floor(image.cols - uv_image.y));
+	int window_ex = 60, window_ey = 60;
+	if(uv_image.x + 60 >= image.cols)
+		window_ex = static_cast<int>(floor(image.cols - uv_image.x));
 
-		cv::Rect faceRect(uv_image.x - window_x ,uv_image.y - window_y, window_x*2, window_y*2);
-		image(faceRect).copyTo(image);
-	}
+	if(uv_image.y + 60 >= image.rows)
+		window_ey = static_cast<int>(floor(image.rows - uv_image.y));
+
+	int window_fx = 60, window_fy = 60;
+	if(uv_image.x - 60 <= 0)
+		window_fx = static_cast<int>(floor(uv_image.x));
+
+	if(uv_image.y - 60 <= 0)
+		window_fy = static_cast<int>(floor(uv_image.y));
+
+	cv::Rect faceRect(static_cast<int>(uv_image.x) - window_fx ,static_cast<int>(uv_image.y) - window_fy, window_fx+window_ex, window_fy+window_ey);
+	image(faceRect).copyTo(image);
 
 	std::stringstream temp_filename;
 	temp_filename<<"/tmp/sampleRect_test_"<<index<<".jpg";
@@ -659,8 +663,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			bool test = static_cast<bool>(request.action);
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-		//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-		    pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty())
 			{
@@ -720,19 +724,23 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 						else
 						{
 							image_geometry::PinholeCameraModel local_model = left_cam_;
-							trainfeatureClass(input_image_,temp_cloud,local_model,cluster_centers.points[random_index],random_index);
-							geometry_msgs::PointStamped centroid;
-							centroid.point.x = static_cast<double>(cluster_centers.points[random_index].x);
-							centroid.point.y = static_cast<double>(cluster_centers.points[random_index].y);
-							centroid.point.z = static_cast<double>(cluster_centers.points[random_index].z);
-							centroid.header.frame_id = base_frame_;
-							centroid.header.stamp = ros::Time();
 
-							ROS_INFO("feature_learning::extract_features: returning success");
-#pragma omp critical
+							bool feature_comp = trainfeatureClass(input_image_,temp_cloud,local_model,cluster_centers.points[random_index],random_index);
+							if(feature_comp)
 							{
-								response.training_centers.push_back(centroid);
-								response.indicies.push_back(random_index);
+								geometry_msgs::PointStamped centroid;
+								centroid.point.x = static_cast<double>(cluster_centers.points[random_index].x);
+								centroid.point.y = static_cast<double>(cluster_centers.points[random_index].y);
+								centroid.point.z = static_cast<double>(cluster_centers.points[random_index].z);
+								centroid.header.frame_id = base_frame_;
+								centroid.header.stamp = ros::Time();
+
+								ROS_INFO("feature_learning::extract_features: returning success");
+#pragma omp critical
+								{
+									response.training_centers.push_back(centroid);
+									response.indicies.push_back(random_index);
+								}
 							}
 						}
 					}
