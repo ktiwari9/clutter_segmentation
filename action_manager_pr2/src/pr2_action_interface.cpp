@@ -1169,6 +1169,8 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 
 	bool success = moveToSide(right);
 
+	success = moveToPreGrasp(right);
+
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
@@ -1233,6 +1235,8 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
+
+	success = moveToPreGrasp(right);
 
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 
