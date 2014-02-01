@@ -164,7 +164,7 @@ public:
 
 		goal_.controller.target = action_manager_msgs::Controller::ARM;
 		int action;
-		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (0-TUCK, 1-STRETCH,2-HOME,3-GOZERO,4-GRASP,5-PUSH):");
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (0-TUCK, 1-STRETCH,2-HOME,3-GOZERO,4-PREGRASP,5-GRASP,6-PUSH):");
 		std::cin >> action;
 		goal_.controller.arm.action = action;
 		//goal_.controller.arm.frame_id = "/base_link";
@@ -173,7 +173,7 @@ public:
 			int arm;
 			ROS_INFO("Select Arm (0-LEFT,1-RIGHT)");
 			std::cin>>arm;
-			goal_.controller.arm.action = action;
+			goal_.controller.arm.arm = arm;
 			return;
 		}
 		else
