@@ -407,7 +407,7 @@ bool extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 		try {
 			listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0));
-			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
+			pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_);
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
 			return false;
@@ -428,6 +428,8 @@ bool extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
+        if(uv_image.x > image.cols || uv_image.y > image.rows)
+           return false;
 
 	int window_ex = 60, window_ey = 60;
 	if(uv_image.x + 60 >= image.cols)
@@ -526,6 +528,8 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
+        if(uv_image.x > image.cols || uv_image.y > image.rows)
+           return 0;
 
 	int window_ex = 60, window_ey = 60;
 	if(uv_image.x + 60 >= image.cols)
