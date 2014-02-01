@@ -170,13 +170,10 @@ std::vector<std::vector<cv::Point> > extract_features::getHoles(cv::Mat input){
 	return holes;
 }
 
-pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
-		pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud){
+pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model){
 
 	holes_ = false;
 	ROS_INFO("feature_learning::extract_features: Initializing edge computation features");
-	// Local Declarations
-	processed_cloud.clear();
 	pcl17::PointCloud<PointNT>::Ptr cloud_normals (new pcl17::PointCloud<PointNT>);
 	pcl17::search::KdTree<PoinRGBType>::Ptr tree (new pcl17::search::KdTree<PoinRGBType>);
 	ROS_INFO("feature_learning::extract_features: Starting Normal Estimation %d",input_cloud_->points.size());
@@ -222,6 +219,11 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	ROS_INFO("feature_learning::extract_features: Clustering edges, Number of Edges found: %d",label_indices.size());
 	marker_array_.markers.clear();
 
+	// Now computing the point limits
+	PointType min_point, max_point;
+	pcl17::getMinMax3D(*processed_cloud_,min_point,max_point);
+
+
 #pragma omp parallel for
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
@@ -250,13 +252,18 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 			cloud_cluster->height = 1;
 
 			Eigen::Vector4f centroid;
-#pragma omp critical
-			edges += *cloud_cluster;
 			pcl17::compute3DCentroid(*cloud_cluster,centroid);
 			PointType center_point;
 			center_point.x = centroid[0];center_point.y = centroid[1];center_point.z = centroid[2];
+
+			if(center_point.x >= min_point.x && center_point.y >= min_point.y &&
+					center_point.x <= max_point.x && center_point.y <= max_point.y)
+			{
 #pragma omp critical
 			edge_list.push_back(center_point);
+
+#pragma omp critical
+			edges += *cloud_cluster;
 
 			visualization_msgs::Marker location_marker = getMarker(counter);
 			counter++;
@@ -266,6 +273,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 			location_marker.pose.position.x = center_point.x; location_marker.pose.position.y = center_point.y; location_marker.pose.position.z = center_point.z;
 #pragma omp critical
 			marker_array_.markers.push_back(location_marker);
+			}
 		}
 	}
 	ROS_INFO("feature_learning::extract_features: Publishing edges and markers");
@@ -277,14 +285,12 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	return edge_list;
 }
 
-pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model,
-		pcl17::PointCloud<pcl17::PointXYZ> &processed_cloud){
+pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::Mat input_segment,const image_geometry::PinholeCameraModel& model){
 
 	// Local Declarations
 	holes_ = true;
 	pcl17::PointCloud<PointType> edge_list;
 
-	processed_cloud.clear();
 	pcl17::PointCloud<pcl17::PointXYZ>::Ptr filtered_cloud (new pcl17::PointCloud<pcl17::PointXYZ>);
 	pcl17::PassThrough<pcl17::PointXYZ> pass;
 
@@ -311,6 +317,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 	PointType push_point;
 
 	marker_array_.markers.clear();
+
 	int counter = 0;
 #pragma omp parallel for
 	for(size_t i = 0; i < hole_contours.size(); i++)
@@ -428,8 +435,11 @@ bool extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
-        if(uv_image.x > image.cols || uv_image.y > image.rows)
-           return false;
+	if(uv_image.x > image.cols || uv_image.y > image.rows)
+		return false;
+
+	if(uv_image.x < 0 || uv_image.y < 0 )
+		return false;
 
 	int window_ex = 60, window_ey = 60;
 	if(uv_image.x + 60 >= image.cols)
@@ -573,10 +583,25 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 }
 
-std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templates(const pcl17::PointCloud<pcl17::PointXYZ> &centroids){
+void extract_features::pruneCentroidList(pcl17::PointCloud<PointType> &centroids){
 
-	//	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
-	//	pcl17::PassThrough<PointType> pass;
+
+	PointType min_point, max_point;
+	pcl17::PointCloud<PointType> original_centroids(centroids);
+	pcl17::getMinMax3D(*processed_cloud_,min_point,max_point);
+
+	centroids.clear();
+
+	for(size_t i = 0; i < original_centroids.size(); i++)
+	{
+		if(original_centroids.points[i].x >= min_point.x && original_centroids.points[i].y >= min_point.y &&
+				original_centroids.points[i].x <= max_point.x && original_centroids.points[i].y <= max_point.y)
+			centroids.push_back(original_centroids.points[i]);
+	}
+
+}
+
+std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templates(const pcl17::PointCloud<pcl17::PointXYZ> &centroids){
 
 	std::vector<pcl17::PointCloud<PointType> > output_template_list;
 
@@ -667,8 +692,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			bool test = static_cast<bool>(request.action);
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+			//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_);
+			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_);
 
 			if(cluster_centers.empty())
 			{
@@ -918,11 +943,13 @@ bool extract_features::updateTopics(){
 	seg.setInputCloud (table_cloud_pcl);
 	seg.segment (*inliers, *table_coefficients_);
 
-	pcl17::PointCloud<pcl17::PointXYZ>::Ptr table_base_points(new pcl17::PointCloud<pcl17::PointXYZ>());
-	pcl17::copyPointCloud (*table_cloud_pcl, *inliers, *table_base_points);
+
+	// Copying table inlier points to processed_cloud
+	processed_cloud_->clear();
+	pcl17::copyPointCloud (*table_cloud_pcl, *inliers, *processed_cloud_);
 
 	Eigen::Vector4f table_centroid;
-	pcl17::compute3DCentroid(*table_base_points,table_centroid);
+	pcl17::compute3DCentroid(*processed_cloud_,table_centroid);
 	table_height_ = table_centroid[2];
 
 	//convert clusters to honeybee frame

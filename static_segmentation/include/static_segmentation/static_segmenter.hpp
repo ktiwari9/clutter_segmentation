@@ -130,12 +130,9 @@ public:
 
 	bool serviceCallback(StaticSegment::Request &request, StaticSegment::Response &response);
 
-	std::vector<StaticSeg> computeCGraph(sensor_msgs::ImagePtr &return_image,
-			std::vector<sensor_msgs::Image>& cluster_masks);
+	std::vector<StaticSeg> computeCGraph(sensor_msgs::ImagePtr &return_image,  std::vector<sensor_msgs::Image>& cluster_masks);
 
-	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters,
-			const sensor_msgs::CameraInfo &cam_info,
-			std::vector<sensor_msgs::Image> &masks);
+	void getMasksFromClusters(const std::vector<sensor_msgs::PointCloud2> &clusters, const sensor_msgs::CameraInfo &cam_info, std::vector<sensor_msgs::Image> &masks);
 
 	cv::Mat returnCVImage(const sensor_msgs::Image & img);
 
