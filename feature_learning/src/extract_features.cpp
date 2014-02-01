@@ -337,12 +337,14 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 
 		ROS_DEBUG("feature_learning::extract_features: Creating Ray in base frame");
 		ROS_INFO_STREAM("Model frame "<<model.tfFrame());
-
+#pragma omp critical
+		{
 		try {
 			ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),ray.header.stamp, ros::Duration(10.0)));
 			ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,ray, listener_));
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
+		}
 		}
 
 		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
@@ -396,6 +398,7 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	if(!holes_){
 
 		ROS_DEBUG("feature_learning::extract_features: Converting centroid to camera frame");
+		tf::TransformListener local_listener;
 
 		pcl17::PointCloud<pcl17::PointXYZ> ray;
 		ray.push_back(pcl17::PointXYZ(0,0,0));
@@ -404,8 +407,8 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		ray.header.stamp = ros::Time::now();
 
 		try {
-			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
-			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
+			ROS_VERIFY(local_listener.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
+			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, local_listener));
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
 		}
@@ -696,7 +699,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 							ROS_INFO("feature_learning::extract_features: %d template failed",random_index);
 						else
 						{
-							trainfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[random_index],random_index);
+							image_geometry::PinholeCameraModel local_model = left_cam_;
+							trainfeatureClass(input_image_,temp_cloud,local_model,cluster_centers.points[random_index],random_index);
 							geometry_msgs::PointStamped centroid;
 							centroid.point.x = static_cast<double>(cluster_centers.points[random_index].x);
 							centroid.point.y = static_cast<double>(cluster_centers.points[random_index].y);
