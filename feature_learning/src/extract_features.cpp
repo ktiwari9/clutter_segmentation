@@ -226,6 +226,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
 		pcl17::PointCloud<PoinRGBType>::Ptr edge_points (new pcl17::PointCloud<PoinRGBType>);
+	        pcl17::search::KdTree<PoinRGBType>::Ptr local_tree (new pcl17::search::KdTree<PoinRGBType>);
 		pcl17::copyPointCloud (*input_rgb_cloud_, label_indices[i].indices, *edge_points);
 		ROS_INFO("feature_learning::extract_features: Clustering edges of Type %d, with %d points",i,label_indices[i].indices.size());
 		ROS_INFO("feature_learning::extract_features: Corresponding cloud size %d",edge_points->points.size());
@@ -234,7 +235,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 		ec.setClusterTolerance (0.01); // 2cm
 		ec.setMinClusterSize (50);
 		ec.setMaxClusterSize (1500);
-		ec.setSearchMethod (tree);
+		ec.setSearchMethod (local_tree);
 		ec.setInputCloud (edge_points);
 		ec.extract (cluster_indices);
 		ROS_INFO("feature_learning::extract_features: % d clusters found for edges of type %d",cluster_indices.size(),i);
@@ -415,11 +416,12 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		push_3d.z = static_cast<double>(ray.points[1].z);
 
 		model.project3dToPixel(push_3d,uv_image);
-		ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",uv_image.x,uv_image.y);
+		ROS_INFO("feature_learning::extract_features: Image start x:%f start y:%f ",uv_image.x,uv_image.y);
 	}
 	else
 		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
 
+	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
 
 	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
 	{
