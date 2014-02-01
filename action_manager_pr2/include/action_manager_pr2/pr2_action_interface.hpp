@@ -213,6 +213,8 @@ public:
 
 	bool moveToSide(bool right = true);
 
+	bool moveToPreGrasp(bool right = true);
+
 	bool goZero();
 
 	bool moveArmToPoseWithCart(const geometry_msgs::PoseStamped& pose, bool right = true);

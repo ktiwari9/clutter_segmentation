@@ -435,27 +435,18 @@ bool extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
+	// Return false is sample template cannot be extracted
 	if(uv_image.x > image.cols || uv_image.y > image.rows)
 		return false;
 
 	if(uv_image.x < 0 || uv_image.y < 0 )
 		return false;
 
-	int window_ex = 60, window_ey = 60;
-	if(uv_image.x + 60 >= image.cols)
-		window_ex = static_cast<int>(floor(image.cols - uv_image.x));
+	if(uv_image.x + 60 >= image.cols || uv_image.y + 60 >= image.rows || uv_image.x - 60 <= 0 || uv_image.y - 60 <= 0)
+		return false;
 
-	if(uv_image.y + 60 >= image.rows)
-		window_ey = static_cast<int>(floor(image.rows - uv_image.y));
-
-	int window_fx = 60, window_fy = 60;
-	if(uv_image.x - 60 <= 0)
-		window_fx = static_cast<int>(floor(uv_image.x));
-
-	if(uv_image.y - 60 <= 0)
-		window_fy = static_cast<int>(floor(uv_image.y));
-
-	cv::Rect faceRect(static_cast<int>(uv_image.x) - window_fx ,static_cast<int>(uv_image.y) - window_fy, window_fx+window_ex, window_fy+window_ey);
+	// Only execute if template works
+	cv::Rect faceRect(static_cast<int>(uv_image.x) - 60 ,static_cast<int>(uv_image.y) - 60, 120, 120);
 	image(faceRect).copyTo(image);
 
 

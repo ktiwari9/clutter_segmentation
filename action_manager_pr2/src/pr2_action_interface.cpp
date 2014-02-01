@@ -457,9 +457,11 @@ bool action_manager::goToJointPos (const double* positions , int num_positions, 
 
 bool action_manager::goToJointPos (const std::vector<double>& positions , double max_time, bool wait, bool right){
 
-	if (positions.size() % 7 != 0){
+	if (positions.size() % 7 != 0)
+	{
 		ROS_ERROR("action_manager::pr2_action_interface: you must specify 7 (or a multiple thereof) for the arm joint positions");
 	}
+
 	//our goal variable
 	pr2_controllers_msgs::JointTrajectoryGoal goal;
 	goal.trajectory.joint_names = getJointNames(right);
@@ -707,17 +709,21 @@ bool action_manager::moveToSide(bool right){
 		ROS_INFO(" action_manager::pr2_action_interface: zeroing left arm ");
 
 	std::vector<double> tuck_pos_vec;
-	if (right){
+	if (right)
+	{
 		double tuck_pos[] = {-2.135, 0.803, -1.732, -1.905, -2.369, -1.680, 1.398};
 		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
 		//location = [0.05, -0.65, -0.05] 'torso_lift_link'
-	}else{
+	}
+	else
+	{
 		double tuck_pos[] = {2.135, 0.803, 1.732, -1.905, 2.369, -1.680, 1.398};
 		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
 		//location = [0.05, 0.65, -0.05] 'torso_lift_link'
 	}
 
-	if (!isAtPos(tuck_pos_vec,right)){
+	if (!isAtPos(tuck_pos_vec,right))
+	{
 		return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
@@ -739,15 +745,19 @@ bool action_manager::tuck(bool right){
 		ROS_INFO(" action_manager::pr2_action_interface: tucking left arm ");
 
 	std::vector<double> tuck_pos_vec;
-	if (right){
+	if (right)
+	{
 		double tuck_pos[] = { -0.4,0.0,0.0,-2.25,0.0,0.0,0.0, -0.01,1.35,-1.92,-1.68, 1.35,-0.18,0.31};
 		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+14);
-	}else{
-		double tuck_pos[] = {   0.4,0.0,0.0,-2.25,0.0,0.0,0.0, -0.05,1.31,1.38,-2.06,1.69,-2.02,2.44};
+	}
+	else
+	{
+		double tuck_pos[] = {0.4,0.0,0.0,-2.25,0.0,0.0,0.0, -0.05,1.31,1.38,-2.06,1.69,-2.02,2.44};
 		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+14);
 	}
 
-	if (!isAtPos(tuck_pos_vec,right)){
+	if (!isAtPos(tuck_pos_vec,right))
+	{
 		return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
@@ -759,7 +769,37 @@ bool action_manager::tuck(bool right){
 	return true;
 
 }
+bool action_manager::moveToPreGrasp(bool right){
 
+	//angles_left = (1.605, 0.321, 1.297, -1.694, 0.988, -0.376, 12.053) - Pregrasp pose
+	//angles_right = (-1.571, 0.374, -1.105, -1.589, -1.119, -0.276, 0.537)- Pregrasp pose
+	if(right)
+		ROS_INFO(" action_manager::pr2_action_interface: Moving right arm to pregrasp");
+	else
+		ROS_INFO(" action_manager::pr2_action_interface: Moving left arm to pregrasp");
+
+	std::vector<double> tuck_pos_vec;
+
+	if (right)
+	{
+		double tuck_pos[] = {-1.571, 0.374, -1.105, -1.589, -1.119, -0.276, 0.537};
+		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
+	}
+	else
+	{
+		double tuck_pos[] = {1.605, 0.321, 1.297, -1.694, 0.988, -0.376, 12.053};
+		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
+	}
+
+	if (!isAtPos(tuck_pos_vec))
+	{
+		return goToJointPos(tuck_pos_vec,3.0,true,right);
+	}
+
+
+
+	return true;
+}
 bool action_manager::stretch(bool right){
 
 	if(right)
@@ -769,14 +809,19 @@ bool action_manager::stretch(bool right){
 
 	std::vector<double> tuck_pos_vec;
 
-	if (right){
+	if (right)
+	{
 		double tuck_pos[] = {-1.634, -0.039, -0.324, -0.131, 31.779, 0.004, 24.986};
 		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
-	}else{
+	}
+	else
+	{
 		double tuck_pos[] = {1.613, -0.105, 0.336, -0.033, -6.747, 0.014, 0.295};
 		tuck_pos_vec.insert(tuck_pos_vec.begin(),tuck_pos, tuck_pos+7);
 	}
-	if (!isAtPos(tuck_pos_vec)){
+
+	if (!isAtPos(tuck_pos_vec))
+	{
 		return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
@@ -1051,21 +1096,17 @@ double action_manager::distanceFromFrame(const geometry_msgs::PoseStamped& pose,
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
         ROS_INFO("Transform frame is %s",frame_id.c_str());
-        if(frame_id.compare("/base_link") != 0){
-	listener.waitForTransform("/base_link",frame_id,
-			ros::Time(), ros::Duration(10.0));
-
-	listener.lookupTransform("/base_link",frame_id,
-			ros::Time(), transform);}
+        if(frame_id.compare("/base_link") != 0)
+        {
+        	listener.waitForTransform("/base_link",frame_id,ros::Time(), ros::Duration(10.0));
+        	listener.lookupTransform("/base_link",frame_id,	ros::Time(), transform);
+        }
 
 	tf::Pose tf_push_pose;
 	tf::poseMsgToTF(pose.pose,tf_push_pose);
 
 	return transform.getOrigin().distance(tf_push_pose.getOrigin());
 }
-
-//angles_left = (1.605, 0.321, 1.297, -1.694, 0.988, -0.376, 12.053) - Pregrasp pose
-//angles_right = (-1.571, 0.374, -1.105, -1.589, -1.119, -0.276, 0.537)- Pregrasp pose
 
 bool action_manager::rightCloser(const geometry_msgs::PoseStamped& push_pose){
 
