@@ -17,9 +17,10 @@ int32 TUCK=0
 int32 STRETCH=1
 int32 HOME=2
 int32 GOZERO=3
+int32 PREGRASP=4
 # need to specify place location for GRASP action
-int32 GRASP=4
-int32 PUSH=5
+int32 GRASP=5
+int32 PUSH=6
 
 # Push direction
 int32 direction

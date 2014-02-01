@@ -118,6 +118,16 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
 	as_.start();
 }
 
+/*
+
+seed_angles_right = (-0.93743667222127069, 0.11056515201626564, -2.064627263335348, -1.4934701151950738, -6.7198768798611708, -0.45140012228925586, 14.224670047444075)
+seed_angles_left = (0.54066820655626213, 0.057655477736996884, 2.1336739049387785, -1.449537220909964, 6.5549140761711637, -0.41655446503198001, -1.5841374868194875)
+self.seed_angles = [seed_angles_left, seed_angles_right]
+
+seed_angles_right2 = (-0.93743667222127069, 0.11056515201626564, -2.064627263335348, -1.4934701151950738, -6.7198768798611708, -0.45140012228925586, 14.224670047444075)
+seed_angles_left2 = (0.54066820655626213, 0.057655477736996884, 2.1336739049387785, -1.449537220909964, 6.5549140761711637, -0.41655446503198001, -1.5841374868194875)
+*/
+
 action_manager::~action_manager(){
 
 	delete gripper_r_client_; delete gripper_l_client_; delete point_head_client_;
@@ -213,13 +223,16 @@ bool action_manager::controlArm(const geometry_msgs::PoseStamped& start_pose, co
 	case(3):
 					success = goZero(); break;
 
-	case(4):
+	case(5):
 					frame_id_ = frame_id;
 	success = graspPlaceAction(start_pose,end_pose); break;
 
-	case(5):
+	case(6):
             		frame_id_ = frame_id;
 	success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
+
+	case(4):
+					success = moveToPreGrasp(arm); break;
 
 	default:
 		success = false; break;
@@ -724,7 +737,11 @@ bool action_manager::moveToSide(bool right){
 
 	if (!isAtPos(tuck_pos_vec,right))
 	{
-		return goToJointPos(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		if(success)
+			return true;
+		else
+			return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
 	if(right)
@@ -758,7 +775,11 @@ bool action_manager::tuck(bool right){
 
 	if (!isAtPos(tuck_pos_vec,right))
 	{
-		return goToJointPos(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		if(success)
+			return true;
+		else
+			return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
 	if(right)
@@ -771,8 +792,8 @@ bool action_manager::tuck(bool right){
 }
 bool action_manager::moveToPreGrasp(bool right){
 
-	//angles_left = (1.605, 0.321, 1.297, -1.694, 0.988, -0.376, 12.053) - Pregrasp pose
-	//angles_right = (-1.571, 0.374, -1.105, -1.589, -1.119, -0.276, 0.537)- Pregrasp pose
+	//angles_left = (1.605, 0.321, 1.297, -1.694, 0.988, -0.376, 12.053) - Pregrasp pose 'torso_lift_link'
+	//angles_right = (-1.571, 0.374, -1.105, -1.589, -1.119, -0.276, 0.537)- Pregrasp pose 'torso_lift_link'
 	if(right)
 		ROS_INFO(" action_manager::pr2_action_interface: Moving right arm to pregrasp");
 	else
@@ -793,7 +814,11 @@ bool action_manager::moveToPreGrasp(bool right){
 
 	if (!isAtPos(tuck_pos_vec))
 	{
-		return goToJointPos(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		if(success)
+			return true;
+		else
+			return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
 
@@ -822,7 +847,11 @@ bool action_manager::stretch(bool right){
 
 	if (!isAtPos(tuck_pos_vec))
 	{
-		return goToJointPos(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		if(success)
+			return true;
+		else
+			return goToJointPos(tuck_pos_vec,3.0,true,right);
 	}
 
 	if(right)

@@ -168,7 +168,7 @@ public:
 		std::cin >> action;
 		goal_.controller.arm.action = action;
 		//goal_.controller.arm.frame_id = "/base_link";
-		if(action < 4)
+		if(action < 5)
 		{
 			int arm;
 			ROS_INFO("Select Arm (0-LEFT,1-RIGHT)");
@@ -178,7 +178,7 @@ public:
 		}
 		else
 		{
-			if(action == 4)
+			if(action == 5)
 			{
 				float x,y,z;
 				ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
@@ -276,7 +276,7 @@ int main(int argc, char **argv){
 		extract_feature_srv.request.filename = target_filename.str();
 
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service with filename %s",target_filename.str().c_str());
-		if(ac.goal_.controller.arm.action > 3)
+		if(ac.goal_.controller.arm.action > 4)
 		{
 			success = ac.callAndRecordFeature(extract_feature_srv);
 			if(success)
