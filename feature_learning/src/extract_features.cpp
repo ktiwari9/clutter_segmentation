@@ -517,8 +517,8 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templates(const pcl17::PointCloud<pcl17::PointXYZ> &centroids){
 
-	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
-	pcl17::PassThrough<PointType> pass;
+//	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+//	pcl17::PassThrough<PointType> pass;
 
 	std::vector<pcl17::PointCloud<PointType> > output_template_list;
 
@@ -531,12 +531,16 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 		new_points = center_points_;
 		center_points_.clear();
 	}
+	ROS_INFO("feature_learning::extract_features: Entering pragma parallel loop ");
 
 #pragma omp parallel for
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
 		// Trying a pass through filter
-		filtered_cloud.reset(new pcl17::PointCloud<PointType>);
+//		filtered_cloud.reset(new pcl17::PointCloud<PointType>);
+	        pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+	        pcl17::PassThrough<PointType> pass;
+
 		pass.setInputCloud (input_cloud_);
 		pass.setFilterFieldName ("z");
 		pass.setFilterLimits (centroids.points[t].z - (BOX_HEIGHT_Z*2), centroids.points[t].z + (BOX_HEIGHT_Z*2));
@@ -554,6 +558,7 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
 		if(filtered_cloud->size() == 0)
 			continue;
+	ROS_INFO("feature_learning::extract_features: critical pragma parallel loop ");
 
 #pragma omp critical
 		{
