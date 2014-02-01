@@ -442,20 +442,14 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		if(uv_image.y + 50 >= image.cols)
 			window_ey = static_cast<int>(floor(image.cols - uv_image.y));
 
-                int window_fx = 50, window_fy = 50;
-                if(uv_image.x - 50 <= 0)
-                        window_fx = static_cast<int>(floor(uv_image.x));
+		int window_fx = 50, window_fy = 50;
+		if(uv_image.x - 50 <= 0)
+			window_fx = static_cast<int>(floor(uv_image.x));
 
-                if(uv_image.y - 50 <= 0)
-                        window_fy = static_cast<int>(floor(uv_image.y));
+		if(uv_image.y - 50 <= 0)
+			window_fy = static_cast<int>(floor(uv_image.y));
 
-                if(window_ex > window_fx)
-                        window_ex = window_fx;
-
-                if(window_ey > window_fy)
-                        window_ey = window_fy;
-
-		cv::Rect faceRect(uv_image.x - window_x ,uv_image.y - window_y, window_x*2, window_y*2);
+		cv::Rect faceRect(uv_image.x - window_fx ,uv_image.y - window_fy, window_fx+window_ex, window_fy+window_ey);
 		image(faceRect).copyTo(image);
 	}
 
