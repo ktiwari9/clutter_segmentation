@@ -398,7 +398,6 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	if(!holes_){
 
 		ROS_DEBUG("feature_learning::extract_features: Converting centroid to camera frame");
-		//tf::TransformListener local_listener(listener_);
 
 		pcl17::PointCloud<pcl17::PointXYZ> ray;
 		ray.push_back(pcl17::PointXYZ(0,0,0));
@@ -421,9 +420,11 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		model.project3dToPixel(push_3d,uv_image);
 		ROS_INFO("feature_learning::extract_features: Image start x:%f start y:%f ",uv_image.x,uv_image.y);
 	}
-	else{
+	else
+	{
 		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
-            }
+	}
+
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
 
@@ -432,10 +433,19 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
 		image(faceRect).copyTo(image);
 	}
-	else{
-		cv::Rect faceRect(uv_image.x - 50 ,uv_image.y - 50, 100, 100);
+	else
+	{
+		int window_x = 50, window_y = 50;
+		if(uv_image.x + 50 >= image.rows)
+			window_x = static_cast<int>(floor(image.rows - uv_image.x));
+
+		if(uv_image.y + 50 >= image.cols)
+			window_y = static_cast<int>(floor(image.cols - uv_image.y));
+
+		cv::Rect faceRect(uv_image.x - window_x ,uv_image.y - window_y, window_x*2, window_y*2);
 		image(faceRect).copyTo(image);
 	}
+
 
 	std::stringstream temp_filename;
 	temp_filename<<"/tmp/sampleRect_"<<index<<".jpg";
@@ -506,9 +516,11 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		model.project3dToPixel(push_3d,uv_image);
 		ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",uv_image.x,uv_image.y);
 	}
-	else{
-                uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
-            }
+	else
+	{
+		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+	}
+
 
 
 	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
@@ -516,8 +528,16 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
 		image(faceRect).copyTo(image);
 	}
-	else{
-		cv::Rect faceRect(uv_image.x - 50 ,uv_image.y - 50, 100, 100);
+	else
+	{
+		int window_x = 50, window_y = 50;
+		if(uv_image.x + 50 >= image.rows)
+			window_x = static_cast<int>(floor(image.rows - uv_image.x));
+
+		if(uv_image.y + 50 >= image.cols)
+			window_y = static_cast<int>(floor(image.cols - uv_image.y));
+
+		cv::Rect faceRect(uv_image.x - window_x ,uv_image.y - window_y, window_x*2, window_y*2);
 		image(faceRect).copyTo(image);
 	}
 
