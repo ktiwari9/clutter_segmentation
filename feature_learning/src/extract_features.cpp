@@ -398,7 +398,7 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	if(!holes_){
 
 		ROS_DEBUG("feature_learning::extract_features: Converting centroid to camera frame");
-		tf::TransformListener local_listener;
+		//tf::TransformListener local_listener(listener_);
 
 		pcl17::PointCloud<pcl17::PointXYZ> ray;
 		ray.push_back(pcl17::PointXYZ(0,0,0));
@@ -407,8 +407,8 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		ray.header.stamp = ros::Time::now();
 
 		try {
-			ROS_VERIFY(local_listener.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
-			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, local_listener));
+			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
+			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
 		}
@@ -421,8 +421,9 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		model.project3dToPixel(push_3d,uv_image);
 		ROS_INFO("feature_learning::extract_features: Image start x:%f start y:%f ",uv_image.x,uv_image.y);
 	}
-	else
+	else{
 		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+            }
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
 
@@ -490,7 +491,6 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		ray.push_back(pcl17::PointXYZ(center));
 		ray.header.frame_id =  base_frame_;
 		ray.header.stamp = ros::Time::now();
-
 		try {
 			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
 			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
@@ -506,8 +506,9 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		model.project3dToPixel(push_3d,uv_image);
 		ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",uv_image.x,uv_image.y);
 	}
-	else
-		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+	else{
+                uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+            }
 
 
 	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
