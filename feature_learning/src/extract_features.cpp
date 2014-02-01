@@ -392,9 +392,6 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	geometry_msgs::Point centroid;
 	centroid.x = center.x; centroid.y = center.y; centroid.z = center.z;
 
-	pcl17::PointCloud<PointType> centroid_base_point;
-
-	cv::Point2d push_2d;
 	if(!holes_){
 
 		ROS_DEBUG("feature_learning::extract_features: Converting centroid to camera frame");
@@ -417,12 +414,12 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 		push_3d.y = static_cast<double>(ray.points[1].y);
 		push_3d.z = static_cast<double>(ray.points[1].z);
 
-		model.project3dToPixel(push_3d,push_2d);
-
+		model.project3dToPixel(push_3d,uv_image);
+		ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",uv_image.x,uv_image.y);
 	}
+	else
+		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
 
-	ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",push_2d.x,push_2d.y);
-	uv_image.x = push_2d.x; uv_image.y = push_2d.y;
 
 	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
 	{
@@ -476,14 +473,37 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 	cv::Point2d  uv_image;
 
 	// Getting the centroid of the template
-	action_point_.point.x = center.x; action_point_.point.y = center.y; action_point_.point.z = center.z;
-	action_point_.header.frame_id = base_frame_;
-	action_point_.header.stamp = input_cloud_->header.stamp;
+	geometry_msgs::Point centroid;
+	centroid.x = center.x; centroid.y = center.y; centroid.z = center.z;
 
-	pcl17::PointCloud<PointType> centroid_base_point;
+	if(!holes_){
 
-	ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",center_points_[index].x,center_points_[index].y);
-	uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+		ROS_DEBUG("feature_learning::extract_features: Converting centroid to camera frame");
+
+		pcl17::PointCloud<pcl17::PointXYZ> ray;
+		ray.push_back(pcl17::PointXYZ(0,0,0));
+		ray.push_back(pcl17::PointXYZ(center));
+		ray.header.frame_id =  base_frame_;
+		ray.header.stamp = ros::Time::now();
+
+		try {
+			ROS_VERIFY(listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0)));
+			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
+		} catch (tf::TransformException ex) {
+			ROS_ERROR("%s",ex.what());
+		}
+
+		cv::Point3d push_3d;
+		push_3d.x = static_cast<double>(ray.points[1].x);
+		push_3d.y = static_cast<double>(ray.points[1].y);
+		push_3d.z = static_cast<double>(ray.points[1].z);
+
+		model.project3dToPixel(push_3d,uv_image);
+		ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",uv_image.x,uv_image.y);
+	}
+	else
+		uv_image.x = center_points_[index].x; uv_image.y = center_points_[index].y;
+
 
 	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
 	{
@@ -501,11 +521,16 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 
 	ROS_INFO("feature_learning::extract_features: Initializing feature class for given template of size %d",cloud->points.size());
-	feature.initialized_ = feature.initializeFeatureClass(image,cloud,action_point_.point);
+	feature.initialized_ = feature.initializeFeatureClass(image,cloud,centroid);
 
 	ROS_INFO("feature_learning::extract_features: Starting feature computation process , Initialized %d",feature.initialized_);
 	feature.computeFeature(final_feature);
 	ROS_INFO("feature_learning::extract_features: Feature computation complete");
+
+	// Getting the centroid of the template
+	action_point_.point = centroid;
+	action_point_.header.frame_id = base_frame_;
+	action_point_.header.stamp = input_cloud_->header.stamp;
 
 	FeatureVector new_sample = convertEigenToFeature(final_feature);
 
@@ -517,8 +542,8 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templates(const pcl17::PointCloud<pcl17::PointXYZ> &centroids){
 
-//	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
-//	pcl17::PassThrough<PointType> pass;
+	//	pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+	//	pcl17::PassThrough<PointType> pass;
 
 	std::vector<pcl17::PointCloud<PointType> > output_template_list;
 
@@ -537,9 +562,9 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 	for(size_t t = 0;  t < centroids.points.size(); t++)
 	{
 		// Trying a pass through filter
-//		filtered_cloud.reset(new pcl17::PointCloud<PointType>);
-	        pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
-	        pcl17::PassThrough<PointType> pass;
+		//		filtered_cloud.reset(new pcl17::PointCloud<PointType>);
+		pcl17::PointCloud<PointType>::Ptr filtered_cloud (new pcl17::PointCloud<PointType>);
+		pcl17::PassThrough<PointType> pass;
 
 		pass.setInputCloud (input_cloud_);
 		pass.setFilterFieldName ("z");
@@ -558,15 +583,15 @@ std::vector<pcl17::PointCloud<pcl17::PointXYZ> > extract_features::extract_templ
 
 		if(filtered_cloud->size() == 0)
 			continue;
-	ROS_INFO("feature_learning::extract_features: critical pragma parallel loop ");
+		ROS_INFO("feature_learning::extract_features: critical pragma parallel loop ");
 
 #pragma omp critical
 		{
-		if(holes_)
-			center_points_.push_back(new_points[t]);
+			if(holes_)
+				center_points_.push_back(new_points[t]);
 
-		output_template_list.push_back(*filtered_cloud);
-		template_cloud += *filtered_cloud;
+			output_template_list.push_back(*filtered_cloud);
+			template_cloud += *filtered_cloud;
 		}
 	}
 
