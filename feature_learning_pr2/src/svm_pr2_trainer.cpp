@@ -48,6 +48,7 @@
 #include "actionlib/client/terminal_state.h"
 #include <action_manager_pr2/ControllerAction.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <visualization_msgs/Marker.h>
 
 using namespace action_manager_pr2;
 
@@ -58,7 +59,8 @@ class action_client_pr2{
 public:
 	typedef actionlib::SimpleActionClient<ControllerAction> Client;
 	action_manager_pr2::ControllerGoal goal_;
-	geometry_msgs::PointStamped action_point_;
+	std::vector<geometry_msgs::PointStamped> action_point_;
+	std::vector<int> action_indices_;
 	bool action_result_;
 
 private:
@@ -96,7 +98,8 @@ public:
 
 		if(ros::service::call(feature_service,extract_feature_srv)){
 			ROS_INFO("feature_learning_pr2::svm_pr2_trainer Service Call succeeded");
-			action_point_ = extract_feature_srv.response.action_location;
+			action_point_ = extract_feature_srv.response.training_centers;
+			action_indices_ = extract_feature_srv.response.indicies;
 		}
 
 		if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
@@ -200,11 +203,37 @@ public:
 
 };
 
+visualization_msgs::Marker getMarker(int i){
+
+	visualization_msgs::Marker local_marker;
+
+	local_marker.header.stamp = ros::Time();
+	local_marker.ns = "extract_features";
+	local_marker.id = i;
+	local_marker.type = visualization_msgs::Marker::CUBE;
+	local_marker.action = visualization_msgs::Marker::ADD;
+	local_marker.scale.x = 0.1;
+	local_marker.scale.y = 0.1;
+	local_marker.scale.z = 0.1;
+	local_marker.color.a = 1.0;
+	local_marker.color.r = 0.0;
+	local_marker.color.g = 1.0;
+	local_marker.color.b = 1.0;
+	local_marker.pose.orientation.x = 0.0;
+	local_marker.pose.orientation.y = 0.0;
+	local_marker.pose.orientation.z = 0.0;
+	local_marker.pose.orientation.w = 1.0;
+
+	return local_marker;
+
+}
+
 int main(int argc, char **argv){
 
 	ros::init(argc,argv,"svm_pr2_trainer");
+	ros::NodeHandle nh;
 	action_client_pr2 ac("/pr2_action_interface");
-
+	ros::Publisher pub = nh.advertise<visualization_msgs::Marker>("/manipulation_marker", 1);
 	//Now set a bool variable to check till user quits
 	if(argc < 2)
 	{
@@ -252,17 +281,64 @@ int main(int argc, char **argv){
 			success = ac.callAndRecordFeature(extract_feature_srv);
 			if(success)
 			{
-				ac.goal_.controller.arm.start_pose.position = ac.action_point_.point;
-				ac.goal_.controller.arm.frame_id = ac.action_point_.header.frame_id;
-				ac.goal_.controller.header.frame_id = ac.action_point_.header.frame_id;
-				ac.goal_.controller.header.stamp = ac.action_point_.header.stamp;
-				ac.sendGoal();
+				// now loop through all return messages
+				for(size_t index = 0; index < ac.action_point_.size(); index++)
+				{
+					ac.goal_.controller.arm.start_pose.position = ac.action_point_[index].point;
+					ac.goal_.controller.arm.frame_id = ac.action_point_[index].header.frame_id;
+					ac.goal_.controller.header.frame_id = ac.action_point_[index].header.frame_id;
+					ac.goal_.controller.header.stamp = ac.action_point_[index].header.stamp;
+
+					visualization_msgs::Marker location_marker = getMarker(index);
+					location_marker.header = ac.action_point_[index].header;
+					location_marker.pose.position =  ac.action_point_[index].point;
+					pub.publish(location_marker);
+
+					ac.sendGoal();
+
+					if(ac.action_result_) // If action succeeds
+					{
+						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+".txt");
+						ofstream ofs(target_filename.str().c_str(),ios::out | ios::trunc);
+						int label;
+						ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action succeeded , Enter label: (1,-1)");
+						std::cin >> label;
+						if(ofs)
+						{
+							// instructions
+							ofs << label;
+							ofs.close();
+						}
+						else
+						{
+							ROS_ERROR("feature_learning_pr2::svm_pr2_trainer: Could not open output file");
+						}
+						break;
+					}
+					else // If action fails
+					{
+						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+".txt");
+						ofstream ofs(target_filename.str().c_str(),ios::out | ios::trunc);
+						if(ofs)
+						{
+							// instructions
+							ofs << -1;
+							ofs.close();
+						}
+						else
+						{
+							ROS_ERROR("feature_learning_pr2::svm_pr2_trainer: Could not open output file");
+						}
+
+					}
+				}
 			}
 			else
-				ac.action_result_ = false;
+				ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Feature Extraction failed");
 		}
 		else
 			ac.sendGoal();
+
 		break;
 
 		default:
@@ -271,36 +347,12 @@ int main(int argc, char **argv){
 			break;
 		}
 
-		ROS_INFO("Extract Feature Result %d",success);
-
-		if(ac.action_result_ && success)
-		{
-			int label;
-			ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action succeeded , Enter label:");
-			std::cin >> label;
-			target_filename << "_reward.txt";
-			ofstream ofs(target_filename.str().c_str(),ios::out | ios::trunc);
-			if(ofs)
-			{
-				// instructions
-				ofs << label;
-				ofs.close();
-			}
-			else
-				ROS_ERROR("feature_learning_pr2::svm_pr2_trainer: Could not open output file");
-		}
-		else
-			ROS_INFO("Pipeline failed");
-
-
-
 		char answer;
 		ROS_INFO("Call feature extraction again (y/n) :");
 		std::cin>>answer;
 
 		if(std::cin.fail() || answer == 'n')
 			repeat = false;
-
 	}
 }
 
