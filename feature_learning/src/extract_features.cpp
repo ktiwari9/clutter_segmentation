@@ -428,30 +428,22 @@ void extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
 
-	if(((uv_image.x + 60) < image.rows) && ((uv_image.y + 60) < image.cols))
-	{
-		cv::Rect faceRect(uv_image.x - 60 ,uv_image.y - 60, 120, 120);
-		image(faceRect).copyTo(image);
-	}
-	else
-	{
-		int window_ex = 50, window_ey = 50;
-		if(uv_image.x + 50 >= image.rows)
-			window_ex = static_cast<int>(floor(image.rows - uv_image.x));
+		int window_ex = 60, window_ey = 60;
+		if(uv_image.x + 60 >= image.cols)
+			window_ex = static_cast<int>(floor(image.cols - uv_image.x));
 
-		if(uv_image.y + 50 >= image.cols)
-			window_ey = static_cast<int>(floor(image.cols - uv_image.y));
+		if(uv_image.y + 60 >= image.rows)
+			window_ey = static_cast<int>(floor(image.rows - uv_image.y));
 
-		int window_fx = 50, window_fy = 50;
-		if(uv_image.x - 50 <= 0)
+		int window_fx = 60, window_fy = 60;
+		if(uv_image.x - 60 <= 0)
 			window_fx = static_cast<int>(floor(uv_image.x));
 
-		if(uv_image.y - 50 <= 0)
+		if(uv_image.y - 60 <= 0)
 			window_fy = static_cast<int>(floor(uv_image.y));
 
-		cv::Rect faceRect(uv_image.x - window_fx ,uv_image.y - window_fy, window_fx+window_ex, window_fy+window_ey);
+		cv::Rect faceRect(static_cast<int>(uv_image.x) - window_fx ,static_cast<int>(uv_image.y) - window_fy, window_fx+window_ex, window_fy+window_ey);
 		image(faceRect).copyTo(image);
-	}
 
 
 	std::stringstream temp_filename;
