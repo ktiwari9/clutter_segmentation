@@ -634,8 +634,8 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			bool test = static_cast<bool>(request.action);
 
 			ROS_INFO("feature_learning::extract_features: Computing features");
-			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
-		    //pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
+		//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_,*processed_cloud_);
+		    pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_,*processed_cloud_);
 
 			if(cluster_centers.empty())
 			{
