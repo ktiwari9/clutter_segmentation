@@ -689,7 +689,7 @@ bool extract_features::publishTableMarker(){
 	object.dimensions.resize(3);
 	object.dimensions[0] = 0.5;
 	object.dimensions[1] = 1.0;
-	object.dimensions[2] = 0.8;
+	object.dimensions[2] = 0.7;
 	geometry_msgs::Pose pose;
 	pose.position.x = table_centroid[0];
 	pose.position.y = table_centroid[1];
