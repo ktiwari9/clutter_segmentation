@@ -1472,7 +1472,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
 	//Lift gripper 5cm above current position
-	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
+	//push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
 
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 	if(!success)

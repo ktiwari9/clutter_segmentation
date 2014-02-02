@@ -259,7 +259,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 			center_point.x = centroid[0];center_point.y = centroid[1];center_point.z = centroid[2];
 
 			if(center_point.x >= min_point.x && center_point.y >= min_point.y &&
-					center_point.x <= max_point.x && center_point.y <= max_point.y)
+					center_point.x <= max_point.x && center_point.y <= max_point.y && center_point.z <= table_height_ + 5 && center_point.z >= table_height_ - 3)
 			{
 #pragma omp critical
 			edge_list.push_back(center_point);
