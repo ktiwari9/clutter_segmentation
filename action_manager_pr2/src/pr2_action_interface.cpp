@@ -447,7 +447,6 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 
 	}
 
-
 	return finished_within_time && success;
 }
 
@@ -459,13 +458,13 @@ std::vector<double> action_manager::getCurrentJointAngles(bool right){
 
 bool action_manager::rotateWrist(double radians, double wrist_speed, bool wait, bool right){
 
-
 	std::vector<double> new_pos = getCurrentJointAngles(right);
 	new_pos[6] += radians;
 	return goToJointPos(new_pos, std::abs(radians) / 2 / 3.14 * wrist_speed, wait,right);
 }
 
 bool action_manager::goToJointPos (const double* positions , int num_positions, double max_time , bool wait, bool right){
+
 	std::vector<double> pos_vec (positions, positions + 7 * num_positions);
 	return goToJointPos(pos_vec, max_time, wait, right);
 }
@@ -582,6 +581,7 @@ bool action_manager::moveWristRollLinktoPoseWithCollisionChecking(const geometry
 	goalA.motion_plan_request.group_name = group_name_;
 	goalA.motion_plan_request.num_planning_attempts = 10;
 	goalA.motion_plan_request.planner_id = std::string("");
+
 	if (planner == "chomp"){
 		ROS_INFO("action_manager::pr2_action_interface: using chomp planner");
 		goalA.planner_service_name = std::string("/chomp_planner_longrange/plan_path");
@@ -621,7 +621,7 @@ bool action_manager::moveWristRollLinktoPoseWithCollisionChecking(const geometry
 
 	if(right){
 		arm_r_client_->sendGoal(goalA);
-		finished_within_time = arm_r_client_->waitForResult(ros::Duration(40.0));
+		finished_within_time = arm_r_client_->waitForResult(ros::Duration(200.0));
 		if (!finished_within_time)
 			ROS_INFO("action_manager::pr2_action_interface: Action did not finish before time out");
 		else
@@ -633,7 +633,7 @@ bool action_manager::moveWristRollLinktoPoseWithCollisionChecking(const geometry
 	}
 	else{
 		arm_l_client_->sendGoal(goalA);
-		finished_within_time = arm_l_client_->waitForResult(ros::Duration(40.0));
+		finished_within_time = arm_l_client_->waitForResult(ros::Duration(200.0));
 		if (!finished_within_time)
 			ROS_INFO("action_manager::pr2_action_interface: Action did not finish before time out");
 		else
@@ -739,11 +739,11 @@ bool action_manager::moveToSide(bool right){
 
 	if (!isAtPos(tuck_pos_vec,right))
 	{
-		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,30.0,true,right);
 		if(success)
 			return true;
 		else
-			return goToJointPos(tuck_pos_vec,3.0,true,right);
+			return goToJointPos(tuck_pos_vec,30.0,true,right);
 	}
 
 	if(right)
@@ -777,11 +777,11 @@ bool action_manager::tuck(bool right){
 
 	if (!isAtPos(tuck_pos_vec,right))
 	{
-		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,30.0,true,right);
 		if(success)
 			return true;
 		else
-			return goToJointPos(tuck_pos_vec,3.0,true,right);
+			return goToJointPos(tuck_pos_vec,30.0,true,right);
 	}
 
 	if(right)
@@ -816,7 +816,7 @@ bool action_manager::moveToPreGrasp(bool right){
 
 	if (!isAtPos(tuck_pos_vec))
 	{
-		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,30.0,true,right);
 		if(success)
 			return true;
 		else
@@ -849,7 +849,7 @@ bool action_manager::stretch(bool right){
 
 	if (!isAtPos(tuck_pos_vec))
 	{
-		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,3.0,true,right);
+		bool success =  goToJointPosWithCollisionChecking(tuck_pos_vec,30.0,true,right);
 		if(success)
 			return true;
 		else
@@ -992,7 +992,6 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 	goalA.motion_plan_request.planner_id = std::string("");
 	goalA.planner_service_name = std::string("ompl_planning/plan_kinematic_path");
 	goalA.motion_plan_request.allowed_planning_time = ros::Duration(25.0);
-
 	goalA.motion_plan_request.goal_constraints.position_constraints.resize(1);
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].header.stamp = pose.header.stamp;
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].header.frame_id =pose.header.frame_id ;
@@ -1011,7 +1010,6 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.05);
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.05);
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.05);
-
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_orientation.w = 1.0;
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].weight = 1.0;
 
@@ -1019,6 +1017,7 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 	goalA.motion_plan_request.goal_constraints.position_constraints.resize(1);
 	goalA.motion_plan_request.goal_constraints.orientation_constraints[0].header.stamp = pose.header.stamp;
 	goalA.motion_plan_request.goal_constraints.orientation_constraints[0].header.frame_id = pose.header.frame_id;
+
 	if(right)
 		goalA.motion_plan_request.goal_constraints.orientation_constraints[0].link_name = "r_wrist_roll_link";
 	else
@@ -1038,7 +1037,6 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 	goalA.motion_plan_request.goal_constraints.orientation_constraints[0].absolute_yaw_tolerance = 0.04;
 
 	goalA.motion_plan_request.goal_constraints.orientation_constraints[0].weight = 1.0;
-
 
 	goalA.motion_plan_request.path_constraints.orientation_constraints.resize(1);
 	goalA.motion_plan_request.path_constraints.orientation_constraints[0].header.frame_id = pose.header.frame_id ;
@@ -1100,7 +1098,7 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 		arm_l_client_->sendGoal(goalA);
 
 		if(wait){
-			finished_before_timeout = arm_l_client_->waitForResult(ros::Duration(60.0));
+			finished_before_timeout = arm_l_client_->waitForResult(ros::Duration(200.0));
 			if (!finished_before_timeout){
 				ROS_INFO("action_manager::pr2_action_interface: Action did not finish before time out");
 				return false;
@@ -1169,10 +1167,19 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 	// Move to a position that is 10cm above the grasp point
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
+	ROS_INFO("action_manager::pr2_action_interface: Moving Arm to side");
 	bool success = moveToSide(right);
 
+	if(!success)
+		return false;
+
+	ROS_INFO("action_manager::pr2_action_interface: Moving Arm to pre-grasp");
 	success = moveToPreGrasp(right);
 
+	if(!success)
+		return false;
+
+	ROS_INFO("action_manager::pr2_action_interface: Moving gripper above grasp point");
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 
 	std::vector<double>* ik_seed_pos;
@@ -1181,16 +1188,33 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
 		success = controlGripper(right,0); //Open Gripper
+
+		if(!success)
+			return false;
+
 		//TODO: Check if this pipeline works
 		// first provide new position
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.12);
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.10);
+		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to grasp point");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
+
+		if(!success)
+			return false;
+		ROS_INFO("action_manager::pr2_action_interface: Closing gripper to grasp point");
 		success = controlGripper(right,1); // Close Gripper
+		if(!success)
+			return false;
+
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Grasp Successful");
+
 		// Now lift the gripper
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
+
+		ROS_INFO("action_manager::pr2_action_interface: Move up to pregrasp Point");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
+		if(!success)
+			return false;
 
 		// Now PLACE action
 		geometry_msgs::PoseStamped place_position = place_pose;
@@ -1198,12 +1222,25 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 			place_position.pose.position.y = 1.0;
 
 		tf::poseMsgToTF(place_position.pose,push_tf);
+		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to drop location");
 		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
+		if(!success)
+			return false;
+
+		ROS_INFO("action_manager::pr2_action_interface: Opening gripper");
 		success = controlGripper(right,0); //Open Gripper
+		if(!success)
+			return false;
+
+		ROS_INFO("action_manager::pr2_action_interface: Going to zero");
 		success = moveToSide(right); //Open Gripper
+		if(!success)
+			return false;
+
 		return true;
 	}
-	else{
+	else
+	{
 		ROS_INFO("action_manager::pr2_action_interface: Grasp failed");
 		return false;
 	}
@@ -1224,8 +1261,14 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	tf::Pose push_tf;
 	tf::poseMsgToTF(pose.pose,push_tf);
 	ROS_INFO("action_manager::pr2_action_interface: Converting pose complete");
+
+	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-manipulation");
 	bool success = moveToSide(right);
+
+	if(!success)
+		return false;
 	// Move to a position that is 5cm relatively in front of the manipulation position
+	//TODO: Do I need this??
 	switch (approach){
 
 	case (FRONTAL):
@@ -1242,9 +1285,17 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
 
-	success = moveToPreGrasp(right);
 
+	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
+	success = moveToPreGrasp(right);
+	if(!success)
+		return false;
+
+	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+	if(!success)
+		return false;
+
 
 	std::vector<double>* ik_seed_pos;
 
@@ -1252,7 +1303,12 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
 		success = controlGripper(right,1); //Close Gripper
+		if(!success)
+			return false;
+
 		// Move to a position that is 5cm relatively in front of the manipulation position
+		//TODO: Do I need this??
+
 		switch (approach){
 
 		case (FRONTAL):
@@ -1270,13 +1326,23 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		}
 		//TODO: Check if this pipeline works
 		// first provide new position
+		ROS_INFO("action_manager::pr2_action_interface: Starting to push");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
 		// Now lift the gripper
+
+		ROS_INFO("action_manager::pr2_action_interface: lifting gripper");
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
+		if(!success)
+			return false;
+
+		ROS_INFO("action_manager::pr2_action_interface: Going Home");
 		success = moveToSide(right);
+		if(!success)
+			return false;
+
 		return true;
 	}
 	else{

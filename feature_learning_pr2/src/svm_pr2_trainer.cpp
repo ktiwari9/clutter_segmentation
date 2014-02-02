@@ -183,6 +183,7 @@ public:
 				//float x,y,z;
 				//ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
 				//std::cin >> x >> y >> z;
+
 				goal_.controller.arm.end_pose.position.x = 1.0;
 				goal_.controller.arm.end_pose.position.y = -1.0;
 				goal_.controller.arm.end_pose.position.z = 1.0;
@@ -231,9 +232,11 @@ int main(int argc, char **argv){
 
 	ros::init(argc,argv,"svm_pr2_trainer");
 	ros::NodeHandle nh;
+
 	action_client_pr2 ac("/pr2_action_interface");
 	ros::Publisher pub = nh.advertise<visualization_msgs::Marker>("/manipulation_marker", 1);
 	ros::Publisher pub_place = nh.advertise<visualization_msgs::Marker>("/place_location_marker", 1);
+
 	//Now set a bool variable to check till user quits
 	if(argc < 2)
 	{
