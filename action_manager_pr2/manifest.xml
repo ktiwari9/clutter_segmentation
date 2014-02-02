@@ -32,6 +32,7 @@
   <depend package="pr2_common_action_msgs"/>
   <depend package="arm_navigation_msgs"/>  	
   <depend package="action_manager_msgs"/>  	
+  <depend package="planning_environment"/>
   <depend package="pluginlib"/>
   <depend package="actionlib"/>
   <depend package="mapping_rviz_plugin"/>  

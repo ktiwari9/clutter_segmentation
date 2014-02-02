@@ -317,7 +317,16 @@
 <pathentry include="/opt/ros/fuerte/stacks/pr2_common_actions/pr2_common_action_msgs/srv/cpp" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/pr2_common_actions/pr2_common_action_msgs/msg_gen/cpp/include" kind="inc" path="" system="true"/>
 <pathentry include="/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/action_manager_msgs/msg_gen/cpp/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/arm_navigation/planning_environment/include" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/share/actionlib/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/arm_navigation/geometric_shapes/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/robot_model/resource_retriever/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/arm_navigation/planning_models/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/arm_navigation/collision_space/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/physics_ode/opende/opende/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/physics_ode/opende/threadpool" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/arm_navigation/robot_self_filter/include" kind="inc" path="" system="true"/>
+<pathentry include="/opt/ros/fuerte/stacks/filters/include" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/visualization/rviz/src" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/python_qt_binding/include" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/visualization_common/ogre/ogre/include" kind="inc" path="" system="true"/>
@@ -325,7 +334,6 @@
 <pathentry include="/opt/ros/fuerte/stacks/visualization_common/ogre/ogre/include/OGRE/RTShaderSystem" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/visualization_common/ogre_tools/src" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/laser_pipeline/laser_geometry/include" kind="inc" path="" system="true"/>
-<pathentry include="/opt/ros/fuerte/stacks/robot_model/resource_retriever/include" kind="inc" path="" system="true"/>
 <pathentry include="/opt/ros/fuerte/stacks/visualization/interactive_markers/include" kind="inc" path="" system="true"/>
 <pathentry include="/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/action_manager_pr2/msg_gen/cpp/include" kind="inc" path="" system="true"/>
 <pathentry include="/Network/Servers/monet/Volumes/monet/bharath/USC_Code/RESEARCH/clutter_code/action_manager_pr2/srv_gen/cpp/include" kind="inc" path="" system="true"/>
