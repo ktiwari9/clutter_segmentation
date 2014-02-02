@@ -67,6 +67,8 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	nh_priv_.param<std::string>("input_image_topic",input_image_topic_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("base_frame",base_frame_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("svm_load",svm_filename_,std::string("saved_svm_function.dat"));
+	nh_priv_.param<std::string>("environment_server",environment_srv_,std::string("/environment_server/set_planning_scene_diff"));
+
 
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
 	vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/intersection_marker", 1);
@@ -664,6 +666,50 @@ void extract_features::publishManipulationMarker(){
 
 }
 
+bool extract_features::publishTableMarker(){
+
+	ROS_INFO("feature_learning::extract_features: Adding Table Marker to scene");
+
+	arm_navigation_msgs::CollisionObject table_object;
+
+	Eigen::Vector4f table_centroid;
+	pcl17::compute3DCentroid(*processed_cloud_,table_centroid);
+	table_height_ = table_centroid[2];
+
+	table_object.id = "table";
+
+	table_object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+
+	table_object.header.frame_id = base_frame_;
+	table_object.header.stamp = ros::Time::now();
+
+	arm_navigation_msgs::Shape object;
+	object.type = arm_navigation_msgs::Shape::BOX;
+
+	object.dimensions.resize(3);
+	object.dimensions[0] = 0.5;
+	object.dimensions[1] = 1.0;
+	object.dimensions[2] = 0.8;
+	geometry_msgs::Pose pose;
+	pose.position.x = table_centroid[0];
+	pose.position.y = table_centroid[1];
+	pose.position.z = table_centroid[2]/2;
+	pose.orientation.x = 0;
+	pose.orientation.y = 0;
+	pose.orientation.z = 0;
+	pose.orientation.w = 1;
+	table_object.shapes.push_back(object);
+	table_object.poses.push_back(pose);
+
+	planning_srv_.request.planning_scene_diff.collision_objects.push_back(table_object);
+
+	if (!ros::service::call(environment_srv_, planning_srv_)) {
+		ROS_ERROR("feature_learning::extract_features: Call to Environment service failed");
+		return false;
+	}
+	return true;
+}
+
 bool extract_features::serviceCallback(ExtractFeatures::Request& request, ExtractFeatures::Response& response){
 
 	// registering filenname for recording : TODO: check if this can avoid the multiple call problem
@@ -942,6 +988,12 @@ bool extract_features::updateTopics(){
 	Eigen::Vector4f table_centroid;
 	pcl17::compute3DCentroid(*processed_cloud_,table_centroid);
 	table_height_ = table_centroid[2];
+
+	// Calling Planning scene server
+	bool added_to_scene = false;
+
+	while(!added_to_scene)
+		added_to_scene = publishTableMarker();
 
 	//convert clusters to honeybee frame
 	ROS_INFO("feature_learning::extract_features: Transforming clusters to color camera frame");

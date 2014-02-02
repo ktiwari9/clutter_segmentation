@@ -50,22 +50,45 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
 
 	nh_priv_.param<std::string>("gripper_r_server",gripper_r_srv_,std::string("r_gripper_controller/gripper_action"));
 	nh_priv_.param<std::string>("gripper_l_server",gripper_l_srv_,std::string("l_gripper_controller/gripper_action"));
+
+	nh_priv_.param<std::string>("gripper_r_contact",gripper_r_contact_,std::string("r_gripper_sensor_controller/find_contact"));
+	nh_priv_.param<std::string>("gripper_l_contact",gripper_l_contact_,std::string("l_gripper_sensor_controller/find_contact"));
+
+	nh_priv_.param<std::string>("gripper_r_force",gripper_r_force_,std::string("r_gripper_sensor_controller/force_servo"));
+	nh_priv_.param<std::string>("gripper_l_force",gripper_l_force_,std::string("l_gripper_sensor_controller/force_servo"));
+
+	nh_priv_.param<std::string>("gripper_r_slip",gripper_r_slip_,std::string("r_gripper_sensor_controller/slip_servo"));
+	nh_priv_.param<std::string>("gripper_l_slip",gripper_l_slip_,std::string("l_gripper_sensor_controller/slip_servo"));
+
 	nh_priv_.param<std::string>("head_server",head_srv_,std::string("/head_traj_controller/point_head_action"));
 	nh_priv_.param<std::string>("head_pointing_frame",head_point_frame_,std::string("head_mount_kinect_depth_optical_frame"));
+
 	nh_priv_.param<std::string>("arm_r_server",arm_r_srv_,std::string("move_right_arm"));
 	nh_priv_.param<std::string>("arm_l_server",arm_l_srv_,std::string("move_left_arm"));
+
 	nh_priv_.param<std::string>("right_joint_server",r_joint_srv_,std::string("r_arm_controller/joint_trajectory_action"));
 	nh_priv_.param<std::string>("left_joint_server",l_joint_srv_,std::string("l_arm_controller/joint_trajectory_action"));
+
 	nh_priv_.param<std::string>("right_ik_service",r_ik_service_name_,std::string("pr2_right_arm_kinematics/get_ik"));
 	nh_priv_.param<std::string>("left_ik_service",l_ik_service_name_,std::string("pr2_left_arm_kinematics/get_ik"));
+
 	nh_priv_.param<std::string>("joint_states_service",joint_states_service_,std::string("return_joint_states"));
 
+	nh_priv_.param<std::string>("environment_server",environment_srv_,std::string("/environment_server/set_planning_scene_diff"));
 
 	ROS_INFO("action_manager::pr2_action_interface: Initializing clients");
-	//Initialize the client for the Action interface to the gripper controllers
+	//Initialize the client for the Action interface to the gripper controllers, gripper force controllers and gripper contact controllers
 	gripper_r_client_ = new GripperClient(gripper_r_srv_,true);
 	gripper_l_client_ = new GripperClient(gripper_l_srv_,true);
 
+	gcontact_r_client_ = new GripperContactClient(gripper_r_contact_,true);
+	gcontact_l_client_ = new GripperContactClient(gripper_l_contact_,true);
+
+	gforce_r_client_ = new GripperForceClient(gripper_r_force_,true);
+	gforce_l_client_ = new GripperForceClient(gripper_l_force_,true);
+
+	slip_r_client_ = new GripperSlipClient(gripper_r_slip_,true);
+	slip_l_client_ = new GripperSlipClient(gripper_l_slip_,true);
 
 	//Initialize the client for the Action interface to the head controller
 	point_head_client_ = new PointHeadClient(head_srv_, true);
@@ -90,7 +113,37 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
 
 	//wait for the gripper action server to come up
 	while(!gripper_l_client_->waitForServer(ros::Duration(5.0))){
-		ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_controller/gripper_action action server to come up");
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the l_gripper_controller/gripper_action action server to come up");
+	}
+
+	//wait for the gripper action server to come up
+	while(!gcontact_r_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_sensor_controller/find_contact action server to come up");
+	}
+
+	//wait for the gripper action server to come up
+	while(!gcontact_l_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the l_gripper_sensor_controller/find_contact action server to come up");
+	}
+
+	//wait for the gripper action server to come up
+	while(!gforce_r_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_sensor_controller/force_servo action server to come up");
+	}
+
+	//wait for the gripper action server to come up
+	while(!gforce_l_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the l_gripper_sensor_controller/force_servo action server to come up");
+	}
+
+	//wait for the gripper action server to come up
+	while(!slip_r_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the r_gripper_sensor_controller/slip_servo action server to come up");
+	}
+
+	//wait for the gripper action server to come up
+	while(!slip_l_client_->waitForServer(ros::Duration(5.0))){
+		ROS_INFO("action_manager::pr2_action_interface: Waiting for the l_gripper_sensor_controller/slip_servo action server to come up");
 	}
 
 	//wait for the gripper action server to come up
@@ -132,6 +185,8 @@ action_manager::~action_manager(){
 
 	delete gripper_r_client_; delete gripper_l_client_; delete point_head_client_;
 	delete arm_r_client_; delete arm_l_client_; delete r_traj_client_; delete l_traj_client_;
+	delete gripper_r_client_; delete gripper_l_client_; delete gcontact_l_client_; delete gcontact_r_client_;
+	delete gforce_l_client_; delete gforce_r_client_; delete slip_l_client_; delete slip_r_client_;
 }
 
 void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& goal){
@@ -309,6 +364,111 @@ bool action_manager::controlGripper(int hand, int goal){
 		}
 	}
 }
+
+bool action_manager::gripperForceHold(int hand, double force){
+
+	pr2_gripper_sensor_msgs::PR2GripperForceServoGoal squeeze;
+	squeeze.command.fingertip_force = force;   // hold with X N of force
+
+	ROS_INFO("action_manager::pr2_action_interface: Sending hold goal");
+	if(hand)
+	{
+		gforce_r_client_->sendGoal(squeeze);
+		gforce_r_client_->waitForResult();
+		if(gforce_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+		{
+			ROS_INFO("Stable force was achieved");
+			return true;
+		}
+		else
+		{
+			ROS_INFO("Stable force was NOT achieved");
+			return false;
+		}
+
+	}
+	else
+	{
+		gforce_l_client_->sendGoal(squeeze);
+		gforce_l_client_->waitForResult();
+		if(gforce_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+		{
+			ROS_INFO("action_manager::pr2_action_interface: Stable force was achieved");
+			return true;
+		}
+		else
+		{
+			ROS_INFO("action_manager::pr2_action_interface: Stable force was NOT achieved");
+			return false;
+		}
+	}
+
+}
+
+bool action_manager::gripperFindContacts(int hand){
+
+    pr2_gripper_sensor_msgs::PR2GripperFindContactGoal findTwo;
+    findTwo.command.contact_conditions = findTwo.command.BOTH;  // close until both fingers contact
+    findTwo.command.zero_fingertip_sensors = true;   // zero fingertip sensor values before moving
+
+
+    ROS_INFO("Sending find 2 contact goal");
+    if(hand){
+    	gcontact_r_client_->sendGoal(findTwo);
+    	gcontact_r_client_->waitForResult(ros::Duration(5.0));
+    	if(gcontact_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    	{
+    		ROS_INFO("action_manager::pr2_action_interface: Contact found. Left: %d, Right: %d", gcontact_r_client_->getResult()->data.left_fingertip_pad_contact,
+    				gcontact_r_client_->getResult()->data.right_fingertip_pad_contact);
+    		ROS_INFO("action_manager::pr2_action_interface: Contact force. Left: %f, Right: %f", gcontact_r_client_->getResult()->data.left_fingertip_pad_force,
+    				gcontact_r_client_->getResult()->data.right_fingertip_pad_force);
+    		return true;
+    	}
+    	else
+    		ROS_INFO("action_manager::pr2_action_interface: The right gripper did not find a contact or could not maintain contact force.");
+    	return false;
+    }
+    else
+    {
+    	gcontact_l_client_->sendGoal(findTwo);
+    	gcontact_l_client_->waitForResult(ros::Duration(5.0));
+    	if(gcontact_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    	{
+    		ROS_INFO("action_manager::pr2_action_interface: Contact found. Left: %d, Right: %d", gcontact_l_client_->getResult()->data.left_fingertip_pad_contact,
+    				gcontact_l_client_->getResult()->data.right_fingertip_pad_contact);
+    		ROS_INFO("action_manager::pr2_action_interface: Contact force. Left: %f, Right: %f", gcontact_l_client_->getResult()->data.left_fingertip_pad_force,
+    				gcontact_l_client_->getResult()->data.right_fingertip_pad_force);
+    		return true;
+    	}
+    	else
+    		ROS_INFO("action_manager::pr2_action_interface: The left gripper did not find a contact or could not maintain contact force.");
+    	return false;
+    }
+}
+
+void action_manager::gripperSlipController(int hand){
+
+	pr2_gripper_sensor_msgs::PR2GripperSlipServoGoal slip_goal;
+
+	ROS_INFO("action_manager::pr2_action_interface: Slip Servoing");
+
+    if(hand){
+    	slip_r_client_->sendGoal(slip_goal);
+    	if(slip_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    		ROS_INFO("action_manager::pr2_action_interface:You Should Never See This Message!");
+    	else
+    		ROS_INFO("action_manager::pr2_action_interface:SlipServo Action returned without success.");
+    }
+    else
+    {
+    	slip_l_client_->sendGoal(slip_goal);
+    	if(slip_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    		ROS_INFO("action_manager::pr2_action_interface:You Should Never See This Message!");
+    	else
+    		ROS_INFO("action_manager::pr2_action_interface:SlipServo Action returned without success.");
+    }
+}
+
 
 bool action_manager::controlHead(const std::string& pointing_frame_id, const geometry_msgs::PointStamped& target_point, int action){
 
@@ -1201,9 +1361,18 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		if(!success)
 			return false;
 		ROS_INFO("action_manager::pr2_action_interface: Closing gripper to grasp point");
-		success = controlGripper(right,1); // Close Gripper
+		//success = controlGripper(right,1); // Close Gripper
+		success = gripperFindContacts(right); // Close Gripper
+
 		if(!success)
 			return false;
+
+		ROS_INFO("action_manager::pr2_action_interface: Adding Object Marker");
+		success = addObjectMarker(right);
+		if(!success)
+			return false;
+
+		gripperSlipController(right);
 
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Grasp Successful");
@@ -1232,10 +1401,17 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		if(!success)
 			return false;
 
+		ROS_INFO("action_manager::pr2_action_interface: Removing Object Marker");
+		success = removeObjectMarker(right);
+		if(!success)
+			return false;
+
 		ROS_INFO("action_manager::pr2_action_interface: Going to zero");
 		success = moveToSide(right); //Open Gripper
 		if(!success)
 			return false;
+
+
 
 		return true;
 	}
@@ -1269,6 +1445,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		return false;
 	// Move to a position that is 5cm relatively in front of the manipulation position
 	//TODO: Do I need this??
+/*
 	switch (approach){
 
 	case (FRONTAL):
@@ -1284,6 +1461,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
+*/
 
 
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
@@ -1292,7 +1470,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		return false;
 
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
-	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,"ompl",right);
 	if(!success)
 		return false;
 
@@ -1309,7 +1487,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		// Move to a position that is 5cm relatively in front of the manipulation position
 		//TODO: Do I need this??
 
-		switch (approach){
+/*		switch (approach){
 
 		case (FRONTAL):
 					push_tf.getOrigin().setZ(push_tf.getOrigin().getX() + 0.150); break;
@@ -1323,18 +1501,26 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
 		default:
 			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
-		}
+		}*/
 		//TODO: Check if this pipeline works
 		// first provide new position
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getX() + 0.150);
 		ROS_INFO("action_manager::pr2_action_interface: Starting to push");
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
+		//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+
+		geometry_msgs::PoseStamped intermediate_pose;
+		tf::poseTFToMsg(push_tf,intermediate_pose.pose);
+		intermediate_pose.header = pose.header;
+		ROS_INFO("action_manager::pr2_action_interface: Pushing with orientation constrainst");
+		success = moveWristRollLinktoPoseWithOrientationConstraints(intermediate_pose,true,true,true,15.0,true,0.2,right);
+
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
 		// Now lift the gripper
 
 		ROS_INFO("action_manager::pr2_action_interface: lifting gripper");
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
 		if(!success)
 			return false;
 
@@ -1349,6 +1535,80 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Grasp failed");
 		return false;
 	}
+}
+
+bool action_manager::addObjectMarker(int hand){
+
+	ROS_INFO("action_manager::pr2_action_interface: Adding collision Object to scene");
+
+	arm_navigation_msgs::AttachedCollisionObject att_object;
+
+	att_object.object.id = "attached object";
+	att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+
+
+	if(hand)
+	{
+		 att_object.link_name = "r_gripper_r_finger_tip_link";
+		 att_object.object.header.frame_id = "r_gripper_r_finger_tip_link";
+		 att_object.touch_links.push_back("r_end_effector");
+	}
+	else
+	{
+		att_object.link_name = "l_gripper_l_finger_tip_link";
+		att_object.object.header.frame_id = "l_gripper_l_finger_tip_link";
+		att_object.touch_links.push_back("l_end_effector");
+	}
+
+	att_object.object.header.stamp = ros::Time::now();
+	arm_navigation_msgs::Shape object;
+	object.type = arm_navigation_msgs::Shape::BOX;
+	object.dimensions.resize(3);
+	object.dimensions[0] = 0.05;
+	object.dimensions[1] = 0.05;
+	object.dimensions[2] = 0.05;
+	geometry_msgs::Pose pose;
+	pose.position.x = 0.0;
+	pose.position.y = 0.0;
+	pose.position.z = 0.0;
+	pose.orientation.x = 0;
+	pose.orientation.y = 0;
+	pose.orientation.z = 0;
+	pose.orientation.w = 1;
+	att_object.object.shapes.push_back(object);
+	att_object.object.poses.push_back(pose);
+
+
+	planning_srv_.request.planning_scene_diff.attached_collision_objects.push_back(att_object);
+
+	if (!ros::service::call(environment_srv_, planning_srv_)) {
+		ROS_ERROR("action_manager::pr2_action_interface: Call to Environment service failed");
+		return false;
+	}
+	return true;
+}
+
+bool action_manager::removeObjectMarker(int hand){
+
+	ROS_INFO("action_manager::pr2_action_interface: Adding Remove Object to scene");
+
+	arm_navigation_msgs::AttachedCollisionObject att_object;
+
+	att_object.object.id = "attached object";
+	att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
+
+	if(hand)
+		 att_object.link_name = "r_gripper_r_finger_tip_link";
+	else
+		att_object.link_name = "l_gripper_l_finger_tip_link";
+
+	planning_srv_.request.planning_scene_diff.attached_collision_objects.push_back(att_object);
+
+	if (!ros::service::call(environment_srv_, planning_srv_)) {
+		ROS_ERROR("action_manager::pr2_action_interface: Call to Environment service failed");
+		return false;
+	}
+	return true;
 }
 
 } // end of namespace

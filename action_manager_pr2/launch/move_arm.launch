@@ -20,7 +20,10 @@
   <!-- load move_arm -->
   <include file="$(find pr2_arm_navigation_actions)/launch/move_right_arm.launch"/>
   <include file="$(find pr2_arm_navigation_actions)/launch/move_left_arm.launch"/>
-  
+
+  <!--- load gripper controller and action nodes -->
+  <include file="$(find pr2_gripper_sensor_action)/launch/pr2_gripper_sensor_actions.launch"/>
+
   <node pkg="action_manager_pr2" name="joint_state_listener_server" type="joint_state_listener_server.py" >
   </node>
     

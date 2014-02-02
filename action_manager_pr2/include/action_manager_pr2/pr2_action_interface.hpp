@@ -41,16 +41,41 @@
 #define PR2_ACTION_INTERFACE_HPP
 
 #include <ros/ros.h>
+
+// For gripper control
 #include <pr2_controllers_msgs/Pr2GripperCommandAction.h>
+
+// For gripper force control
+#include <pr2_gripper_sensor_msgs/PR2GripperFindContactAction.h>
+#include <pr2_gripper_sensor_msgs/PR2GripperForceServoAction.h>
+#include <pr2_gripper_sensor_msgs/PR2GripperSlipServoAction.h>
+#include <pr2_gripper_sensor_msgs/PR2GripperEventDetectorAction.h>
+
+// Move head action
 #include <pr2_controllers_msgs/PointHeadAction.h>
+
+//Move arm action
 #include <arm_navigation_msgs/MoveArmAction.h>
+
+// Arm navigation utilities, planning utilities, collison models and environment server
 #include <arm_navigation_msgs/utils.h>
+#include <arm_navigation_msgs/GetPlanningScene.h>
+#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <planning_environment/models/collision_models.h>
+
+// Ros action server and clients
 #include <actionlib/server/simple_action_server.h>
 #include <actionlib/client/simple_action_client.h>
+
+//Pr2 arm controllers and IK includes
 #include <pr2_controllers_msgs/JointTrajectoryAction.h>
-#include <tf/transform_datatypes.h>
 #include <kinematics_msgs/GetPositionIK.h>
+
+// Tf includes
+#include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
+
+//action manager controller action server and messages
 #include "action_manager_pr2/ControllerAction.h"
 #include "action_manager_msgs/Controller.h"
 
@@ -73,6 +98,10 @@ public:
 	typedef actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> TrajectoryClient;
 	typedef actionlib::SimpleActionServer<action_manager_pr2::ControllerAction> ActionServer;
 	typedef ActionServer::GoalHandle GoalHandle;
+	typedef actionlib::SimpleActionClient<pr2_gripper_sensor_msgs::PR2GripperForceServoAction> GripperForceClient;
+	typedef actionlib::SimpleActionClient<pr2_gripper_sensor_msgs::PR2GripperFindContactAction> GripperContactClient;
+	typedef actionlib::SimpleActionClient<pr2_gripper_sensor_msgs::PR2GripperSlipServoAction> GripperSlipClient;
+
 
 private:
 
@@ -82,6 +111,9 @@ private:
 	GripperClient *gripper_r_client_, *gripper_l_client_;
 	MoveArmClient *arm_r_client_, *arm_l_client_;
 	TrajectoryClient *r_traj_client_, *l_traj_client_;
+	GripperContactClient *gcontact_l_client_, *gcontact_r_client_;
+	GripperForceClient *gforce_l_client_, *gforce_r_client_;
+	GripperSlipClient *slip_r_client_,*slip_l_client_;
 
 	const static double wrist_speed_ = 2.0; //2 seconds per revolution
 	const static double gripper_length_ = 0.18;
@@ -90,7 +122,7 @@ protected:
 
 	ros::NodeHandle nh_;
 
-	ros::Publisher pose_publisher_;
+	ros::Publisher pose_publisher_,vis_marker_publisher_;;
 
 	//Declaring action server and related variables
 	ActionServer as_;
@@ -103,7 +135,11 @@ protected:
 	usc_utilities::RvizMarkerManager marker_;
 
 	// Pr2 Controller action servers to call
-	std::string gripper_r_srv_, gripper_l_srv_, head_srv_,arm_r_srv_, arm_l_srv_,r_joint_srv_,l_joint_srv_;
+	std::string gripper_r_srv_, gripper_l_srv_, head_srv_,arm_r_srv_, arm_l_srv_,r_joint_srv_,l_joint_srv_,environment_srv_,
+	gripper_l_contact_,gripper_r_contact_,gripper_l_force_,gripper_r_force_,gripper_l_slip_,gripper_r_slip_;
+
+	//Planning service
+	arm_navigation_msgs::GetPlanningScene planning_srv_;
 
 	// Pr2 Controller services to listen to
 	std::string r_ik_service_name_, l_ik_service_name_,joint_states_service_;
@@ -133,6 +169,12 @@ public:
 
 	bool controlGripper(int hand = 1, int goal = 0);
 	// goal 0 for open and 1 for close, hand 1 for right and 0 for left
+
+	bool gripperForceHold(int hand = 1, double force = 10.0); // in ARM we only use 0.5N
+
+	bool gripperFindContacts(int hand = 1);
+
+	void gripperSlipController(int hand = 1); // Prevents the object from slipping from the grippers hand
 
 	bool controlHead(const std::string& pointing_frame_id, const geometry_msgs::PointStamped& target_point, int action = 0); // 0 for point 1 to track
 
@@ -229,6 +271,11 @@ public:
 	bool pushAction(const geometry_msgs::PoseStamped& pose, approach_direction_t approach = FRONTAL);
 
 	bool graspPlaceAction(const geometry_msgs::PoseStamped& push_pose,const geometry_msgs::PoseStamped& place_pose);
+
+	//To add object marker to hand
+	bool addObjectMarker(int hand = 1);
+
+	bool removeObjectMarker(int hand = 1);
 
 
 private:

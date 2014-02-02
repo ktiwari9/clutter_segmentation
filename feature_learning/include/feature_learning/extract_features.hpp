@@ -76,6 +76,11 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+// Collision model includes
+#include <arm_navigation_msgs/GetPlanningScene.h>
+#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <planning_environment/models/collision_models.h>
+
 // DLIB SVM includes
 #include <dlib/svm.h>
 #include <Eigen/Dense>
@@ -113,8 +118,9 @@ protected:
 
 	bool initialized_, holes_;
 
-	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_;
+	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_,environment_srv_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
+	arm_navigation_msgs::GetPlanningScene planning_srv_;
 	std::string filename_, svm_filename_;
 
 	static const double BOX_WIDTH_X = 0.10; // in m
@@ -162,6 +168,8 @@ public:
 	FeatureVector convertEigenToFeature(const Eigen::MatrixXf& feature);
 
 	void publishManipulationMarker();
+
+	bool publishTableMarker();
 
 	void pruneCentroidList(pcl17::PointCloud<PointType> &centroids);
 
