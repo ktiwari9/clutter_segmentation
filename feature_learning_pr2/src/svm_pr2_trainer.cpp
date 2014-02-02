@@ -180,13 +180,12 @@ public:
 		{
 			if(action == 5)
 			{
-				float x,y,z;
-				ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
-				std::cin >> x >> y >> z;
-				goal_.controller.arm.end_pose.position.x = x;
-				goal_.controller.arm.end_pose.position.y = y;
-				goal_.controller.arm.end_pose.position.z = z;
-
+				//float x,y,z;
+				//ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
+				//std::cin >> x >> y >> z;
+				goal_.controller.arm.end_pose.position.x = 1.0;
+				goal_.controller.arm.end_pose.position.y = -1.0;
+				goal_.controller.arm.end_pose.position.z = 1.0;
 			}
 			else
 			{
@@ -234,6 +233,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nh;
 	action_client_pr2 ac("/pr2_action_interface");
 	ros::Publisher pub = nh.advertise<visualization_msgs::Marker>("/manipulation_marker", 1);
+	ros::Publisher pub_place = nh.advertise<visualization_msgs::Marker>("/place_location_marker", 1);
 	//Now set a bool variable to check till user quits
 	if(argc < 2)
 	{
@@ -260,17 +260,17 @@ int main(int argc, char **argv){
 		switch(choice){
 
 		case(1) :
-						ac.actuateHead();
+		ac.actuateHead();
 		ac.sendGoal(); // Technically no difference between tracking and looking
 		break;
 
 		case(2) :
-						ac.actuateGripper();
+		ac.actuateGripper();
 		ac.sendGoal();
 		break;
 
 		case(3) :
-						ac.actuateArm();
+		ac.actuateArm();
 		extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
 		target_filename << base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
 		extract_feature_srv.request.filename = target_filename.str();
@@ -293,6 +293,18 @@ int main(int argc, char **argv){
 					location_marker.header = ac.action_point_[index].header;
 					location_marker.pose.position =  ac.action_point_[index].point;
 					pub.publish(location_marker);
+
+					if(ac.goal_.controller.arm.action == 5)
+					{
+						visualization_msgs::Marker place_location_marker = getMarker(index);
+						place_location_marker.color.r = 1.0;
+						place_location_marker.color.g = 1.0;
+						place_location_marker.color.b = 0.0;
+						place_location_marker.header = ac.action_point_[index].header;
+						place_location_marker.pose.position =  ac.goal_.controller.arm.end_pose.position;
+						pub_place.publish(place_location_marker);
+
+					}
 
 					ac.sendGoal();
 

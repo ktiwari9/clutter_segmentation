@@ -149,7 +149,7 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 
 	case (action_manager_msgs::Controller::HEAD):
 
-    				ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
+    ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
 	target_point.point = goal->controller.head.pose.position;
 	target_point.header.frame_id = goal->controller.head.frame_id;
 	target_point.header.stamp = goal->controller.header.stamp;
@@ -161,14 +161,14 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 
 	case (action_manager_msgs::Controller::GRIPPER):
 
-					ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
+	ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
 	gripper = goal->controller.gripper.gripper; action = goal->controller.gripper.action;
 	success = controlGripper(gripper,action);
 	break;
 
 	case (action_manager_msgs::Controller::ARM):
 
-					ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
+	ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
 	start_pose.pose = goal->controller.arm.start_pose;
 	start_pose.header.frame_id = goal->controller.arm.frame_id;
 	start_pose.header.stamp = goal->controller.header.stamp;
@@ -187,7 +187,9 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 	break;
 
 	default:
-		ROS_INFO("action_manager::pr2_action_interface: Incorrect target choice"); success = false; break;
+	ROS_INFO("action_manager::pr2_action_interface: Incorrect target choice"); success = false;
+	break;
+
 	}
 
 	if(as_.isPreemptRequested() || !ros::ok()){
@@ -212,30 +214,30 @@ bool action_manager::controlArm(const geometry_msgs::PoseStamped& start_pose, co
 	switch(action){
 
 	case(0):
-					success = tuck(arm); break;
+	success = tuck(arm); break;
 
 	case(1):
-					success = stretch(arm);	break;
+	success = stretch(arm);	break;
 
 	case(2):
-					success = moveToSide(arm); break;
+	success = moveToSide(arm); break;
 
 	case(3):
-					success = goZero(); break;
+	success = goZero(); break;
 
 	case(5):
-					frame_id_ = frame_id;
+	frame_id_ = frame_id;
 	success = graspPlaceAction(start_pose,end_pose); break;
 
 	case(6):
-            		frame_id_ = frame_id;
+    frame_id_ = frame_id;
 	success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
 
 	case(4):
-					success = moveToPreGrasp(arm); break;
+	success = moveToPreGrasp(arm); break;
 
 	default:
-		success = false; break;
+	success = false; break;
 
 	}
 
@@ -387,7 +389,7 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 
 	joint_names_ = getJointNames(right);
 	goalB.motion_plan_request.group_name = group_name_;
-	goalB.motion_plan_request.num_planning_attempts = 1;
+	goalB.motion_plan_request.num_planning_attempts = 10;
 	goalB.motion_plan_request.allowed_planning_time = ros::Duration(max_time);
 
 	goalB.motion_plan_request.planner_id= std::string("");
@@ -578,7 +580,7 @@ bool action_manager::moveWristRollLinktoPoseWithCollisionChecking(const geometry
 		group_name_= "left_arm";
 
 	goalA.motion_plan_request.group_name = group_name_;
-	goalA.motion_plan_request.num_planning_attempts = 1;
+	goalA.motion_plan_request.num_planning_attempts = 10;
 	goalA.motion_plan_request.planner_id = std::string("");
 	if (planner == "chomp"){
 		ROS_INFO("action_manager::pr2_action_interface: using chomp planner");
@@ -986,7 +988,7 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 		group_name_= "left_arm";
 
 	goalA.motion_plan_request.group_name = group_name_;
-	goalA.motion_plan_request.num_planning_attempts = 1;
+	goalA.motion_plan_request.num_planning_attempts = 10;
 	goalA.motion_plan_request.planner_id = std::string("");
 	goalA.planner_service_name = std::string("ompl_planning/plan_kinematic_path");
 	goalA.motion_plan_request.allowed_planning_time = ros::Duration(25.0);
@@ -1006,9 +1008,9 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].position.z = pose.pose.position.z;
 
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.type = arm_navigation_msgs::Shape::BOX;
-	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.02);
-	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.02);
-	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.02);
+	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.05);
+	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.05);
+	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_shape.dimensions.push_back(0.05);
 
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].constraint_region_orientation.w = 1.0;
 	goalA.motion_plan_request.goal_constraints.position_constraints[0].weight = 1.0;
@@ -1048,14 +1050,14 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 		goalA.motion_plan_request.path_constraints.orientation_constraints[0].link_name = "l_wrist_roll_link";
 
 
+	// TODO: Check if this works or set to 0,0,01 and type to
 	goalA.motion_plan_request.path_constraints.orientation_constraints[0].orientation.x = pose.pose.orientation.x;
 	goalA.motion_plan_request.path_constraints.orientation_constraints[0].orientation.y = pose.pose.orientation.y;
 	goalA.motion_plan_request.path_constraints.orientation_constraints[0].orientation.z = pose.pose.orientation.z;
 	goalA.motion_plan_request.path_constraints.orientation_constraints[0].orientation.w = pose.pose.orientation.w;
 
-
-
 	goalA.motion_plan_request.path_constraints.orientation_constraints[0].type = arm_navigation_msgs::OrientationConstraint::HEADER_FRAME;
+
 	if (keep_roll)
 		goalA.motion_plan_request.path_constraints.orientation_constraints[0].absolute_roll_tolerance = tolerance;
 	else
@@ -1076,7 +1078,7 @@ bool action_manager::moveWristRollLinktoPoseWithOrientationConstraints(const geo
 	if(right){
 		arm_r_client_->sendGoal(goalA);
 		if(wait){
-			finished_before_timeout = arm_r_client_->waitForResult(ros::Duration(60.0));
+			finished_before_timeout = arm_r_client_->waitForResult(ros::Duration(200.0));
 			if (!finished_before_timeout){
 				ROS_INFO("action_manager::pr2_action_interface: Action did not finish before time out");
 				return false;
@@ -1191,7 +1193,11 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 
 		// Now PLACE action
-		tf::poseMsgToTF(place_pose.pose,push_tf);
+		geometry_msgs::PoseStamped place_position = place_pose;
+		if(!right)
+			place_position.pose.position.y = 1.0;
+
+		tf::poseMsgToTF(place_position.pose,push_tf);
 		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 		success = controlGripper(right,0); //Open Gripper
 		success = moveToSide(right); //Open Gripper
