@@ -1446,7 +1446,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		return false;
 	// Move to a position that is 5cm relatively in front of the manipulation position
 	//TODO: Do I need this??
-/*
+
 	switch (approach){
 
 	case (FRONTAL):
@@ -1462,7 +1462,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
-*/
+
 
 
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
@@ -1495,7 +1495,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		// Move to a position that is 5cm relatively in front of the manipulation position
 		//TODO: Do I need this??
 
-/*		switch (approach){
+		switch (approach){
 
 		case (FRONTAL):
 					push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150); break;
@@ -1509,18 +1509,18 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 		default:
 			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
-		}*/
+		}
 		//TODO: Check if this pipeline works
 		// first provide new position
-		push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this of old idea works
+		//push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this of old idea works
 		ROS_INFO("action_manager::pr2_action_interface: Starting to push");
-		//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
 
-		geometry_msgs::PoseStamped intermediate_pose;
-		tf::poseTFToMsg(push_tf,intermediate_pose.pose);
-		intermediate_pose.header = pose.header;
-		ROS_INFO("action_manager::pr2_action_interface: Pushing with orientation constraints");
-		success = moveWristRollLinktoPoseWithOrientationConstraints(intermediate_pose,true,true,true,15.0,true,0.2,right);
+		//geometry_msgs::PoseStamped intermediate_pose;
+		//tf::poseTFToMsg(push_tf,intermediate_pose.pose);
+		//intermediate_pose.header = pose.header;
+		//ROS_INFO("action_manager::pr2_action_interface: Pushing with orientation constraints");
+		//success = moveWristRollLinktoPoseWithOrientationConstraints(intermediate_pose,true,true,true,15.0,true,0.2,right);
 
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
