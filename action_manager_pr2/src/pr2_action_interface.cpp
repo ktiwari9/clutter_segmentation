@@ -1219,7 +1219,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		// Now PLACE action
 		geometry_msgs::PoseStamped place_position = place_pose;
 		if(!right)
-			place_position.pose.position.y = 1.0;
+			place_position.pose.position.y = 0.750;
 
 		tf::poseMsgToTF(place_position.pose,push_tf);
 		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to drop location");

@@ -184,9 +184,9 @@ public:
 				//ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
 				//std::cin >> x >> y >> z;
 
-				goal_.controller.arm.end_pose.position.x = 1.0;
-				goal_.controller.arm.end_pose.position.y = -1.0;
-				goal_.controller.arm.end_pose.position.z = 1.0;
+				goal_.controller.arm.end_pose.position.x = 0.10;
+				goal_.controller.arm.end_pose.position.y = -.75;
+				goal_.controller.arm.end_pose.position.z = 0.50;
 			}
 			else
 			{
