@@ -1361,8 +1361,8 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		if(!success)
 			return false;
 		ROS_INFO("action_manager::pr2_action_interface: Closing gripper to grasp point");
-		//success = controlGripper(right,1); // Close Gripper
-		success = gripperFindContacts(right); // Close Gripper
+		success = controlGripper(right,1); // Close Gripper
+		//success = gripperFindContacts(right); // Close Gripper
 
 		if(!success)
 			return false;
@@ -1424,6 +1424,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 
 bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach_direction_t approach){
 
+	// TODO Change frontal back to approach if all works!!!!
 	bool right = rightCloser(pose);
 
 	if(right)
@@ -1449,15 +1450,15 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	switch (approach){
 
 	case (FRONTAL):
-				push_tf.getOrigin().setZ(push_tf.getOrigin().getX() - 0.050); break;
+				push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.050); break;
 	case (FROM_RIGHT_SIDEWAYS):
-				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.050); break;
 	case (FROM_RIGHT_UPRIGHT):
-				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.050); break;
 	case (FROM_LEFT_SIDEWAYS):
-				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.050); break;
 	case (FROM_LEFT_UPRIGHT):
-				push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.050); break;
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
@@ -1470,10 +1471,17 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		return false;
 
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
-	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,"ompl",right);
-	if(!success)
-		return false;
+	//Lift gripper 5cm above current position
+	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
 
+	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+	if(!success)
+	{
+			push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
+			success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+			if(!success)
+				return false;
+	}
 
 	std::vector<double>* ik_seed_pos;
 
@@ -1490,28 +1498,28 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 /*		switch (approach){
 
 		case (FRONTAL):
-					push_tf.getOrigin().setZ(push_tf.getOrigin().getX() + 0.150); break;
+					push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150); break;
 		case (FROM_RIGHT_SIDEWAYS):
-					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 		case (FROM_RIGHT_UPRIGHT):
-					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() + 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 		case (FROM_LEFT_SIDEWAYS):
-					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 		case (FROM_LEFT_UPRIGHT):
-					push_tf.getOrigin().setZ(push_tf.getOrigin().getY() - 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 		default:
 			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 		}*/
 		//TODO: Check if this pipeline works
 		// first provide new position
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getX() + 0.150);
+		push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this of old idea works
 		ROS_INFO("action_manager::pr2_action_interface: Starting to push");
 		//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
 
 		geometry_msgs::PoseStamped intermediate_pose;
 		tf::poseTFToMsg(push_tf,intermediate_pose.pose);
 		intermediate_pose.header = pose.header;
-		ROS_INFO("action_manager::pr2_action_interface: Pushing with orientation constrainst");
+		ROS_INFO("action_manager::pr2_action_interface: Pushing with orientation constraints");
 		success = moveWristRollLinktoPoseWithOrientationConstraints(intermediate_pose,true,true,true,15.0,true,0.2,right);
 
 		if(success)
@@ -1520,7 +1528,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 
 		ROS_INFO("action_manager::pr2_action_interface: lifting gripper");
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
 		if(!success)
 			return false;
 
