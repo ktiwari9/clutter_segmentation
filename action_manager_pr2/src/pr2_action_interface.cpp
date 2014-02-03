@@ -1608,7 +1608,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
 		success = controlGripper(right,1); //Close Gripper
 
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.200);
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.150);
 		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to grasp point");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 
@@ -1619,7 +1619,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Pushing with IK interpolation");
 
 		std::vector<double> waypoints;
-		for(double i = 0.01; i <= 0.25 ; i+=0.01)
+		for(double i = 0.01; i <= 0.20 ; i+=0.01)
 		{
 			ROS_INFO("action_manager::pr2_action_interface: getting update %f",i);
 
