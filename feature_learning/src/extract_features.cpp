@@ -465,7 +465,7 @@ bool extract_features::trainfeatureClass(cv::Mat image, const pcl17::PointCloud<
 	ROS_INFO("feature_learning::extract_features: Feature computation complete");
 	// Use bag writer to write before and after bags with topics and name the Eigen matrix as the same thing
 	std::stringstream eigen_filename;
-	eigen_filename<<filename_<<".txt";
+	eigen_filename<<filename_<<"_feature_"<<boost::lexical_cast<std::string>(index)<<".txt";
 	ofstream ofs(eigen_filename.str().c_str(),ios::out | ios::trunc);
 	if(ofs)
 	{
