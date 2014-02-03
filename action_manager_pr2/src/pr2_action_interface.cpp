@@ -1460,7 +1460,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 
 		//TODO: Check if this pipeline works
 		// first provide new position
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.10);
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.250);
 		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to grasp point");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 
@@ -1479,7 +1479,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 			ROS_INFO("action_manager::pr2_action_interface: Grasp Successful");
 
 		// Now lift the gripper
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.25);
 
 		ROS_INFO("action_manager::pr2_action_interface: Move up to pregrasp Point");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
@@ -1559,15 +1559,15 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	switch (approach){
 
 	case (FRONTAL):
-				push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.050); break;
+				push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.150); break;
 	case (FROM_RIGHT_SIDEWAYS):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 	case (FROM_RIGHT_UPRIGHT):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 	case (FROM_LEFT_SIDEWAYS):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 	case (FROM_LEFT_UPRIGHT):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.050); break;
+				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
@@ -1580,12 +1580,13 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		return false;
 
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
-	//Lift gripper 5cm above current position
+	//Lift gripper 5cm above current position:
 	//push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
 
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 	if(!success)
 	{
+                	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push with Z increase");
 			push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
 			success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 			if(!success)
@@ -1607,15 +1608,15 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		switch (approach){
 
 		case (FRONTAL):
-					push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150); break;
+					push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.250); break;
 		case (FROM_RIGHT_SIDEWAYS):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.250); break;
 		case (FROM_RIGHT_UPRIGHT):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.250); break;
 		case (FROM_LEFT_SIDEWAYS):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.250); break;
 		case (FROM_LEFT_UPRIGHT):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.250); break;
 		default:
 			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 		}
@@ -1624,7 +1625,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		//push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this if old idea works
 
 		// TODO: For staring line move
-/*
+
 
 		ROS_INFO("action_manager::pr2_action_interface: Pusing with IK interpolation");
 
@@ -1642,12 +1643,12 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 			success = goToJointPos(waypoints, 5.0, true,right);
   		else
   			return false;
-*/
 
 
 
-		ROS_INFO("action_manager::pr2_action_interface: Starting to push");
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+
+		//ROS_INFO("action_manager::pr2_action_interface: Starting to push");
+		//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
 
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
