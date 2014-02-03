@@ -58,8 +58,8 @@ int writer_counter = 1;
 namespace feature_learning{
 
 extract_features::extract_features(ros::NodeHandle& nh):
-										nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),holes_(false),
-										processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
+												nh_(nh), nh_priv_("~"),input_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>), input_rgb_cloud_(new pcl17::PointCloud<PoinRGBType>),holes_(false),
+												processed_cloud_(new pcl17::PointCloud<pcl17::PointXYZ>),table_coefficients_(new pcl17::ModelCoefficients ()){
 
 	nh_priv_.param<std::string>("tabletop_service",tabletop_service_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("input_cloud_topic",input_cloud_topic_,std::string("/tabletop_segmentation"));
@@ -230,7 +230,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 	for(size_t i = 0; i < label_indices.size() ; i++)
 	{
 		pcl17::PointCloud<PoinRGBType>::Ptr edge_points (new pcl17::PointCloud<PoinRGBType>);
-	        pcl17::search::KdTree<PoinRGBType>::Ptr local_tree (new pcl17::search::KdTree<PoinRGBType>);
+		pcl17::search::KdTree<PoinRGBType>::Ptr local_tree (new pcl17::search::KdTree<PoinRGBType>);
 		pcl17::copyPointCloud (*input_rgb_cloud_, label_indices[i].indices, *edge_points);
 		ROS_INFO("feature_learning::extract_features: Clustering edges of Type %d, with %d points",i,label_indices[i].indices.size());
 		ROS_INFO("feature_learning::extract_features: Corresponding cloud size %d",edge_points->points.size());
@@ -262,19 +262,19 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_edges(cv::M
 					center_point.x <= (max_point.x + 0.05) && center_point.y <= (max_point.y + 0.05) && center_point.z >= (table_height_- 0.05))
 			{
 #pragma omp critical
-			edge_list.push_back(center_point);
+				edge_list.push_back(center_point);
 
 #pragma omp critical
-			edges += *cloud_cluster;
+				edges += *cloud_cluster;
 
-			visualization_msgs::Marker location_marker = getMarker(counter);
-			counter++;
+				visualization_msgs::Marker location_marker = getMarker(counter);
+				counter++;
 
-			location_marker.header = input_cloud_->header;
-			location_marker.header.stamp = ros::Time();
-			location_marker.pose.position.x = center_point.x; location_marker.pose.position.y = center_point.y; location_marker.pose.position.z = center_point.z;
+				location_marker.header = input_cloud_->header;
+				location_marker.header.stamp = ros::Time();
+				location_marker.pose.position.x = center_point.x; location_marker.pose.position.y = center_point.y; location_marker.pose.position.z = center_point.z;
 #pragma omp critical
-			marker_array_.markers.push_back(location_marker);
+				marker_array_.markers.push_back(location_marker);
 			}
 		}
 	}
@@ -348,12 +348,12 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 		ROS_INFO_STREAM("Model frame "<<model.tfFrame());
 #pragma omp critical
 		{
-		try {
-			ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),ray.header.stamp, ros::Duration(10.0)));
-			ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,ray, listener_));
-		} catch (tf::TransformException ex) {
-			ROS_ERROR("%s",ex.what());
-		}
+			try {
+				ROS_VERIFY(listener_.waitForTransform(base_frame_,model.tfFrame(),ray.header.stamp, ros::Duration(10.0)));
+				ROS_VERIFY(pcl17_ros::transformPointCloud(base_frame_, ray,ray, listener_));
+			} catch (tf::TransformException ex) {
+				ROS_ERROR("%s",ex.what());
+			}
 		}
 
 		push_point.x = ray.points[1].x; push_point.y = ray.points[1].y; push_point.z = ray.points[1].z;
@@ -370,8 +370,8 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 
 #pragma omp critical
 		{
-		marker_array_.markers.push_back(location_marker);
-		edge_list.push_back(push_point);
+			marker_array_.markers.push_back(location_marker);
+			edge_list.push_back(push_point);
 		}
 	}
 
@@ -531,8 +531,8 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
-        if(uv_image.x > image.cols || uv_image.y > image.rows)
-           return 0;
+	if(uv_image.x > image.cols || uv_image.y > image.rows)
+		return 0;
 
 	int window_ex = 60, window_ey = 60;
 	if(uv_image.x + 60 >= image.cols)
@@ -691,7 +691,7 @@ bool extract_features::publishTableMarker(){
 	geometry_msgs::Pose pose_clear;
 	pose_clear.position.x = table_centroid[0];
 	pose_clear.position.y = table_centroid[1];
-	pose_clear.position.z = table_centroid[2];
+	pose_clear.position.z = table_centroid[2] + 0.25;
 	pose_clear.orientation.x = 0;
 	pose_clear.orientation.y = 0;
 	pose_clear.orientation.z = 0;
@@ -701,10 +701,10 @@ bool extract_features::publishTableMarker(){
 
 	planning_srv_.request.planning_scene_diff.collision_objects.push_back(collision_objects);
 
-	if (!ros::service::call(environment_srv_, planning_srv_)) {
+/*	if (!ros::service::call(environment_srv_, planning_srv_)) {
 		ROS_ERROR("feature_learning::extract_features: Call to Environment service to remove objects failed failed");
 		return false;
-	}
+	}*/
 
 	ROS_INFO("feature_learning::extract_features: Adding Table Marker to scene");
 

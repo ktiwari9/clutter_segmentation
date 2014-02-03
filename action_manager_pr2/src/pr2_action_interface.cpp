@@ -45,8 +45,8 @@
 namespace action_manager_pr2{
 
 action_manager::action_manager(ros::NodeHandle & nh, const std::string action_name):
-			nh_(nh), as_(nh,action_name, boost::bind(&action_manager::execute,this,_1),false), nh_priv_("~"),
-			marker_("/rviz_control"),action_name_(action_name){
+					nh_(nh), as_(nh,action_name, boost::bind(&action_manager::execute,this,_1),false), nh_priv_("~"),
+					marker_("/rviz_control"),action_name_(action_name){
 
 	nh_priv_.param<std::string>("gripper_r_server",gripper_r_srv_,std::string("r_gripper_controller/gripper_action"));
 	nh_priv_.param<std::string>("gripper_l_server",gripper_l_srv_,std::string("l_gripper_controller/gripper_action"));
@@ -185,7 +185,7 @@ self.seed_angles = [seed_angles_left, seed_angles_right]
 
 seed_angles_right2 = (-0.93743667222127069, 0.11056515201626564, -2.064627263335348, -1.4934701151950738, -6.7198768798611708, -0.45140012228925586, 14.224670047444075)
 seed_angles_left2 = (0.54066820655626213, 0.057655477736996884, 2.1336739049387785, -1.449537220909964, 6.5549140761711637, -0.41655446503198001, -1.5841374868194875)
-*/
+ */
 
 action_manager::~action_manager(){
 
@@ -210,7 +210,7 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 
 	case (action_manager_msgs::Controller::HEAD):
 
-    ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
+    		ROS_INFO("action_manager::pr2_action_interface: Controlling head in %s frame",goal->controller.head.frame_id.c_str());
 	target_point.point = goal->controller.head.pose.position;
 	target_point.header.frame_id = goal->controller.head.frame_id;
 	target_point.header.stamp = goal->controller.header.stamp;
@@ -222,14 +222,14 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 
 	case (action_manager_msgs::Controller::GRIPPER):
 
-	ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
+			ROS_INFO("action_manager::pr2_action_interface: Controlling gripper");
 	gripper = goal->controller.gripper.gripper; action = goal->controller.gripper.action;
 	success = controlGripper(gripper,action);
 	break;
 
 	case (action_manager_msgs::Controller::ARM):
 
-	ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
+			ROS_INFO("action_manager::pr2_action_interface: Controlling arm");
 	start_pose.pose = goal->controller.arm.start_pose;
 	start_pose.header.frame_id = goal->controller.arm.frame_id;
 	start_pose.header.stamp = goal->controller.header.stamp;
@@ -248,8 +248,8 @@ void action_manager::execute(const action_manager_pr2::ControllerGoalConstPtr& g
 	break;
 
 	default:
-	ROS_INFO("action_manager::pr2_action_interface: Incorrect target choice"); success = false;
-	break;
+		ROS_INFO("action_manager::pr2_action_interface: Incorrect target choice"); success = false;
+		break;
 
 	}
 
@@ -275,30 +275,30 @@ bool action_manager::controlArm(const geometry_msgs::PoseStamped& start_pose, co
 	switch(action){
 
 	case(0):
-	success = tuck(arm); break;
+			success = tuck(arm); break;
 
 	case(1):
-	success = stretch(arm);	break;
+			success = stretch(arm);	break;
 
 	case(2):
-	success = moveToSide(arm); break;
+			success = moveToSide(arm); break;
 
 	case(3):
-	success = goZero(); break;
+			success = goZero(); break;
 
 	case(5):
-	frame_id_ = frame_id;
+			frame_id_ = frame_id;
 	success = graspPlaceAction(start_pose,end_pose); break;
 
 	case(6):
-    frame_id_ = frame_id;
+    		frame_id_ = frame_id;
 	success = pushAction(start_pose, static_cast<approach_direction_t>(direction)); break;
 
 	case(4):
-	success = moveToPreGrasp(arm); break;
+			success = moveToPreGrasp(arm); break;
 
 	default:
-	success = false; break;
+		success = false; break;
 
 	}
 
@@ -413,43 +413,43 @@ bool action_manager::gripperForceHold(int hand, double force){
 
 bool action_manager::gripperFindContacts(int hand){
 
-    pr2_gripper_sensor_msgs::PR2GripperFindContactGoal findTwo;
-    findTwo.command.contact_conditions = findTwo.command.BOTH;  // close until both fingers contact
-    findTwo.command.zero_fingertip_sensors = true;   // zero fingertip sensor values before moving
+	pr2_gripper_sensor_msgs::PR2GripperFindContactGoal findTwo;
+	findTwo.command.contact_conditions = findTwo.command.BOTH;  // close until both fingers contact
+	findTwo.command.zero_fingertip_sensors = true;   // zero fingertip sensor values before moving
 
 
-    ROS_INFO("Sending find 2 contact goal");
-    if(hand){
-    	gcontact_r_client_->sendGoal(findTwo);
-    	gcontact_r_client_->waitForResult(ros::Duration(5.0));
-    	if(gcontact_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-    	{
-    		ROS_INFO("action_manager::pr2_action_interface: Contact found. Left: %d, Right: %d", gcontact_r_client_->getResult()->data.left_fingertip_pad_contact,
-    				gcontact_r_client_->getResult()->data.right_fingertip_pad_contact);
-    		ROS_INFO("action_manager::pr2_action_interface: Contact force. Left: %f, Right: %f", gcontact_r_client_->getResult()->data.left_fingertip_pad_force,
-    				gcontact_r_client_->getResult()->data.right_fingertip_pad_force);
-    		return true;
-    	}
-    	else
-    		ROS_INFO("action_manager::pr2_action_interface: The right gripper did not find a contact or could not maintain contact force.");
-    	return false;
-    }
-    else
-    {
-    	gcontact_l_client_->sendGoal(findTwo);
-    	gcontact_l_client_->waitForResult(ros::Duration(5.0));
-    	if(gcontact_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-    	{
-    		ROS_INFO("action_manager::pr2_action_interface: Contact found. Left: %d, Right: %d", gcontact_l_client_->getResult()->data.left_fingertip_pad_contact,
-    				gcontact_l_client_->getResult()->data.right_fingertip_pad_contact);
-    		ROS_INFO("action_manager::pr2_action_interface: Contact force. Left: %f, Right: %f", gcontact_l_client_->getResult()->data.left_fingertip_pad_force,
-    				gcontact_l_client_->getResult()->data.right_fingertip_pad_force);
-    		return true;
-    	}
-    	else
-    		ROS_INFO("action_manager::pr2_action_interface: The left gripper did not find a contact or could not maintain contact force.");
-    	return false;
-    }
+	ROS_INFO("Sending find 2 contact goal");
+	if(hand){
+		gcontact_r_client_->sendGoal(findTwo);
+		gcontact_r_client_->waitForResult(ros::Duration(5.0));
+		if(gcontact_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+		{
+			ROS_INFO("action_manager::pr2_action_interface: Contact found. Left: %d, Right: %d", gcontact_r_client_->getResult()->data.left_fingertip_pad_contact,
+					gcontact_r_client_->getResult()->data.right_fingertip_pad_contact);
+			ROS_INFO("action_manager::pr2_action_interface: Contact force. Left: %f, Right: %f", gcontact_r_client_->getResult()->data.left_fingertip_pad_force,
+					gcontact_r_client_->getResult()->data.right_fingertip_pad_force);
+			return true;
+		}
+		else
+			ROS_INFO("action_manager::pr2_action_interface: The right gripper did not find a contact or could not maintain contact force.");
+		return false;
+	}
+	else
+	{
+		gcontact_l_client_->sendGoal(findTwo);
+		gcontact_l_client_->waitForResult(ros::Duration(5.0));
+		if(gcontact_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+		{
+			ROS_INFO("action_manager::pr2_action_interface: Contact found. Left: %d, Right: %d", gcontact_l_client_->getResult()->data.left_fingertip_pad_contact,
+					gcontact_l_client_->getResult()->data.right_fingertip_pad_contact);
+			ROS_INFO("action_manager::pr2_action_interface: Contact force. Left: %f, Right: %f", gcontact_l_client_->getResult()->data.left_fingertip_pad_force,
+					gcontact_l_client_->getResult()->data.right_fingertip_pad_force);
+			return true;
+		}
+		else
+			ROS_INFO("action_manager::pr2_action_interface: The left gripper did not find a contact or could not maintain contact force.");
+		return false;
+	}
 }
 
 void action_manager::gripperSlipController(int hand){
@@ -458,21 +458,21 @@ void action_manager::gripperSlipController(int hand){
 
 	ROS_INFO("action_manager::pr2_action_interface: Slip Servoing");
 
-    if(hand){
-    	slip_r_client_->sendGoal(slip_goal);
-    	if(slip_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-    		ROS_INFO("action_manager::pr2_action_interface:You Should Never See This Message!");
-    	else
-    		ROS_INFO("action_manager::pr2_action_interface:SlipServo Action returned without success.");
-    }
-    else
-    {
-    	slip_l_client_->sendGoal(slip_goal);
-    	if(slip_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-    		ROS_INFO("action_manager::pr2_action_interface:You Should Never See This Message!");
-    	else
-    		ROS_INFO("action_manager::pr2_action_interface:SlipServo Action returned without success.");
-    }
+	if(hand){
+		slip_r_client_->sendGoal(slip_goal);
+		if(slip_r_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+			ROS_INFO("action_manager::pr2_action_interface:You Should Never See This Message!");
+		else
+			ROS_INFO("action_manager::pr2_action_interface:SlipServo Action returned without success.");
+	}
+	else
+	{
+		slip_l_client_->sendGoal(slip_goal);
+		if(slip_l_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+			ROS_INFO("action_manager::pr2_action_interface:You Should Never See This Message!");
+		else
+			ROS_INFO("action_manager::pr2_action_interface:SlipServo Action returned without success.");
+	}
 }
 
 
@@ -956,7 +956,7 @@ bool action_manager::getConstraintAwareIK(const geometry_msgs::PoseStamped& pose
 		}
 		else
 		{
-			ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics failed");
+			ROS_ERROR("action_manager::pr2_action_interface: No Constrained Inverse Kinematics");
 			return false;
 		}
 	}
@@ -1164,19 +1164,19 @@ tf::StampedTransform action_manager::makePose(const tf::Vector3& position, std::
 	switch (approach){
 
 	case (FRONTAL):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( 0, 0 , 0, 1)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( 0, 0 , 0, 1)); break;
 	case (FROM_BELOW):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, HALF_SQRT_TWO , 0)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, HALF_SQRT_TWO , 0)); break;
 	case (FROM_RIGHT_SIDEWAYS):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( 0 , 0, HALF_SQRT_TWO , HALF_SQRT_TWO)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( 0 , 0, HALF_SQRT_TWO , HALF_SQRT_TWO)); break;
 	case (FROM_RIGHT_UPRIGHT):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , -0.5, 0.5 , 0.5)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , -0.5, 0.5 , 0.5)); break;
 	case (FROM_ABOVE):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, -HALF_SQRT_TWO , 0)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, -HALF_SQRT_TWO , 0)); break;
 	case (FROM_LEFT_SIDEWAYS):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( -HALF_SQRT_TWO , HALF_SQRT_TWO , 0 , 0)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( -HALF_SQRT_TWO , HALF_SQRT_TWO , 0 , 0)); break;
 	case (FROM_LEFT_UPRIGHT):
-					tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , 0.5, -0.5 , 0.5)); break;
+							tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , 0.5, -0.5 , 0.5)); break;
 	}
 
 	return tf_pose_in_baselink;
@@ -1398,12 +1398,12 @@ double action_manager::distanceFromFrame(const geometry_msgs::PoseStamped& pose,
 	// First finding nearest Arm
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
-        ROS_INFO("Transform frame is %s",frame_id.c_str());
-        if(frame_id.compare("/base_link") != 0)
-        {
-        	listener.waitForTransform("/base_link",frame_id,ros::Time(), ros::Duration(10.0));
-        	listener.lookupTransform("/base_link",frame_id,	ros::Time(), transform);
-        }
+	ROS_INFO("Transform frame is %s",frame_id.c_str());
+	if(frame_id.compare("/base_link") != 0)
+	{
+		listener.waitForTransform("/base_link",frame_id,ros::Time(), ros::Duration(10.0));
+		listener.lookupTransform("/base_link",frame_id,	ros::Time(), transform);
+	}
 
 	tf::Pose tf_push_pose;
 	tf::poseMsgToTF(pose.pose,tf_push_pose);
@@ -1561,21 +1561,19 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 
 	if(!success)
 		return false;
-	// Move to a position that is 5cm relatively in front of the manipulation position
-	//TODO: Do I need this??
 
 	switch (approach){
 
 	case (FRONTAL):
-				push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.150); break;
+						push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.150); break;
 	case (FROM_RIGHT_SIDEWAYS):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 	case (FROM_RIGHT_UPRIGHT):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 	case (FROM_LEFT_SIDEWAYS):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 	case (FROM_LEFT_UPRIGHT):
-				push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
@@ -1587,16 +1585,18 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	if(!success)
 		return false;
 
-	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
-	//Lift gripper 5cm above current position:
-	//push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
+	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push 10 cm above the current point");
+	//Lift gripper 10cm above current position:
+	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
 
-	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+	//success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 	if(!success)
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push with Z increase");
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
-		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+		//success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 		if(!success)
 			return false;
 	}
@@ -1607,52 +1607,53 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moved to pre-grasp position, Now open grippers");
 		success = controlGripper(right,1); //Close Gripper
+
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.200);
+		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to grasp point");
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
+
 		if(!success)
 			return false;
 
 		// Move to a position that is 25cm relatively in front of the manipulation position
-		//push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this if old idea works
-
 		ROS_INFO("action_manager::pr2_action_interface: Pushing with IK interpolation");
 
-        std::vector<double> waypoints;
-  		for(double i = 0.01; i <= 0.25 ; i+=0.01)
+		std::vector<double> waypoints;
+		for(double i = 0.01; i <= 0.25 ; i+=0.01)
 		{
-		        ROS_INFO("action_manager::pr2_action_interface: getting update %f",i); 
-                        
+			ROS_INFO("action_manager::pr2_action_interface: getting update %f",i);
+
 			switch (approach){
 
 			case (FRONTAL):
-						push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i); break;
+								push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i); break;
 			case (FROM_RIGHT_SIDEWAYS):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+								push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
 			case (FROM_RIGHT_UPRIGHT):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+								push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
 			case (FROM_LEFT_SIDEWAYS):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+								push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
 			case (FROM_LEFT_UPRIGHT):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+								push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
 			default:
 				ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 			}
 
-			std::vector<double> waypoint = getGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+			std::vector<double> waypoint = getGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 			if(!waypoint.empty())
 				waypoints.insert(waypoints.end(),waypoint.begin(),waypoint.end());
 		}
 
-  		if(!waypoints.empty()){
-		        ROS_INFO("action_manager::pr2_action_interface: Moving with Collision checking %d waypoints",waypoints.size());
-  			//success = goToJointPosWithCollisionChecking(waypoints, 5.0, true,right); // TODO: Check if this works because of object
-  			//if(!success)
-  			//{
-  				ROS_INFO("action_manager::pr2_action_interface: Collision aware move failed, running open loop");
-  				success = goToJointPos(waypoints, 5.0, true,right);
-  			//}
-  		}
+		if(!waypoints.empty()){
 
-  		else
-  			return false;
+			//ROS_INFO("action_manager::pr2_action_interface: Moving with Collision checking %d waypoints",waypoints.size());
+			//success = goToJointPosWithCollisionChecking(waypoints, 5.0, true,right); // TODO: Check if this works because of object
+			ROS_INFO("action_manager::pr2_action_interface: Running open loop");
+			success = goToJointPos(waypoints, 5.0, true,right);
+		}
+
+		else
+			return false;
 
 
 		if(success)
@@ -1661,28 +1662,7 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 
 		ROS_INFO("action_manager::pr2_action_interface: lifting gripper");
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
-		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
-		if(!success)
-                {
-                  /* switch (approach){
-
-                        case (FRONTAL):
-                                                push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.25); break;
-                        case (FROM_RIGHT_SIDEWAYS):
-                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.25); break;
-                        case (FROM_RIGHT_UPRIGHT):
-                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.25); break;
-                        case (FROM_LEFT_SIDEWAYS):
-                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.25); break;
-                        case (FROM_LEFT_UPRIGHT):
-                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.25); break;
-                        default:
-                                ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
-                        }
-                  success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
-                  if(!success)*/
-                     moveToSide(right);
-                }
+		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 
 		ROS_INFO("action_manager::pr2_action_interface: Going Home");
 		success = moveToSide(right);
@@ -1709,9 +1689,9 @@ bool action_manager::addObjectMarker(int hand){
 
 	if(hand)
 	{
-		 att_object.link_name = "r_wrist_roll_link";
-		 att_object.object.header.frame_id = "r_wrist_roll_link";
-		 att_object.touch_links.push_back("r_end_effector"); // TODO: may or may not need touch links
+		att_object.link_name = "r_wrist_roll_link";
+		att_object.object.header.frame_id = "r_wrist_roll_link";
+		att_object.touch_links.push_back("r_end_effector"); // TODO: may or may not need touch links
 	}
 	else
 	{
@@ -1758,7 +1738,7 @@ bool action_manager::removeObjectMarker(int hand){
 	att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
 
 	if(hand)
-		 att_object.link_name = "r_wrist_roll_link";
+		att_object.link_name = "r_wrist_roll_link";
 	else
 		att_object.link_name = "l_wrist_roll_link";
 
