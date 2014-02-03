@@ -92,8 +92,8 @@ void feature_class::computePushFeature(Eigen::MatrixXf &out_mat ){
 			uniform_sampling.setRadiusSearch (model_ss_);
 			uniform_sampling.compute (keypoint_indices);
 			pcl17::copyPointCloud (*local_cloud_, keypoint_indices.points, *local_cloud_);
-			ROS_INFO("feature_learning::feature_class: Writing PCD Files");
-			pcl17::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
+			//ROS_INFO("feature_learning::feature_class: Writing PCD Files");
+			//pcl17::io::savePCDFileASCII ("/tmp/test_pcd.pcd", *local_cloud_);
 			model_ss_ += 0.005;
 			ROS_INFO("feature_learning::feature_class: Size of input cloud %d ",local_cloud_->size());
 

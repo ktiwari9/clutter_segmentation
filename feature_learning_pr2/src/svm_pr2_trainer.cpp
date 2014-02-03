@@ -332,6 +332,7 @@ int main(int argc, char **argv){
 					}
 					else // If action fails
 					{
+						ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action Failed writing file with label -1");
 						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+".txt");
 						ofstream ofs(target_filename.str().c_str(),ios::out | ios::trunc);
 						if(ofs)

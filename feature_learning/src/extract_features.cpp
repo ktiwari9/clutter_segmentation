@@ -668,13 +668,47 @@ void extract_features::publishManipulationMarker(){
 
 bool extract_features::publishTableMarker(){
 
-	ROS_INFO("feature_learning::extract_features: Adding Table Marker to scene");
 
-	arm_navigation_msgs::CollisionObject table_object;
 
 	Eigen::Vector4f table_centroid;
 	pcl17::compute3DCentroid(*processed_cloud_,table_centroid);
-	table_height_ = table_centroid[2];
+
+	ROS_INFO("feature_learning::extract_features: First remove object markers from the scene");
+	arm_navigation_msgs::CollisionObject collision_objects;
+
+	collision_objects.id = "clear_object";
+
+	collision_objects.operation.operation = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
+
+	collision_objects.header.frame_id = base_frame_;
+	collision_objects.header.stamp = ros::Time::now();
+	arm_navigation_msgs::Shape over_object;
+	over_object.type = arm_navigation_msgs::Shape::BOX;
+	over_object.dimensions.resize(3);
+	over_object.dimensions[0] = 0.5;
+	over_object.dimensions[1] = 1.0;
+	over_object.dimensions[2] = 0.5;
+	geometry_msgs::Pose pose_clear;
+	pose_clear.position.x = table_centroid[0];
+	pose_clear.position.y = table_centroid[1];
+	pose_clear.position.z = table_centroid[2];
+	pose_clear.orientation.x = 0;
+	pose_clear.orientation.y = 0;
+	pose_clear.orientation.z = 0;
+	pose_clear.orientation.w = 1;
+	collision_objects.shapes.push_back(over_object);
+	collision_objects.poses.push_back(pose_clear);
+
+	planning_srv_.request.planning_scene_diff.collision_objects.push_back(collision_objects);
+
+	if (!ros::service::call(environment_srv_, planning_srv_)) {
+		ROS_ERROR("feature_learning::extract_features: Call to Environment service to remove objects failed failed");
+		return false;
+	}
+
+	ROS_INFO("feature_learning::extract_features: Adding Table Marker to scene");
+
+	arm_navigation_msgs::CollisionObject table_object;
 
 	table_object.id = "table";
 
@@ -700,6 +734,8 @@ bool extract_features::publishTableMarker(){
 	pose.orientation.w = 1;
 	table_object.shapes.push_back(object);
 	table_object.poses.push_back(pose);
+
+	planning_srv_.request.planning_scene_diff.collision_objects.clear();
 
 	planning_srv_.request.planning_scene_diff.collision_objects.push_back(table_object);
 
@@ -731,6 +767,13 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 			ROS_INFO("feature_learning::extract_features: Computing features");
 			//	pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_holes(input_image_,left_cam_);
 			pcl17::PointCloud<PointType> cluster_centers = preProcessCloud_edges(input_image_,left_cam_);
+
+			// Now remove objects from the scene and add table
+			// Calling Planning scene server
+			bool added_to_scene = false;
+
+			while(!added_to_scene)
+				added_to_scene = publishTableMarker();
 
 			if(cluster_centers.empty())
 			{
@@ -989,12 +1032,6 @@ bool extract_features::updateTopics(){
 	pcl17::compute3DCentroid(*processed_cloud_,table_centroid);
 	table_height_ = table_centroid[2];
 
-	// Calling Planning scene server
-	bool added_to_scene = false;
-
-	while(!added_to_scene)
-		added_to_scene = publishTableMarker();
-
 	//convert clusters to honeybee frame
 	ROS_INFO("feature_learning::extract_features: Transforming clusters to color camera frame");
 
@@ -1049,7 +1086,7 @@ bool extract_features::updateTopics(){
 	ROS_INFO("feature_learning::extract_features: Clusters transformed to frame %s ", cluster_clouds->header.frame_id.c_str());
 	*input_cloud_ = *cluster_clouds;
 
-	pcl17::io::savePCDFileASCII ("/tmp/converted_cluster_clouds.pcd", *cluster_clouds);
+	//pcl17::io::savePCDFileASCII ("/tmp/converted_cluster_clouds.pcd", *cluster_clouds);
 
 	// Now getting transformed masks from transformed clusters
 	std::vector<sensor_msgs::Image> bbl_masks;

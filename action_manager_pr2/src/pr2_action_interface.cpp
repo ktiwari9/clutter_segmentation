@@ -553,6 +553,13 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 	else
 		group_name_= "left_arm";
 
+	std::string armside_str;
+
+	if(right)
+		armside_str = 'r';
+	else
+		armside_str = 'l';
+
 	joint_names_ = getJointNames(right);
 	goalB.motion_plan_request.group_name = group_name_;
 	goalB.motion_plan_request.num_planning_attempts = 10;
@@ -569,6 +576,8 @@ bool action_manager::goToJointPosWithCollisionChecking(const std::vector<double>
 		goalB.motion_plan_request.goal_constraints.joint_constraints[i].tolerance_below = 0.1;
 		goalB.motion_plan_request.goal_constraints.joint_constraints[i].tolerance_above = 0.1;
 	}
+
+
 
 
 	bool finished_within_time = false;
@@ -714,7 +723,7 @@ std::vector<double> action_manager::getWristRollLinktoPose(const tf::StampedTran
 bool action_manager::moveWristRollLinktoPose(const geometry_msgs::PoseStamped& pose,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right){
 
 	std::vector<double> joint_angles;
-	if (!getConstraintAwareIK(pose ,joint_angles , ik_seed_pos,right))
+	//if (!getConstraintAwareIK(pose ,joint_angles , ik_seed_pos,right))
 		if (!getIK(pose ,joint_angles , ik_seed_pos,right)){
 			return false;
 		}
@@ -725,10 +734,12 @@ bool action_manager::moveWristRollLinktoPose(const geometry_msgs::PoseStamped& p
 std::vector<double> action_manager::getWristRollLinktoPose(const geometry_msgs::PoseStamped& pose,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right){
 
 	std::vector<double> joint_angles;
-	if (!getConstraintAwareIK(pose ,joint_angles , ik_seed_pos,right))
+	if (!getConstraintAwareIK(pose ,joint_angles , ik_seed_pos,right)){
+		ROS_WARN("action_manager::pr2_action_interface: Could not find Constrained IK solution");
 		if (!getIK(pose ,joint_angles , ik_seed_pos,right)){
 			ROS_ERROR("action_manager::pr2_action_interface: Could not find IK solution");
 		}
+	}
 
 	return joint_angles;
 }
@@ -911,48 +922,45 @@ bool action_manager::getConstraintAwareIK(const geometry_msgs::PoseStamped& pose
 	// Calling constraint aware IK
 	constraint_ik_client_.request.timeout = ros::Duration(5.0);
 	constraint_ik_client_.request.ik_request.pose_stamped = pose;
-
+	constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.name = kinematic_solver_info_.response.kinematic_solver_info.joint_names;
 	//constraint_ik_client_.request.constraints.position_constraints. Keep joint at position
 
 	// Seeding with kinematic solver info
 	if (ik_seed_pos)
 		constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.position = *ik_seed_pos;
 	else
-	{
-		// First resize output
+	{	// First resize output
 		constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.position.resize(kinematic_solver_info_.response.kinematic_solver_info.joint_names.size());
-		constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.name = kinematic_solver_info_.response.kinematic_solver_info.joint_names;
-
 		for(unsigned int i=0; i< kinematic_solver_info_.response.kinematic_solver_info.joint_names.size(); i++)
 			constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.position[i] = (kinematic_solver_info_.response.kinematic_solver_info.limits[i].min_position + kinematic_solver_info_.response.kinematic_solver_info.limits[i].max_position)/2.0;
+	}
 
-		// Now wait for service
-		if (!ros::service::waitForService(constraint_aware_ik, ros::Duration(5.0))){
-			ROS_ERROR("action_manager::pr2_action_interface: Could not find constraint Ik server info server %s", constraint_aware_ik.c_str());
-			return false;
-		}
+	// Now wait for service
+	if (!ros::service::waitForService(constraint_aware_ik, ros::Duration(5.0))){
+		ROS_ERROR("action_manager::pr2_action_interface: Could not find constraint Ik server info server %s", constraint_aware_ik.c_str());
+		return false;
+	}
 
-		//calling IK service
-		if (!ros::service::call(constraint_aware_ik, constraint_ik_client_)) {
-
-			ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics service call failed");
-			return false;
+	//calling IK service
+	if (!ros::service::call(constraint_aware_ik, constraint_ik_client_))
+	{
+		ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics service call failed");
+		return false;
+	}
+	else
+	{
+		if(constraint_ik_client_.response.error_code.val == constraint_ik_client_.response.error_code.SUCCESS)
+		{
+			joint_angles = constraint_ik_client_.response.solution.joint_state.position;
+			return true;
 		}
 		else
 		{
-			if(constraint_ik_client_.response.error_code.val == constraint_ik_client_.response.error_code.SUCCESS)
-			{
-				joint_angles = constraint_ik_client_.response.solution.joint_state.position;
-				return true;
-			}
-			else
-			{
-				ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics failed");
-				return false;
-			}
+			ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics failed");
+			return false;
 		}
 	}
-
+	return true;
 }
 
 bool action_manager::isAtPos(const std::vector<double>& pos_vec, bool right){
@@ -1460,7 +1468,7 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 
 		//TODO: Check if this pipeline works
 		// first provide new position
-		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.250);
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() - 0.200);
 		ROS_INFO("action_manager::pr2_action_interface: Moving gripper to grasp point");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 
@@ -1586,11 +1594,11 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 	if(!success)
 	{
-                	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push with Z increase");
-			push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
-			success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
-			if(!success)
-				return false;
+		ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push with Z increase");
+		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
+		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
+		if(!success)
+			return false;
 	}
 
 	std::vector<double>* ik_seed_pos;
@@ -1602,53 +1610,49 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		if(!success)
 			return false;
 
-		// Move to a position that is 5cm relatively in front of the manipulation position
-		//TODO: Do I need this??
-
-		switch (approach){
-
-		case (FRONTAL):
-					push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.250); break;
-		case (FROM_RIGHT_SIDEWAYS):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.250); break;
-		case (FROM_RIGHT_UPRIGHT):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.250); break;
-		case (FROM_LEFT_SIDEWAYS):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.250); break;
-		case (FROM_LEFT_UPRIGHT):
-					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.250); break;
-		default:
-			ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
-		}
-		//TODO: Check if this pipeline works
-		// first provide new position
+		// Move to a position that is 25cm relatively in front of the manipulation position
 		//push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this if old idea works
 
-		// TODO: For staring line move
-
-
-		ROS_INFO("action_manager::pr2_action_interface: Pusing with IK interpolation");
+		ROS_INFO("action_manager::pr2_action_interface: Pushing with IK interpolation");
 
         std::vector<double> waypoints;
-  		for(int i = 0.01; i <= 0.15 ; i+=0.01)
+  		for(int i = 0.01; i <= 0.25 ; i+=0.01)
 		{
-			push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i);
-			//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+
+			switch (approach){
+
+			case (FRONTAL):
+						push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i); break;
+			case (FROM_RIGHT_SIDEWAYS):
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+			case (FROM_RIGHT_UPRIGHT):
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+			case (FROM_LEFT_SIDEWAYS):
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+			case (FROM_LEFT_UPRIGHT):
+						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+			default:
+				ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
+			}
+
 			std::vector<double> waypoint = getGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
 			if(!waypoint.empty())
 				waypoints.insert(waypoints.end(),waypoint.begin(),waypoint.end());
 		}
 
-  		if(!waypoints.empty())
-			success = goToJointPos(waypoints, 5.0, true,right);
+  		if(!waypoints.empty()){
+
+  			success = goToJointPosWithCollisionChecking(waypoints, 5.0, true,right); // TODO: Check if this works because of object
+  			if(!success)
+  			{
+  				ROS_INFO("action_manager::pr2_action_interface: Collision aware move failed, running open loop");
+  				success = goToJointPos(waypoints, 5.0, true,right);
+  			}
+  		}
+
   		else
   			return false;
 
-
-
-
-		//ROS_INFO("action_manager::pr2_action_interface: Starting to push");
-		//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
 
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
