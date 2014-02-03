@@ -61,6 +61,7 @@
 #include <arm_navigation_msgs/utils.h>
 #include <arm_navigation_msgs/GetPlanningScene.h>
 #include <arm_navigation_msgs/GetMotionPlan.h>
+#include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 #include <planning_environment/models/collision_models.h>
 
 // Ros action server and clients
@@ -70,6 +71,8 @@
 //Pr2 arm controllers and IK includes
 #include <pr2_controllers_msgs/JointTrajectoryAction.h>
 #include <kinematics_msgs/GetPositionIK.h>
+#include <kinematics_msgs/GetKinematicSolverInfo.h>
+#include <kinematics_msgs/GetConstraintAwarePositionIK.h>
 
 // Tf includes
 #include <tf/transform_datatypes.h>
@@ -131,12 +134,16 @@ protected:
 	std::string action_name_;
 
 	kinematics_msgs::GetPositionIK ik_service_client_;
+	kinematics_msgs::GetConstraintAwarePositionIK constraint_ik_client_;
+	kinematics_msgs::GetKinematicSolverInfo kinematic_solver_info_;
 
 	usc_utilities::RvizMarkerManager marker_;
 
 	// Pr2 Controller action servers to call
 	std::string gripper_r_srv_, gripper_l_srv_, head_srv_,arm_r_srv_, arm_l_srv_,r_joint_srv_,l_joint_srv_,environment_srv_,
 	gripper_l_contact_,gripper_r_contact_,gripper_l_force_,gripper_r_force_,gripper_l_slip_,gripper_r_slip_;
+
+	std::string r_ik_solver_info_,l_ik_solver_info_,r_constraint_aware_ik_,l_constraint_aware_ik_;
 
 	//Planning service
 	arm_navigation_msgs::GetPlanningScene planning_srv_;
@@ -208,6 +215,8 @@ public:
 
 	// get IK from kinematics server
 	bool getIK(const geometry_msgs::PoseStamped& pose,  std::vector<double>& joint_angles, std::vector<double>* ik_seed_pos = NULL, bool right = true);
+
+	bool getConstraintAwareIK(const geometry_msgs::PoseStamped& pose,  std::vector<double>& joint_angles, std::vector<double>* ik_seed_pos = NULL, bool right = true);
 
 	enum approach_direction_t { FRONTAL, FROM_BELOW, FROM_ABOVE, FROM_RIGHT_SIDEWAYS, FROM_RIGHT_UPRIGHT, FROM_LEFT_UPRIGHT, FROM_LEFT_SIDEWAYS};
 

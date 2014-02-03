@@ -72,6 +72,12 @@ action_manager::action_manager(ros::NodeHandle & nh, const std::string action_na
 	nh_priv_.param<std::string>("right_ik_service",r_ik_service_name_,std::string("pr2_right_arm_kinematics/get_ik"));
 	nh_priv_.param<std::string>("left_ik_service",l_ik_service_name_,std::string("pr2_left_arm_kinematics/get_ik"));
 
+	nh_priv_.param<std::string>("right_ik_info_service",r_ik_solver_info_,std::string("pr2_right_arm_kinematics/get_ik_solver_info"));
+	nh_priv_.param<std::string>("left_ik_info_service",l_ik_solver_info_,std::string("pr2_left_arm_kinematics/get_ik_solver_info"));
+
+	nh_priv_.param<std::string>("right_constraint_ik_service",r_constraint_aware_ik_,std::string("pr2_right_arm_kinematics/get_constraint_aware_ik"));
+	nh_priv_.param<std::string>("left_constraint_ik_service",l_constraint_aware_ik_,std::string("pr2_left_arm_kinematics/get_constraint_aware_ik"));
+
 	nh_priv_.param<std::string>("joint_states_service",joint_states_service_,std::string("return_joint_states"));
 
 	nh_priv_.param<std::string>("environment_server",environment_srv_,std::string("/environment_server/set_planning_scene_diff"));
@@ -699,9 +705,10 @@ bool action_manager::moveWristRollLinktoPose(const tf::StampedTransform& tf,  do
 bool action_manager::moveWristRollLinktoPose(const geometry_msgs::PoseStamped& pose,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right){
 
 	std::vector<double> joint_angles;
-	if (!getIK(pose ,joint_angles , ik_seed_pos,right)){
-		return false;
-	}
+	if (!getConstraintAwareIK(pose ,joint_angles , ik_seed_pos,right))
+		if (!getIK(pose ,joint_angles , ik_seed_pos,right)){
+			return false;
+		}
 
 	return goToJointPos(joint_angles, max_time, wait,right);
 }
@@ -852,6 +859,79 @@ bool action_manager::getIK(const geometry_msgs::PoseStamped& pose, std::vector<d
 
 	joint_angles = ik_service_client_.response.solution.joint_state.position;
 	return true;
+
+}
+
+bool action_manager::getConstraintAwareIK(const geometry_msgs::PoseStamped& pose, std::vector<double>& joint_angles, std::vector<double>* ik_seed_pos, bool right){
+
+	// First get the solverinfo for the IK
+	std::string ik_service_name, constraint_aware_ik;
+	if(right){
+		constraint_ik_client_.request.ik_request.ik_link_name = "r_wrist_roll_link";
+		ik_service_name = r_ik_solver_info_;
+		constraint_aware_ik = r_constraint_aware_ik_;
+	}
+	else{
+		constraint_ik_client_.request.ik_request.ik_link_name = "l_wrist_roll_link";
+		ik_service_name = l_ik_solver_info_;
+		constraint_aware_ik = l_constraint_aware_ik_;
+	}
+
+	if (!ros::service::waitForService(ik_service_name, ros::Duration(5.0))){
+		ROS_ERROR("action_manager::pr2_action_interface: Could not find kinematic solver info server %s", ik_service_name.c_str());
+		return false;
+	}
+
+	//calling IK service
+	if (!ros::service::call(ik_service_name, kinematic_solver_info_)) {
+		ROS_ERROR("action_manager::pr2_action_interface:  kinematic solver failed");
+		return false;
+	}
+
+	// Calling constraint aware IK
+	constraint_ik_client_.request.timeout = ros::Duration(5.0);
+	constraint_ik_client_.request.ik_request.pose_stamped = pose;
+
+	//constraint_ik_client_.request.constraints.position_constraints. Keep joint at position
+
+	// Seeding with kinematic solver info
+	if (ik_seed_pos)
+		constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.position = *ik_seed_pos;
+	else
+	{
+		// First resize output
+		constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.position.resize(kinematic_solver_info_.response.kinematic_solver_info.joint_names.size());
+		constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.name = kinematic_solver_info_.response.kinematic_solver_info.joint_names;
+
+		for(unsigned int i=0; i< kinematic_solver_info_.response.kinematic_solver_info.joint_names.size(); i++)
+			constraint_ik_client_.request.ik_request.ik_seed_state.joint_state.position[i] = (kinematic_solver_info_.response.kinematic_solver_info.limits[i].min_position + kinematic_solver_info_.response.kinematic_solver_info.limits[i].max_position)/2.0;
+
+		// Now wait for service
+		if (!ros::service::waitForService(constraint_aware_ik, ros::Duration(5.0))){
+			ROS_ERROR("action_manager::pr2_action_interface: Could not find constraint Ik server info server %s", constraint_aware_ik.c_str());
+			return false;
+		}
+
+		//calling IK service
+		if (!ros::service::call(constraint_aware_ik, constraint_ik_client_)) {
+
+			ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics service call failed");
+			return false;
+		}
+		else
+		{
+			if(constraint_ik_client_.request.error_code.val == constraint_ik_client_.request.error_code.SUCCESS)
+			{
+				joint_angles = constraint_ik_client_.response.solution.joint_state.position;
+				return true;
+			}
+			else
+			{
+				ROS_ERROR("action_manager::pr2_action_interface: Constrained Inverse kinematics failed");
+				return false;
+			}
+		}
+	}
 
 }
 
