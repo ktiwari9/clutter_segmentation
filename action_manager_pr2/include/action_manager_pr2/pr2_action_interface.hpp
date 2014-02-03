@@ -270,6 +270,13 @@ public:
 
 	bool moveArmToPoseWithCart(const geometry_msgs::PoseStamped& pose, bool right = true);
 
+	// Now all the get functions for IK Interpolations
+
+	std::vector<double> getWristRollLinktoPose(const geometry_msgs::PoseStamped& pose,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right);
+
+	std::vector<double> getWristRollLinktoPose(const tf::StampedTransform& tf,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right);
+
+	std::vector<double> getGripperToPosition(const tf::Vector3& position, std::string frame_id, approach_direction_t approach,  double max_time , bool wait, std::vector<double>* ik_seed_pos, bool right);
 	// Various Behaviors that are executed by the arm thats nearest to the base_link pose
 
 	// Returns distance of current point from link in base frame

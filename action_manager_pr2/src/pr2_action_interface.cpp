@@ -702,6 +702,15 @@ bool action_manager::moveWristRollLinktoPose(const tf::StampedTransform& tf,  do
 	return moveWristRollLinktoPose(pose, max_time, wait, ik_seed_pos, right);
 }
 
+std::vector<double> action_manager::getWristRollLinktoPose(const tf::StampedTransform& tf,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right){
+
+	geometry_msgs::PoseStamped pose;
+	tf::Stamped<tf::Pose> tf_pose(tf,tf.stamp_, tf.frame_id_);
+
+	tf::poseStampedTFToMsg(tf_pose,pose);
+	return getWristRollLinktoPose(pose, max_time, wait, ik_seed_pos, right);
+}
+
 bool action_manager::moveWristRollLinktoPose(const geometry_msgs::PoseStamped& pose,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right){
 
 	std::vector<double> joint_angles;
@@ -711,6 +720,17 @@ bool action_manager::moveWristRollLinktoPose(const geometry_msgs::PoseStamped& p
 		}
 
 	return goToJointPos(joint_angles, max_time, wait,right);
+}
+
+std::vector<double> action_manager::getWristRollLinktoPose(const geometry_msgs::PoseStamped& pose,  double max_time, bool wait, std::vector<double>* ik_seed_pos, bool right){
+
+	std::vector<double> joint_angles;
+	if (!getConstraintAwareIK(pose ,joint_angles , ik_seed_pos,right))
+		if (!getIK(pose ,joint_angles , ik_seed_pos,right)){
+			ROS_ERROR("action_manager::pr2_action_interface: Could not find IK solution");
+		}
+
+	return joint_angles;
 }
 
 
@@ -920,7 +940,7 @@ bool action_manager::getConstraintAwareIK(const geometry_msgs::PoseStamped& pose
 		}
 		else
 		{
-			if(constraint_ik_client_.request.error_code.val == constraint_ik_client_.request.error_code.SUCCESS)
+			if(constraint_ik_client_.response.error_code.val == constraint_ik_client_.response.error_code.SUCCESS)
 			{
 				joint_angles = constraint_ik_client_.response.solution.joint_state.position;
 				return true;
@@ -1161,6 +1181,12 @@ bool action_manager::moveGripperToPosition(const tf::Vector3& position, std::str
 	return moveWristRollLinktoPose(tf_pose_in_baselink_new, max_time, wait, ik_seed_pos,right);
 }
 
+
+std::vector<double> action_manager::getGripperToPosition(const tf::Vector3& position, std::string frame_id, approach_direction_t approach,  double max_time , bool wait, std::vector<double>* ik_seed_pos, bool right){
+
+	tf::StampedTransform tf_pose_in_baselink_new(gripperToWrist(makePose(position,  frame_id,  approach)));
+	return getWristRollLinktoPose(tf_pose_in_baselink_new, max_time, wait, ik_seed_pos,right);
+}
 
 
 
@@ -1447,11 +1473,6 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		if(!success)
 			return false;
 
-		ROS_INFO("action_manager::pr2_action_interface: Adding Object Marker");
-		success = addObjectMarker(right);
-		if(!success)
-			return false;
-
 		gripperSlipController(right);
 
 		if(success)
@@ -1464,6 +1485,12 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,ik_seed_pos,right);
 		if(!success)
 			return false;
+
+		ROS_INFO("action_manager::pr2_action_interface: Adding Object Marker");
+		bool marker_success = false;
+		marker_success = addObjectMarker(right);
+		if(!marker_success)
+			ROS_INFO("action_manager::pr2_action_interface: Failed to add Object Marker");
 
 		// Now PLACE action
 		geometry_msgs::PoseStamped place_position = place_pose;
@@ -1482,9 +1509,11 @@ bool action_manager::graspPlaceAction(const geometry_msgs::PoseStamped& push_pos
 			return false;
 
 		ROS_INFO("action_manager::pr2_action_interface: Removing Object Marker");
-		success = removeObjectMarker(right);
-		if(!success)
-			return false;
+		if(marker_success)
+			marker_success = removeObjectMarker(right);
+
+		if(!marker_success)
+			ROS_INFO("action_manager::pr2_action_interface: Failed to Remove Object Marker");
 
 		ROS_INFO("action_manager::pr2_action_interface: Going to zero");
 		success = moveToSide(right); //Open Gripper
@@ -1592,15 +1621,33 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		}
 		//TODO: Check if this pipeline works
 		// first provide new position
-		//push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this of old idea works
+		//push_tf.getOrigin().setX(push_tf.getOrigin().getX() + 0.150);//TODO: Remove this if old idea works
+
+		// TODO: For staring line move
+/*
+
+		ROS_INFO("action_manager::pr2_action_interface: Pusing with IK interpolation");
+
+        std::vector<double> waypoints;
+  		for(int i = 0.01; i <= 0.15 ; i+=0.01)
+		{
+			push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i);
+			//success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+			std::vector<double> waypoint = getGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
+			if(!waypoint.empty())
+				waypoints.insert(waypoints.end(),waypoint.begin(),waypoint.end());
+		}
+
+  		if(!waypoints.empty())
+			success = goToJointPos(waypoints, 5.0, true,right);
+  		else
+  			return false;
+*/
+
+
+
 		ROS_INFO("action_manager::pr2_action_interface: Starting to push");
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,FRONTAL,5.0,true,ik_seed_pos,right);
-
-		//geometry_msgs::PoseStamped intermediate_pose;
-		//tf::poseTFToMsg(push_tf,intermediate_pose.pose);
-		//intermediate_pose.header = pose.header;
-		//ROS_INFO("action_manager::pr2_action_interface: Pushing with orientation constraints");
-		//success = moveWristRollLinktoPoseWithOrientationConstraints(intermediate_pose,true,true,true,15.0,true,0.2,right);
 
 		if(success)
 			ROS_INFO("action_manager::pr2_action_interface: Push Successful");
@@ -1637,14 +1684,14 @@ bool action_manager::addObjectMarker(int hand){
 
 	if(hand)
 	{
-		 att_object.link_name = "r_gripper_r_finger_tip_link";
-		 att_object.object.header.frame_id = "r_gripper_r_finger_tip_link";
-		 att_object.touch_links.push_back("r_end_effector");
+		 att_object.link_name = "r_wrist_roll_link";
+		 att_object.object.header.frame_id = "r_wrist_roll_link";
+		 att_object.touch_links.push_back("r_end_effector"); // TODO: may or may not need touch links
 	}
 	else
 	{
-		att_object.link_name = "l_gripper_l_finger_tip_link";
-		att_object.object.header.frame_id = "l_gripper_l_finger_tip_link";
+		att_object.link_name = "l_wrist_roll_link";
+		att_object.object.header.frame_id = "l_wrist_roll_link";
 		att_object.touch_links.push_back("l_end_effector");
 	}
 
@@ -1686,9 +1733,9 @@ bool action_manager::removeObjectMarker(int hand){
 	att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
 
 	if(hand)
-		 att_object.link_name = "r_gripper_r_finger_tip_link";
+		 att_object.link_name = "r_wrist_roll_link";
 	else
-		att_object.link_name = "l_gripper_l_finger_tip_link";
+		att_object.link_name = "l_wrist_roll_link";
 
 	planning_srv_.request.planning_scene_diff.attached_collision_objects.push_back(att_object);
 
