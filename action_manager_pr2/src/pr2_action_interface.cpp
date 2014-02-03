@@ -1616,9 +1616,10 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		ROS_INFO("action_manager::pr2_action_interface: Pushing with IK interpolation");
 
         std::vector<double> waypoints;
-  		for(int i = 0.01; i <= 0.25 ; i+=0.01)
+  		for(double i = 0.01; i <= 0.25 ; i+=0.01)
 		{
-
+		        ROS_INFO("action_manager::pr2_action_interface: getting update %f",i); 
+                        
 			switch (approach){
 
 			case (FRONTAL):
@@ -1641,13 +1642,13 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		}
 
   		if(!waypoints.empty()){
-
-  			success = goToJointPosWithCollisionChecking(waypoints, 5.0, true,right); // TODO: Check if this works because of object
-  			if(!success)
-  			{
+		        ROS_INFO("action_manager::pr2_action_interface: Moving with Collision checking %d waypoints",waypoints.size());
+  			//success = goToJointPosWithCollisionChecking(waypoints, 5.0, true,right); // TODO: Check if this works because of object
+  			//if(!success)
+  			//{
   				ROS_INFO("action_manager::pr2_action_interface: Collision aware move failed, running open loop");
   				success = goToJointPos(waypoints, 5.0, true,right);
-  			}
+  			//}
   		}
 
   		else
@@ -1662,7 +1663,26 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.15);
 		success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
 		if(!success)
-			return false;
+                {
+                  /* switch (approach){
+
+                        case (FRONTAL):
+                                                push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.25); break;
+                        case (FROM_RIGHT_SIDEWAYS):
+                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.25); break;
+                        case (FROM_RIGHT_UPRIGHT):
+                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.25); break;
+                        case (FROM_LEFT_SIDEWAYS):
+                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.25); break;
+                        case (FROM_LEFT_UPRIGHT):
+                                                push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.25); break;
+                        default:
+                                ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
+                        }
+                  success = moveGripperToPosition(push_tf.getOrigin(),frame_id_,approach,5.0,true,ik_seed_pos,right);
+                  if(!success)*/
+                     moveToSide(right);
+                }
 
 		ROS_INFO("action_manager::pr2_action_interface: Going Home");
 		success = moveToSide(right);
