@@ -275,9 +275,9 @@ int main(int argc, char **argv){
 		case(3) :
 		ac.actuateArm();
 		extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
-		target_filename << base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
+		target_filename <<"/tmp/" <<base_filename<<"_"<< ac.goal_.controller.arm.action<<"_"<<boost::lexical_cast<std::string>(counter);
 		extract_feature_srv.request.filename = target_filename.str();
-
+                counter++;
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Now calling extract feature service with filename %s",target_filename.str().c_str());
 		if(ac.goal_.controller.arm.action > 4)
 		{
@@ -313,8 +313,8 @@ int main(int argc, char **argv){
 
 					if(ac.action_result_) // If action succeeds
 					{
-						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+".txt");
-						ofstream ofs(target_filename.str().c_str(),ios::out | ios::trunc);
+						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+"_.txt");
+						ofstream ofs(reward_filename.c_str(),ios::out | ios::trunc);
 						int label;
 						ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action succeeded , Enter label: (1,-1)");
 						std::cin >> label;
@@ -333,8 +333,8 @@ int main(int argc, char **argv){
 					else // If action fails
 					{
 						ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Action Failed writing file with label -1");
-						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+".txt");
-						ofstream ofs(target_filename.str().c_str(),ios::out | ios::trunc);
+						std::string reward_filename(target_filename.str()+"_reward_"+boost::lexical_cast<std::string>(ac.action_indices_[index])+"_.txt");
+						ofstream ofs(reward_filename.c_str(),ios::out | ios::trunc);
 						if(ofs)
 						{
 							// instructions
