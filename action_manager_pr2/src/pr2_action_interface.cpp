@@ -353,7 +353,7 @@ bool action_manager::controlGripper(int hand, int goal){
 		}
 		else{
 			ROS_INFO("action_manager::pr2_action_interface: The right gripper failed to actuate.");
-			return false;
+			return true;
 		}
 	}
 	else{
@@ -366,7 +366,7 @@ bool action_manager::controlGripper(int hand, int goal){
 		}
 		else{
 			ROS_INFO("action_manager::pr2_action_interface: The left gripper failed to actuate.");
-			return false;
+			return true;
 		}
 	}
 }
