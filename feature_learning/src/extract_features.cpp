@@ -579,7 +579,7 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 	if(label_ovo == label_ova)
 	{
-		ROS_INFO("feature_learning::extract_features: Labels match return label");
+		ROS_INFO("feature_learning::extract_features: Labels match return label is %f",label_ovo);
 	}
 
 	return label_ovo;
@@ -838,7 +838,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 							{
 								response.training_centers.push_back(centroid);
 								response.indicies.push_back(static_cast<int>(class_prob));
-								//publishClassMarker(centroid);
+								publishClassMarker(centroid);
 							}
 						}
 

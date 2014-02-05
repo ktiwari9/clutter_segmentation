@@ -306,8 +306,8 @@ int main(int argc, char **argv){
 
 				visualization_msgs::Marker location_marker = getMarker(index);
 				location_marker.header = ac.action_point_[index].header;
-				location_marker.pose.position =  ac.action_point_[index].point;
-
+                                location_marker.pose.position =  ac.action_point_[index].point;
+                                ROS_INFO("feature_learning_pr2::feature_learner: Returned action %d",ac.action_indices_[index]);
 				if(ac.action_indices_[index] == 1)
 				{
 					location_marker.color.b = 1.0;
