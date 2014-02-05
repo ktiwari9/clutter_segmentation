@@ -35,4 +35,5 @@ rosbuild_add_executable(svm_sparse_trainer src/svm_sparse_trainer.cpp)
 target_link_libraries(svm_sparse_trainer dlib)
 rosbuild_add_executable(svm_evaluator src/svm_evaluator.cpp)
 target_link_libraries(svm_evaluator dlib)
+rosbuild_add_executable(service_tester src/service_entropy_tester.cpp)
 

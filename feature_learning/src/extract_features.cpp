@@ -838,7 +838,7 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 							{
 								response.training_centers.push_back(centroid);
 								response.indicies.push_back(static_cast<int>(class_prob));
-								publishClassMarker(centroid);
+								//publishClassMarker(centroid);
 							}
 						}
 

@@ -1164,19 +1164,19 @@ tf::StampedTransform action_manager::makePose(const tf::Vector3& position, std::
 	switch (approach){
 
 	case (FRONTAL):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( 0, 0 , 0, 1)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( 0, 0 , 0, 1)); break;
 	case (FROM_BELOW):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, HALF_SQRT_TWO , 0)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, HALF_SQRT_TWO , 0)); break;
 	case (FROM_RIGHT_SIDEWAYS):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( 0 , 0, HALF_SQRT_TWO , HALF_SQRT_TWO)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( 0 , 0, HALF_SQRT_TWO , HALF_SQRT_TWO)); break;
 	case (FROM_RIGHT_UPRIGHT):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , -0.5, 0.5 , 0.5)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , -0.5, 0.5 , 0.5)); break;
 	case (FROM_ABOVE):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, -HALF_SQRT_TWO , 0)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( HALF_SQRT_TWO , 0, -HALF_SQRT_TWO , 0)); break;
 	case (FROM_LEFT_SIDEWAYS):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( -HALF_SQRT_TWO , HALF_SQRT_TWO , 0 , 0)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( -HALF_SQRT_TWO , HALF_SQRT_TWO , 0 , 0)); break;
 	case (FROM_LEFT_UPRIGHT):
-							tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , 0.5, -0.5 , 0.5)); break;
+			tf_pose_in_baselink.setRotation(tf::Quaternion( -0.5 , 0.5, -0.5 , 0.5)); break;
 	}
 
 	return tf_pose_in_baselink;
@@ -1562,40 +1562,70 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 	if(!success)
 		return false;
 
+	int counter = 0;
+
+	if(approach == 1)
+	{
+		while (counter < 3)
+		{
+			if(counter == 0)
+				approach = FRONTAL;
+			if(counter == 1)
+				approach = FROM_RIGHT_SIDEWAYS;
+			if(counter == 2)
+				approach = FROM_LEFT_SIDEWAYS;
+
+			ROS_INFO("action_manager::pr2_action_interface: Attempt number %d");
+			success = localPushAction(push_tf, approach, right);
+			if(success)
+				break;
+			counter++;
+		}
+		return success;
+	}
+	else
+		return localPushAction(push_tf,approach,right);
+
+}
+
+
+bool action_manager::localPushAction(tf::Pose push_tf, approach_direction_t approach, bool right){
+
+
+	bool success = false;
+
+	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
+	success = moveToPreGrasp(right);
+
+	if(!success)
+		return false;
+
 	switch (approach){
 
 	case (FRONTAL):
-						push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.150); break;
+			push_tf.getOrigin().setX(push_tf.getOrigin().getX() - 0.150); break;
 	case (FROM_RIGHT_SIDEWAYS):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
+			push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 	case (FROM_RIGHT_UPRIGHT):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
+			push_tf.getOrigin().setY(push_tf.getOrigin().getY() - 0.150); break;
 	case (FROM_LEFT_SIDEWAYS):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
+			push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 	case (FROM_LEFT_UPRIGHT):
-						push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
+			push_tf.getOrigin().setY(push_tf.getOrigin().getY() + 0.150); break;
 	default:
 		ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 	}
 
-
-
-	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push");
-	success = moveToPreGrasp(right);
-	if(!success)
-		return false;
-
 	ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push 10 cm above the current point");
+
 	//Lift gripper 10cm above current position:
 	push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.10);
-
-	//success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 	success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
+
 	if(!success)
 	{
 		ROS_INFO("action_manager::pr2_action_interface: Moving to pre-push with Z increase");
 		push_tf.getOrigin().setZ(push_tf.getOrigin().getZ() + 0.05);
-		//success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,approach,5.0,true,"ompl",right);
 		success = moveGrippertoPositionWithCollisionChecking(push_tf.getOrigin(),frame_id_,FROM_ABOVE,5.0,true,"ompl",right);
 		if(!success)
 			return false;
@@ -1626,15 +1656,20 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 			switch (approach){
 
 			case (FRONTAL):
-								push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i); break;
+					push_tf.getOrigin().setX(push_tf.getOrigin().getX() + i); break;
+
 			case (FROM_RIGHT_SIDEWAYS):
-								push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+
 			case (FROM_RIGHT_UPRIGHT):
-								push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() + i); break;
+
 			case (FROM_LEFT_SIDEWAYS):
-								push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+
 			case (FROM_LEFT_UPRIGHT):
-								push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+					push_tf.getOrigin().setY(push_tf.getOrigin().getY() - i); break;
+
 			default:
 				ROS_INFO("action_manager::pr2_action_interface: Undefined approach direction"); return false;
 			}
@@ -1645,9 +1680,6 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		}
 
 		if(!waypoints.empty()){
-
-			//ROS_INFO("action_manager::pr2_action_interface: Moving with Collision checking %d waypoints",waypoints.size());
-			//success = goToJointPosWithCollisionChecking(waypoints, 5.0, true,right); // TODO: Check if this works because of object
 			ROS_INFO("action_manager::pr2_action_interface: Running open loop");
 			success = goToJointPos(waypoints, 5.0, true,right);
 		}
@@ -1672,10 +1704,11 @@ bool action_manager::pushAction(const geometry_msgs::PoseStamped& pose, approach
 		return true;
 	}
 	else{
-		ROS_INFO("action_manager::pr2_action_interface: Grasp failed");
+		ROS_INFO("action_manager::pr2_action_interface: Push failed");
 		return false;
 	}
 }
+
 
 bool action_manager::addObjectMarker(int hand){
 

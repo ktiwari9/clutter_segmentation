@@ -286,6 +286,8 @@ public:
 
 	bool pushAction(const geometry_msgs::PoseStamped& pose, approach_direction_t approach = FRONTAL);
 
+	bool localPushAction(tf::Pose push_tf, approach_direction_t approach = FRONTAL, bool right = true);
+
 	bool graspPlaceAction(const geometry_msgs::PoseStamped& push_pose,const geometry_msgs::PoseStamped& place_pose);
 
 	//To add object marker to hand

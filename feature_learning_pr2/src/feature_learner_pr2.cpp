@@ -48,6 +48,7 @@
 #include "actionlib/client/terminal_state.h"
 #include <action_manager_pr2/ControllerAction.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <visualization_msgs/Marker.h>
 
 using namespace action_manager_pr2;
 
@@ -58,122 +59,251 @@ class action_client_pr2{
 public:
 	typedef actionlib::SimpleActionClient<ControllerAction> Client;
 	action_manager_pr2::ControllerGoal goal_;
+	std::vector<geometry_msgs::PointStamped> action_point_;
+	std::vector<int> action_indices_;
+	bool action_result_;
 
 private:
 	Client ac_;
 
 public:
-	action_client_pr2(std::string name):ac_(name,true){
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Waiting for action server to start. name %s",name.c_str());
-		    ac_.waitForServer();
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Action server started, sending goal.");
+	action_client_pr2(std::string name):ac_(name,true),action_result_(false){
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Waiting for action server to start.");
+		ac_.waitForServer();
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Action server started, sending goal.");
 	}
 
 	void sendGoal(){
 
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Populating Goal Message.");
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Populating Goal Message.");
 		ac_.sendGoal(goal_,boost::bind(&action_client_pr2::goalReturned,this,_1,_2),Client::SimpleActiveCallback(),Client::SimpleFeedbackCallback());
+		ac_.waitForResult();
 
 	}
 
 	void goalReturned(const actionlib::SimpleClientGoalState& state, const ControllerResultConstPtr& result){
 
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Finished in state [%s]", state.toString().c_str());
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2 Answer: %d", result->result);
-		ros::shutdown();
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Finished in state [%s]", state.toString().c_str());
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Action Manager Return value: %d", result->result);
+		action_result_ = result->result;
+		//ros::shutdown();
 
 	}
-};
 
-bool callAndRecordFeature(){
+	bool callAndRecordFeature(feature_learning::ExtractFeatures& extract_feature_srv){
 
-	feature_learning::ExtractFeatures extract_feature_srv;
+		std::string feature_service("/extract_features_srv");
 
-	std::string feature_service("/extract_features_srv");
-	extract_feature_srv.request.action = extract_feature_srv.request.TRAIN;
-	extract_feature_srv.request.filename = "/tmp/feature_test_";
-	// Now get the response from the static segment server and record the adjacency matrix
-	//extract_feature_srv.request.call = extract_feature_srv.request.EMPTY;
-
-	bool call_succeeded = false;
-
-	while(!call_succeeded){
-
-		if (!ros::service::call(feature_service, extract_feature_srv))
-		{
-			ROS_ERROR("feature_learning_pr2::feature_learner_pr2 Call to segmentation service failed");
-			return false;
-		}
+		ros::service::waitForService(feature_service);
 
 		if(ros::service::call(feature_service,extract_feature_srv)){
-			call_succeeded = true;
-			ROS_INFO("feature_learning_pr2::feature_learner_pr2 Service Call succeeded");
+			ROS_INFO("feature_learning_pr2::svm_pr2_trainer Service Call succeeded");
+			action_point_ = extract_feature_srv.response.training_centers;
+			action_indices_ = extract_feature_srv.response.indicies;
 		}
 
 		if (extract_feature_srv.response.result == extract_feature_srv.response.FAILURE)
 		{
-			ROS_ERROR("feature_learning_pr2::feature_learner_pr2 Segmentation service returned error");
+			ROS_ERROR("feature_learning_pr2::svm_pr2_trainer Segmentation service returned error");
 			return false;
 		}
 
+		return true;
 	}
-	ROS_INFO("feature_learning_pr2::feature_learner_pr2: Feature Service succeeded");
-	return true;
-}
 
+	void actuateHead(){
+
+		goal_.controller.target = action_manager_msgs::Controller::HEAD;
+		goal_.controller.header.stamp = ros::Time::now();
+		goal_.controller.head.frame_id = "/base_link";
+
+		float x,y,z;
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter position (5.0 1.0 1.2) in base_link: \n x y z:");
+		std::cin >> x >> y >> z;
+
+		goal_.controller.head.pose.position.x = x;
+		goal_.controller.head.pose.position.y = y;
+		goal_.controller.head.pose.position.z = z;
+
+		int target;
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Track target (1) or look at target (2)? \n Enter Choice (1-2)");
+		std::cin >> target;
+
+		if(target)
+			goal_.controller.head.action = action_manager_msgs::Head::TRACK;
+		else
+			goal_.controller.head.action = action_manager_msgs::Head::LOOK;
+	}
+
+	void actuateGripper(){
+
+		goal_.controller.target = action_manager_msgs::Controller::GRIPPER;
+
+		int hand;
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Hand (1-right, 0-left):");
+		std::cin >> hand;
+
+		if(hand)
+			goal_.controller.gripper.gripper = goal_.controller.gripper.GRIPPER_R;
+		else
+			goal_.controller.gripper.gripper = goal_.controller.gripper.GRIPPER_L;
+
+		int action;
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (1-close, 0-open):");
+		std::cin >> action;
+
+		if(action)
+			goal_.controller.gripper.action = goal_.controller.gripper.CLOSE;
+		else
+			goal_.controller.gripper.action = goal_.controller.gripper.OPEN;
+
+		goal_.controller.header.stamp = ros::Time::now();
+	}
+
+	void actuateArm(){
+
+		goal_.controller.target = action_manager_msgs::Controller::ARM;
+		int action;
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Select Action (0-TUCK, 1-STRETCH,2-HOME,3-GOZERO,4-PREGRASP,5-GRASP,6-PUSH):");
+		std::cin >> action;
+		goal_.controller.arm.action = action;
+		//goal_.controller.arm.frame_id = "/base_link";
+		if(action < 5)
+		{
+			int arm;
+			ROS_INFO("Select Arm (0-LEFT,1-RIGHT)");
+			std::cin>>arm;
+			goal_.controller.arm.arm = arm;
+			return;
+		}
+		else
+		{
+			if(action == 5)
+			{
+				//float x,y,z;
+				//ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
+				//std::cin >> x >> y >> z;
+
+				goal_.controller.arm.end_pose.position.x = 0.10;
+				goal_.controller.arm.end_pose.position.y = -.75;
+				goal_.controller.arm.end_pose.position.z = 0.50;
+			}
+			else
+			{
+				int direction;
+				ROS_INFO_STREAM("feature_learning_pr2::svm_pr2_trainer:  Push direction choices :\n"<<"0-FRONT\n"<<"3-FROM_RIGHT_SIDEWAYS\n"<<
+						"4-FROM_RIGHT_UPRIGHT\n"<<"5-FROM_LEFT_UPRIGHT\n"<<"6-FROM_RIGHT_SIDEWAYS\n"<<"Enter your choice: ");
+				std::cin >> direction;
+				goal_.controller.arm.direction = direction;
+
+			}
+		}
+
+	}
+
+};
+
+visualization_msgs::Marker getMarker(int i){
+
+	visualization_msgs::Marker local_marker;
+
+	local_marker.header.stamp = ros::Time();
+	local_marker.ns = "extract_features";
+	local_marker.id = i;
+	local_marker.type = visualization_msgs::Marker::CUBE;
+	local_marker.action = visualization_msgs::Marker::ADD;
+	local_marker.scale.x = 0.1;
+	local_marker.scale.y = 0.1;
+	local_marker.scale.z = 0.1;
+	local_marker.color.a = 1.0;
+	local_marker.color.r = 0.0;
+	local_marker.color.g = 1.0;
+	local_marker.color.b = 0.0;
+	local_marker.pose.orientation.x = 0.0;
+	local_marker.pose.orientation.y = 0.0;
+	local_marker.pose.orientation.z = 0.0;
+	local_marker.pose.orientation.w = 1.0;
+
+	return local_marker;
+
+}
 
 int main(int argc, char **argv){
 
-	ros::init(argc,argv,"test_adjacency_recorder");
-	action_client_pr2 ac("/pr2_action_interface");
+	ros::init(argc,argv,"svm_pr2_trainer");
+	ros::NodeHandle nh;
 
-	if(argc < 1)
+	action_client_pr2 ac("/pr2_action_interface");
+	ros::Publisher pub = nh.advertise<visualization_msgs::Marker>("/manipulation_marker", 1);
+	ros::Publisher pub_place = nh.advertise<visualization_msgs::Marker>("/place_location_marker", 1);
+
+	//Now set a bool variable to check till user quits
+	if(argc < 2)
 	{
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Usage: execute_action_client <reward_filename>");
+		ROS_INFO("svm_pr2_trainer: Usage: svm_pr2_trainer <reward_filename>");
 		return -1;
 	}
 
 
-	//Now set a bool variable to check till user quits
+	std::string base_filename(argv[1]);
+	ROS_INFO_STREAM("feature_learning_pr2::svm_pr2_trainer: Base file name %s"<<base_filename);
 	bool repeat = true;
+
+	int counter = 0;
 
 	while(repeat)
 	{
+		ROS_INFO("feature_learning_pr2::svm_pr2_trainer:Calling Extract feature service");
+		feature_learning::ExtractFeatures extract_feature_srv;
+		bool success=false;
 
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Calling feature service");
-		bool success = true;//callAndRecordFeature();
+		extract_feature_srv.request.action = extract_feature_srv.request.TEST;
+		success = ac.callAndRecordFeature(extract_feature_srv);
 
 		if(success)
-			ROS_INFO("feature_learning_pr2::feature_learner_pr2: Call succeeded ");
+		{
+			// now loop through all return messages
+			for(size_t index = 0; index < ac.action_point_.size(); index++)
+			{
+				ac.goal_.controller.target = action_manager_msgs::Controller::ARM;
+				ac.goal_.controller.arm.start_pose.position = ac.action_point_[index].point;
+				ac.goal_.controller.arm.frame_id = ac.action_point_[index].header.frame_id;
+				ac.goal_.controller.header.frame_id = ac.action_point_[index].header.frame_id;
+				ac.goal_.controller.header.stamp = ac.action_point_[index].header.stamp;
+
+				visualization_msgs::Marker location_marker = getMarker(index);
+				location_marker.header = ac.action_point_[index].header;
+				location_marker.pose.position =  ac.action_point_[index].point;
+
+				if(ac.action_indices_[index] == 1)
+				{
+					location_marker.color.b = 1.0;
+					pub.publish(location_marker);
+					ac.goal_.controller.arm.end_pose.position.x = 0.10;
+					ac.goal_.controller.arm.end_pose.position.y = -.75;
+					ac.goal_.controller.arm.end_pose.position.z = 0.50;
+					ac.goal_.controller.arm.action = 5;
+				}
+				if(ac.action_indices_[index] == 2)
+				{
+					location_marker.color.r = 1.0;
+					pub.publish(location_marker);
+					ac.goal_.controller.arm.action = 6;
+					goal_.controller.arm.direction = 1;
+				}
+				ac.sendGoal();
+
+				if(ac.action_result_) // If action succeeds
+				{
+				}
+				else // If action fails
+				{
+
+				}
+			}
+		}
 		else
-			ROS_INFO("feature_learning_pr2::feature_learner_pr2: Call failed ");
-
-		ROS_INFO("feature_learning_pr2::feature_learner_pr2: Calling action server");
-
-
-		action_manager_msgs::Controller local_goal;
-		local_goal.target	= action_manager_msgs::Controller::HEAD;
-		local_goal.head.action = action_manager_msgs::Head::LOOK;
-		local_goal.head.frame_id = "/base_link";
-		geometry_msgs::Point target_point;
-		target_point.x = 5.0; target_point.y = 1.0; target_point.z = 1.2;
-		local_goal.head.pose.position = target_point;
-		local_goal.header.stamp = ros::Time::now();
-
-		ac.goal_.controller = local_goal;
-		ROS_INFO("Sending goal target:%d",ac.goal_.controller.target);
-		ac.sendGoal();
-
-		char answer;
-		std::cout<<"Call feature extraction again (y/n) :"<<std::endl;
-		std::cin>>answer;
-
-		if(std::cin.fail() || answer == 'n')
-			repeat = false;
-
+			ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Feature Extraction failed");
 	}
 }
-
-
-
 
