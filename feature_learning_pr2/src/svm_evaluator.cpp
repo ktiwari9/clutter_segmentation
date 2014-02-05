@@ -40,6 +40,7 @@
 #include <iostream>
 #include <dlib/svm.h>
 #include <Eigen/Dense>
+#include "feature_learning/macros_time.hpp"
 
 using namespace std;
 using namespace dlib;
@@ -162,13 +163,13 @@ void process_stream(std::string filenames, std::string label_names, std::vector<
 			if(filename.find("push_r")!=std::string::npos)
 				label=2;
 			if(filename.find("push_l")!=std::string::npos)
-				label=2;
+				label=3;
 			if(filename.find("push_f")!=std::string::npos)
-			    label=2;
+			    label=4;
 
 		}
 		else{
-			label = 3;
+			label = 5;
 		}
 
 //		std::cout<<" Processing "<<filename<<"..."<<" Extracted label value: "<<label<<std::endl;
@@ -232,17 +233,12 @@ int main(int argc, char **argv)
 	ova_trainer trainer_a;
 
 	// make the binary trainers and set some parameters
-	krr_trainer<rbf_kernel> rbf_trainer;
 	svm_nu_trainer<poly_kernel> poly_trainer;
-	svm_c_trainer<rbf_kernel> svm_rbf_trainer;
-	svm_c_linear_trainer<linear_kernl> svm_linear_trainer;
 	svm_nu_trainer<rbf_kernel> nu_rbf_trainer;
 
 
 	std::cout<<" Setting kernel parameters"<<std::endl;
 	poly_trainer.set_kernel(poly_kernel(0.1,1,2));
-	rbf_trainer.set_kernel(rbf_kernel(0.01));
-	svm_rbf_trainer.set_kernel(rbf_kernel(0.01));
 	nu_rbf_trainer.set_kernel(rbf_kernel(0.01));
 
 	std::cout<<"-------------------------"<<std::endl;
@@ -252,31 +248,11 @@ int main(int argc, char **argv)
 
     one_vs_one_decision_function<ovo_trainer,
             decision_function<poly_kernel>,  // This is the output of the poly_trainer
-            decision_function<rbf_kernel>,
-            decision_function<linear_kernl>,
             decision_function<rbf_kernel>// This is the output of the rbf_trainer
         > dfa;
 
-	std::cout<<"setting svm c linear kernel Results:"<<std::endl;
-	trainer.set_trainer(svm_linear_trainer);
 
-    std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer, samples, labels, 5) << endl;
-    one_vs_one_decision_function<ovo_trainer> df1 = trainer.train(samples, labels);
-    dfa = df1;
-    // Test df3 on the samples and labels and print the confusion matrix.
-    cout << "test serialized function: \n" << test_multiclass_decision_function(dfa, samples, labels) << endl;
-
-	std::cout<<"setting svm_c rbf kernel Results:"<<std::endl;
-	trainer.set_trainer(svm_rbf_trainer);
-
-    std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer, samples, labels, 5) << endl;
-    one_vs_one_decision_function<ovo_trainer> df2 = trainer.train(samples, labels);
-    dfa = df2;
-    // Test df3 on the samples and labels and print the confusion matrix.
-    cout << "test serialized function: \n" << test_multiclass_decision_function(dfa, samples, labels) << endl;
-
+	INIT_PROFILING
 
     std::cout<<"setting svm_nu_trainer poly kernel Results:"<<std::endl;
 	trainer.set_trainer(poly_trainer); // Works best
@@ -287,21 +263,11 @@ int main(int argc, char **argv)
     // Test df3 on the samples and labels and print the confusion matrix.
     cout << "test serialized function: \n" << test_multiclass_decision_function(dfa, samples, labels) << endl;
 
+    MEASURE("SVM NU POLY")
 
+    RESET
 
-	std::cout<<"setting krr rbf poly kernel Results:"<<std::endl;
-	trainer.set_trainer(rbf_trainer);
-
-    std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer, samples, labels, 5) << endl;
-    one_vs_one_decision_function<ovo_trainer> df4 = trainer.train(samples, labels);
-    dfa = df4;
-    // Test df3 on the samples and labels and print the confusion matrix.
-    cout << "test serialized function: \n" << test_multiclass_decision_function(dfa, samples, labels) << endl;
-
-
-
-	std::cout<<"setting svm_nu_trainer rbf poly kernel Results:"<<std::endl;
+/*    std::cout<<"setting svm_nu_trainer rbf kernel Results:"<<std::endl;
 	trainer.set_trainer(nu_rbf_trainer);
 
     std::cout << "cross validation: \n" << std::endl;
@@ -311,6 +277,8 @@ int main(int argc, char **argv)
     // Test df3 on the samples and labels and print the confusion matrix.
     cout << "test serialized function: \n" << test_multiclass_decision_function(dfa, samples, labels) << endl;
 
+    MEASURE("SVM NU RBF")*/
+
 	std::cout<<"-------------------------"<<std::endl;
 	std::cout<<"-------One vs all--------"<<std::endl;
 	std::cout<<"-------------------------"<<std::endl;
@@ -318,54 +286,23 @@ int main(int argc, char **argv)
 
     one_vs_all_decision_function<ova_trainer,
             decision_function<poly_kernel>,  // This is the output of the poly_trainer
-            decision_function<rbf_kernel>,
-            decision_function<linear_kernl>,
-            decision_function<rbf_kernel>// This is the output of the rbf_trainer
+            decision_function<rbf_kernel>
         > dfb;
-
-	std::cout<<"setting svm c linear kernel Results:"<<std::endl;
-	trainer_a.set_trainer(svm_linear_trainer);
-
-    std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer_a, samples, labels, 5) << endl;
-    one_vs_all_decision_function<ova_trainer> df6 = trainer_a.train(samples, labels);
-    dfb = df6;
-    // Test df3 on the samples and labels and print the confusion matrix.
-    cout << "test serialized function: \n" << test_multiclass_decision_function(dfb, samples, labels) << endl;
-
-	std::cout<<"setting svm_c rbf kernel Results:"<<std::endl;
-	trainer_a.set_trainer(svm_rbf_trainer);
-
-    std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer_a, samples, labels, 5) << endl;
-    one_vs_all_decision_function<ova_trainer> df7 = trainer_a.train(samples, labels);
-    dfb = df7;
-    // Test df3 on the samples and labels and print the confusion matrix.
-    cout << "test serialized function: \n" << test_multiclass_decision_function(dfb, samples, labels) << endl;
-
 
     std::cout<<"setting svm_nu_trainer poly kernel Results:"<<std::endl;
     trainer_a.set_trainer(poly_trainer); // Works best
     std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer_a, samples, labels, 5) << endl;
+    matrix<double> result_param = cross_validate_multiclass_trainer(trainer_a, samples, labels, 5);
+    std::cout<<result_param << endl;
     one_vs_all_decision_function<ova_trainer> df8 = trainer_a.train(samples, labels);
     dfb = df8;
     // Test df3 on the samples and labels and print the confusion matrix.
     cout << "test serialized function: \n" << test_multiclass_decision_function(dfb, samples, labels) << endl;
 
 
+    MEASURE("SVM NU POLY")
 
-	std::cout<<"setting krr rbf poly kernel Results:"<<std::endl;
-	trainer_a.set_trainer(rbf_trainer);
-
-    std::cout << "cross validation: \n" << std::endl;
-    std::cout<<cross_validate_multiclass_trainer(trainer_a, samples, labels, 5) << endl;
-    one_vs_all_decision_function<ova_trainer> df9 = trainer_a.train(samples, labels);
-    dfb = df9;
-    // Test df3 on the samples and labels and print the confusion matrix.
-    cout << "test serialized function: \n" << test_multiclass_decision_function(dfb, samples, labels) << endl;
-
-
+/*    RESET
 
 	std::cout<<"setting svm_nu_trainer rbf poly kernel Results:"<<std::endl;
 	trainer_a.set_trainer(nu_rbf_trainer);
@@ -377,8 +314,119 @@ int main(int argc, char **argv)
     // Test df3 on the samples and labels and print the confusion matrix.
     cout << "test serialized function: \n" << test_multiclass_decision_function(dfb, samples, labels) << endl;
 
+    MEASURE("SVM NU RBF")*/
 
-    // Now check crossvalidate and check results.
+    cout<<"saving params for best result......"<<std::endl;
+    // Now check crossvalidate and check results
+    double row_1_sum = 23;//result_param(0,0) + result_param(0,1) +result_param(0,2);
+    double row_2_sum = 30;//result_param(1,0) + result_param(1,1) +result_param(1,2);
+    double row_3_sum = 245;//result_param(2,0) + result_param(2,1) +result_param(2,2);
+
+    cout<<"Number of class 1 "<<row_1_sum<<" Number of class 2 "<<row_2_sum<<" Number of class 3 "<<row_3_sum<<std::endl;
+    // The nu parameter has a maximum value that is dependent on the ratio of the +1 to -1
+    // labels in the training data.  This function finds that value.  The 0.999 is here because
+    // the maximum allowable nu is strictly less than the value returned by maximum_nu().  So
+    // rather than dealing with that below we can just back away from it a little bit here and then
+    // not worry about it.
+    std::cout<<"Setting max nu"<<std::endl;
+    const double max_nu = 0.999*2;
+
+
+    // The first kind of model selection we will do is a simple grid search.  That is, below we just
+    // generate a fixed grid of points (each point represents one possible setting of the model parameters)
+    // and test each via cross validation.
+
+    // This code generates a 4x4 grid of logarithmically spaced points.  The result is a matrix
+    // with 2 rows and 16 columns where each column represents one of our points.
+    matrix<double> params = cartesian_product(logspace(log10(5.0), log10(1e-5), 4),  // gamma parameter
+    		logspace(log10(max_nu), log10(1e-5), 4) // nu parameter
+    );
+
+    // Next we loop over all the points we generated and check how good each is.
+    cout<<"-------------------------------------------------"<<endl;
+    cout << "------Doing a grid search for ova poly kernel----" << endl;
+    cout<<"-------------------------------------------------"<<endl;
+    double best_result;
+    best_result = 0;
+    double final_result = 0;
+    double best_gamma = 0.1, best_nu, best_poly = 1;
+    for(int poly = 1; poly <= 4; poly++)
+    {
+    	for (long col = 0; col < params.nc(); ++col)
+    	{
+    		// pull out the current set of model parameters
+    		const double gamma = params(0, col);
+    		const double nu    = params(1, col);
+
+    		// setup a training object using our current parameters
+    		ova_trainer trainer_temp1;
+    		svm_nu_trainer<poly_kernel> trainer_t;
+    		trainer_t.set_kernel(poly_kernel(gamma,nu,poly));
+    		trainer_temp1.set_trainer(trainer_t);
+
+    		// Finally, do 10 fold cross validation and then check if the results are the best we have seen so far.
+    		matrix<double> result = cross_validate_multiclass_trainer(trainer_temp1, samples, labels, 5);
+
+    		// save the best results
+    		double class_accuracy = (result(0,0)/row_1_sum + result(1,1)/row_2_sum + result(2,2)/row_3_sum)/3;
+    		double new_result = result(0,0) + result(1,1);
+    		cout << "gamma: " << setw(11) << gamma << "  nu: " << setw(11) << nu << " poly : "<<setw(11)<<poly<<  "  cross validation accuracy: "<<class_accuracy<<" action result:"<<  new_result<<" bad data result: "<< result(2,2)<<endl;
+    		if (class_accuracy > best_result)
+    		{
+    			best_result = class_accuracy;
+    			best_gamma = gamma;
+    			best_nu = nu;
+    			best_poly = poly;
+    			final_result = new_result + result(2,2);
+    		}
+    	}
+    }
+
+    cout << "Best Parameters: gamma: " << setw(11) << best_gamma << "  nu: " << setw(11) << best_nu << " poly : "<<setw(11)<<best_poly<<  "  cross validation accuracy: " << final_result/labels.size() <<endl;
+
+    // Next we loop over all the points we generated and check how good each is.
+	cout<<"-------------------------------------------------"<<endl;
+    cout<<"------Doing a grid search for ovo poly kernel----" << endl;
+    cout<<"-------------------------------------------------"<<endl;
+
+    best_result = 0;
+    final_result = 0;
+    for(int poly = 1; poly <= 4; poly++)
+    {
+    	for (long col = 0; col < params.nc(); ++col)
+    	{
+    		// pull out the current set of model parameters
+    		const double gamma = params(0, col);
+    		const double nu    = params(1, col);
+
+    		// setup a training object using our current parameters
+    		ovo_trainer trainer_temp2;
+    		svm_nu_trainer<poly_kernel> trainer_t;
+    		trainer_t.set_kernel(poly_kernel(gamma,nu,poly));
+    		trainer_temp2.set_trainer(trainer_t);
+
+    		// Finally, do 10 fold cross validation and then check if the results are the best we have seen so far.
+    		matrix<double> result = cross_validate_multiclass_trainer(trainer_temp2, samples, labels, 5);
+
+    		// save the best results
+    		double class_accuracy = (result(0,0)/row_1_sum + result(1,1)/row_2_sum + result(2,2)/row_3_sum)/3;
+    		double new_result = result(0,0) + result(1,1);
+    		cout << "gamma: " << setw(11) << gamma << "  nu: " << setw(11) << nu << " poly : "<<setw(11)<<poly<<  "  cross validation accuracy: " <<class_accuracy<<" action result:"<<  new_result<<" bad data result: "<< result(2,2)<<endl;
+    		if (class_accuracy > best_result)
+    		{
+    			best_result = class_accuracy;
+    			best_gamma = gamma;
+    			best_nu = nu;
+    			best_poly = poly;
+    			final_result = new_result + result(2,2);
+    		}
+    	}
+    }
+
+    cout << "Best Parameters: gamma: " << setw(11) << best_gamma << "  nu: " << setw(11) << best_nu << " poly : "<<setw(11)<<best_poly<<  "  cross validation accuracy: " << final_result/labels.size() <<endl;
+    cout<< "Number of labels "<<labels.size()<<std::endl;
+
+
 
 }
 

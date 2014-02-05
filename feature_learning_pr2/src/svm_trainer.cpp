@@ -40,26 +40,87 @@
 #include <iostream>
 #include <dlib/svm.h>
 #include <Eigen/Dense>
+#include "feature_learning/macros_time.hpp"
+#include "boost/lexical_cast.hpp"
 
 using namespace std;
 using namespace dlib;
+
+typedef matrix<double,78,1> sample_type;
+
+
+typedef one_vs_all_trainer<any_trainer<sample_type> > ova_trainer;
+
+// Next, we will make two different binary classification trainer objects.  One
+// which uses kernel ridge regression and RBF kernels and another which uses a
+// support vector machine and polynomial kernels.  The particular details don't matter.
+// The point of this part of the example is that you can use any kind of trainer object
+// with the one_vs_one_trainer.
+typedef polynomial_kernel<sample_type> poly_kernel;
+
 
 void load(std::string filename, Eigen::MatrixXf& m)
 {
 
 	ifstream input_file(filename.c_str());
 	std::vector<float> input_vector;
-	//std::cout<<" Reading input file "<<std::endl;
 	std::copy(std::istream_iterator<float>(input_file), // this denotes "start of stream"
 			std::istream_iterator<float>(),   // this denodes "end of stream"
 			std::back_inserter< std::vector< float > >(input_vector));
-	//std::cout<<" Printing to screen "<<std::endl;
-	//std::copy(input_vector.begin(), input_vector.end(), std::ostream_iterator<float>(std::cout, " "));
-	//std::cout<<std::endl;
-	//std::cout<<" Converting to eigen map "<<std::endl;
 	Eigen::Map<Eigen::MatrixXf> value(input_vector.data(),1,input_vector.size());
 	m = value;
 	// Test to check if data is being loaded correctly
+}
+
+void process_stream(std::string filenames, std::string label_names, std::vector<Eigen::MatrixXf>& feature_list, std::vector<double>& labels,int &cols){
+
+
+	std::ifstream input_stream(filenames.c_str());
+	std::ifstream label_stream(label_names.c_str());
+	std::string filename;
+
+	while(input_stream.good()){
+
+		std::getline(input_stream, filename);
+		if(filename.empty() || filename.at(0) == '#') // skip blank lines or comments
+			continue;
+
+//		std::cout<<" Processing "<<filename<<"..."<<std::endl;
+
+		Eigen::MatrixXf new_feature;
+		load(filename, new_feature);
+		cols = new_feature.cols();
+		feature_list.push_back(new_feature);
+	}
+
+	while(label_stream.good()){
+
+		std::getline(label_stream, filename);
+		if(filename.empty() || filename.at(0) == '#') // skip blank lines or comments
+			continue;
+
+		std::fstream label_file(filename.c_str(), ios::in);
+		double label;
+		label_file >> label;
+		label_file.close();
+
+		if(label > 0)
+		{
+			if(filename.find("push_r")!=std::string::npos)
+				label=2;
+			if(filename.find("push_l")!=std::string::npos)
+				label=2;
+			if(filename.find("push_f")!=std::string::npos)
+			    label=2;
+
+		}
+		else{
+			label = 3;
+		}
+
+		labels.push_back(label);
+	}
+
 }
 
 int main(int argc, char **argv)
@@ -69,50 +130,24 @@ int main(int argc, char **argv)
 		std::cout<<" Please provide a filename sequence for features and filename for labels"<<std::endl;
 		return -1;
 	}
-	std::string filename;
-	std::ifstream input_stream(argv[1]);
-	std::string label_filename(argv[2]);
 
 	std::vector<Eigen::MatrixXf> feature_list;
-	int cols;
-	while(input_stream.good()){
-
-		std::getline(input_stream, filename);
-		if(filename.empty() || filename.at(0) == '#') // skip blank lines or comments
-			continue;
-
-		std::cout<<" Processing "<<filename<<std::endl;
-
-		Eigen::MatrixXf new_feature;
-		load(filename, new_feature);
-		cols = new_feature.cols();
-		feature_list.push_back(new_feature);
-	}
-
-
-	std::cout<<" Finished reading feature files, Now reading labels from "<<label_filename<<std::endl;
-	// Now read the labels
-
-	std::ifstream label_file(label_filename.c_str());
 	std::vector<double> labels;
-	std::copy(std::istream_iterator<double>(label_file), // this denotes "start of stream"
-			std::istream_iterator<double>(),   // this denodes "end of stream"
-			std::back_inserter< std::vector< double > >(labels));
+	int cols;
 
-	std::cout<<" Finished reading "<<labels.size()<<" label files"<<std::endl;
-	// Now try loading the data in to the native data type
+	process_stream(argv[1],argv[2],feature_list,labels,cols);
+	std::cout<<" Finished reading "<<feature_list.size()<<" feature files and "<<labels.size()<<" label files"<<std::endl;
+	std::cout<<" Number of cols per feature: "<<cols<<std::endl;
 
-	typedef matrix<double,80,1> sample_type;
+
+
 	std::vector<sample_type> samples;
-
-	// Defining Kernel Type
-	typedef radial_basis_kernel<sample_type> kernel_type;
 
 	for(int i = 0 ; i < feature_list.size() ; i++)
 	{
 		sample_type new_datum;
-		std::cout<<" Saving datum : "<<i<<std::endl;
-		for(int j = 0 ; j < cols ; j++)
+		//std::cout<<" Saving datum : "<<i<<std::endl;
+		for(int j = 0 ; j < cols-2 ; j++)
 			{
 			Eigen::MatrixXf current_sample = feature_list[i];
 			new_datum(j) = static_cast<double>(current_sample(0,j));
@@ -120,128 +155,81 @@ int main(int argc, char **argv)
 		samples.push_back(new_datum);
 	}
 
-    // Vector Normalizer
-    vector_normalizer<sample_type> normalizer;
-    // let the normalizer learn the mean and standard deviation of the samples
-    normalizer.train(samples);
 
-    // now normalize each sample
-    for (unsigned long i = 0; i < samples.size(); ++i)
-        samples[i] = normalizer(samples[i]);
+	// Vector Normalizer
+	vector_normalizer<sample_type> normalizer;
+	// let the normalizer learn the mean and standard deviation of the samples
+	normalizer.train(samples);
 
-    // Randomizing sample order
-    randomize_samples(samples, labels);
+	// now normalize each sample
+	for (unsigned long i = 0; i < samples.size(); ++i)
+		samples[i] = normalizer(samples[i]);
 
+	std::cout<<" Randomizing samples for training"<<std::endl;
+	randomize_samples(samples, labels);
 
-    // The nu parameter has a maximum value that is dependent on the ratio of the +1 to -1
-    // labels in the training data.  This function finds that value.
-    const double max_nu = maximum_nu(labels);
-
-    // here we make an instance of the svm_nu_trainer object that uses our kernel type.
-    svm_nu_trainer<kernel_type> trainer;
-
-    std::cout << "doing cross validation" << std::endl;
-
-    typedef matrix<double,1,2> accuracy_statistic;
-
-    double final_gamma = 0.0, final_nu = 0.0, best_paccuracy = 0.0, best_naccuracy = 0.0;
-    for (double gamma = 0.00001; gamma <= 1; gamma *= 5)
-    {
-        for (double nu = 0.00001; nu < max_nu; nu *= 5)
-        {
-            // tell the trainer the parameters we want to use
-            trainer.set_kernel(kernel_type(gamma));
-            trainer.set_nu(nu);
-
-            std::cout << "gamma: " << gamma << "    nu: " << nu<<std::endl;
-            // Print out the cross validation accuracy for 3-fold cross validation using
-            // the current gamma and nu.  cross_validate_trainer() returns a row vector.
-            // The first element of the vector is the fraction of +1 training examples
-            // correctly classified and the second number is the fraction of -1 training
-            // examples correctly classified.
-            accuracy_statistic statistic;
-            statistic = cross_validate_trainer(trainer, samples, labels, 3);
-            std::cout << " Current cross validation accuracy: " << statistic;
-            if(statistic(0) >= best_paccuracy && statistic(1) >= best_naccuracy)
-            {
-            	best_paccuracy = statistic(0);
-            	best_naccuracy = statistic(1);
-            	final_nu = nu;
-            	final_gamma = gamma;
-            }
-        }
-    }
+	// Now try loading the data in to the native data type
+	std::cout << "Data loading complete"<<std::endl;
 
 
-    std::cout<<"Best gamma: "<<final_gamma<<"  Best nu: "<<final_nu<<std::endl;
-    // From looking at the output of the above loop it turns out that a good value for nu
-    // and gamma for this problem is 0.15625 for both.  So that is what we will use.
+	ova_trainer trainer_a;
 
-    // Now we train on the full set of data and obtain the resulting decision function.  We
-    // use the value of 0.15625 for nu and gamma.  The decision function will return values
-    // >= 0 for samples it predicts are in the +1 class and numbers < 0 for samples it
-    // predicts to be in the -1 class.
-    trainer.set_kernel(kernel_type(final_gamma));
-    trainer.set_nu(final_nu);
+	std::cout<<" Setting kernel parameters"<<std::endl;
+	static const double gamma[] = {0.000793701,0.00001,0.000793701};
+	static const double nu[] = {1.988,1.988,0.000584609};
+	static const double poly[] = {2,2,3};
 
-    typedef decision_function<kernel_type> dec_funct_type;
-    typedef normalized_function<dec_funct_type> funct_type;
+/*	std::vector<double> nu_vec (nu, nu + sizeof(nu) / sizeof(nu[0]) );
+	std::vector<double> gamma_vec (gamma, gamma + sizeof(gamma) / sizeof(gamma[0]) );
+	std::vector<double> poly_vec (poly, poly + sizeof(poly) / sizeof(poly[0]) );*/
 
-    // Here we are making an instance of the normalized_function object.  This object
-    // provides a convenient way to store the vector normalization information along with
-    // the decision function we are going to learn.
-    funct_type learned_function;
-    learned_function.normalizer = normalizer;  // save normalization information
-    learned_function.function = trainer.train(samples, labels); // perform the actual SVM training and save the results
+	std::cout<<"-------------------------"<<std::endl;
+	std::cout<<"-------One vs all--------"<<std::endl;
+	std::cout<<"-------------------------"<<std::endl;
 
-    // print out the number of support vectors in the resulting decision function
-    std::cout << "\n number of support vectors in our learned_function is "
-         << learned_function.function.basis_vectors.size() << std::endl;
+	INIT_PROFILING
 
-    //TODO: cout << "This is a +1 class example, the classifier output is " << learned_function(sample) << endl;
+    one_vs_all_decision_function<ova_trainer,
+            decision_function<poly_kernel>
+        > dfb,dfc;
 
-    // We can also train a decision function that reports a well conditioned probability
-    // instead of just a number > 0 for the +1 class and < 0 for the -1 class.  An example
-    // of doing that follows:
-    typedef probabilistic_decision_function<kernel_type> probabilistic_funct_type;
-    typedef normalized_function<probabilistic_funct_type> pfunct_type;
+	std::string test_file;
+	for(int i = 0;i <3; i++)
+	{
 
-    pfunct_type learned_pfunct;
-    learned_pfunct.normalizer = normalizer;
-    learned_pfunct.function = train_probabilistic_decision_function(trainer, samples, labels, 3);
-    // Now we have a function that returns the probability that a given sample is of the +1 class.
+		// make the binary trainers and set some parameters
+		svm_nu_trainer<poly_kernel> poly_trainer;
+		poly_trainer.set_kernel(poly_kernel(gamma[i],nu[i],poly[i]));
 
-    // print out the number of support vectors in the resulting decision function.
-    // (it should be the same as in the one above)
-    cout << "\n number of support vectors in our learned_pfunct is "
-         << learned_pfunct.function.decision_funct.basis_vectors.size() << endl;
+		std::cout<<"start_training"<<std::endl;
+	    trainer_a.set_trainer(poly_trainer);
+		std::string filename("svm_multiclass_"+boost::lexical_cast<std::string>(gamma[i])+"_"+boost::lexical_cast<std::string>(nu[i])+"_"+boost::lexical_cast<std::string>(poly[i])+".dat");
+		test_file  = filename;
+		one_vs_all_decision_function<ova_trainer> df = trainer_a.train(samples, labels);
+		dfb = df;
+		std::cout<<"Writing to disk"<<std::endl;
+		ofstream fout(filename.c_str(), ios::binary);
+		serialize(dfb, fout);
+		fout.close();
 
-    //TODO: use this thing for classification: cout << "This +1 class example should have high probability.  Its probability is: " << learned_pfunct(sample) << endl;
+		MEASURE("SVM NU POLY")
 
-    // Another thing that is worth knowing is that just about everything in dlib is
-    // serializable.  So for example, you can save the learned_pfunct object to disk and
-    // recall it later like so:
-    ofstream fout("saved_svm_function.dat",ios::binary);
-    serialize(learned_pfunct,fout);
-    fout.close();
+	    RESET
+	}
 
-    // now lets open that file back up and load the function object it contains
-    ifstream fin("saved_svm_function.dat",ios::binary);
-    deserialize(learned_pfunct, fin);
+	std::cout<<"Sample test reserializing"<<std::endl;
+    // load the function back in from disk and store it in df3.
+    ifstream fin(test_file.c_str(), ios::binary);
+    deserialize(dfc, fin);
 
-    std::cout << "\n cross validation accuracy with only 3 support vectors: "
-         << cross_validate_trainer(reduced2(trainer,3), samples, labels, 3);
 
-    // Lets print out the original cross validation score too for comparison.
-    std::cout << "cross validation accuracy with all the original support vectors: "
-         << cross_validate_trainer(trainer, samples, labels, 3);
+    // Test df3 to see that this worked.
+    cout << endl;
+    cout << "predicted label: "<< dfc(samples[37])  << ", true label: "<< labels[0] << endl;
+    cout << "predicted label: "<< dfc(samples[188]) << ", true label: "<< labels[90] << endl;
 
-    // When you run this program you should see that, for this problem, you can reduce the
-    // number of basis vectors down to 10 without hurting the cross validation accuracy.
+    cout << "test serialized function: \n" << test_multiclass_decision_function(dfc, samples, labels) << endl;
 
-    // To get the reduced decision function out we would just do this:
-    learned_function.function = reduced2(trainer,3).train(samples, labels);
-    // And similarly for the probabilistic_decision_function:
-    learned_pfunct.function = train_probabilistic_decision_function(reduced2(trainer,3), samples, labels, 3);
 }
+
 

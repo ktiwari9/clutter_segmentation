@@ -31,3 +31,8 @@ rosbuild_add_executable(feature_learner_pr2 src/feature_learner_pr2.cpp)
 rosbuild_add_executable(svm_pr2_trainer src/svm_pr2_trainer.cpp)
 rosbuild_add_executable(svm_trainer src/svm_trainer.cpp)
 target_link_libraries(svm_trainer dlib)
+rosbuild_add_executable(svm_sparse_trainer src/svm_sparse_trainer.cpp)
+target_link_libraries(svm_sparse_trainer dlib)
+rosbuild_add_executable(svm_evaluator src/svm_evaluator.cpp)
+target_link_libraries(svm_evaluator dlib)
+
