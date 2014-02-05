@@ -8,6 +8,9 @@
         <arg name="cloud_points_in" default="$(arg kinect_frame_prefix)/depth_registered/points" />
         <arg name="camera_info_in" default="$(arg kinect_frame_prefix)/depth_registered/camera_info" />
         <arg name="camera_rgb_in" default="$(arg kinect_frame_prefix)/rgb/image_color" />
+        <arg name="svm_ovo_load" default="$(find feature_learning_pr2)/models/test_models/svm_ovo_multiclass_0.062996099999999999_1.988_3.dat" />
+        <arg name="svm_ova_load" default="$(find feature_learning_pr2)/models/test_models/svm_ova_multiclass_0.062996099999999999_1.988_3.dat" />
+        <arg name="load_svm" default="true" />
 
         <node pkg="feature_learning" type="extract_features" name="extract_features" args="/tmp/feature_files" respawn="true" output="screen">
         <!--topic remapping-->
@@ -16,6 +19,9 @@
         <param name="input_camera_info" value="$(arg camera_info_in)" />
         <param name="input_image_topic" value="$(arg camera_rgb_in)" />
         <param name="base_frame" value="$(arg base_frame)" />
+        <param name="svm_ovo_load" value="$(arg svm_ovo_load)" />
+        <param name="svm_ova_load" value="$(arg svm_ova_load)" />
+        <param name="load_svm" value="$(arg load_svm)" />
 
 	</node>
 </launch>
