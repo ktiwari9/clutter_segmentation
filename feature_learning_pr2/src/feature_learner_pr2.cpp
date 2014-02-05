@@ -50,6 +50,22 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/Marker.h>
 
+// Static Segment includes
+#include "static_segmentation/StaticSegment.h"
+#include "static_segmentation/StaticSeg.h"
+#include "static_segmentation/static_segmenter.hpp"
+//Graph Module includes
+#include "graph_module/EGraph.h"
+#include <graph_module/graph_module.hpp>
+
+// beta distributions include from boost
+#include <boost/math/special_functions/digamma.hpp>
+//#define BOOST_HAS_TR1_TUPLE 1
+#include <boost/tr1/detail/config.hpp>
+//#undef BOOST_HAS_INCLUDE_NEXT
+//#include <boost/tr1/tuple.hpp>
+#include <boost/math/special_functions/beta.hpp>
+
 using namespace action_manager_pr2;
 
 enum control_t {HEAD, GRIPPER, ARM};
@@ -62,6 +78,7 @@ public:
 	std::vector<geometry_msgs::PointStamped> action_point_;
 	std::vector<int> action_indices_;
 	bool action_result_;
+	Eigen::MatrixXf adjacency_;
 
 private:
 	Client ac_;
@@ -86,8 +103,6 @@ public:
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Finished in state [%s]", state.toString().c_str());
 		ROS_INFO("feature_learning_pr2::svm_pr2_trainer Action Manager Return value: %d", result->result);
 		action_result_ = result->result;
-		//ros::shutdown();
-
 	}
 
 	bool callAndRecordFeature(feature_learning::ExtractFeatures& extract_feature_srv){
@@ -180,10 +195,6 @@ public:
 		{
 			if(action == 5)
 			{
-				//float x,y,z;
-				//ROS_INFO("feature_learning_pr2::svm_pr2_trainer:  Enter place in base frame(1.0 1.0 1.0): \n x y z:");
-				//std::cin >> x >> y >> z;
-
 				goal_.controller.arm.end_pose.position.x = 0.10;
 				goal_.controller.arm.end_pose.position.y = -.75;
 				goal_.controller.arm.end_pose.position.z = 0.50;
@@ -200,6 +211,38 @@ public:
 		}
 
 	}
+
+	Eigen::MatrixXf getAdjacencyFromGraph(std::vector<static_segmentation::StaticSeg>& graph_msg){
+
+		std::vector<graph::ros_graph> graph_list;
+
+		int total_vertices = 0;
+		for(unsigned int i = 0; i < graph_msg.size(); i++){
+
+			graph::ros_graph single_graph;
+			single_graph.buildGraph(graph_msg[i].graph);
+
+			if(single_graph.number_of_vertices_ <= 1)
+				continue;
+
+			total_vertices += single_graph.number_of_vertices_;
+			graph_list.push_back(single_graph);
+		}
+
+		// Now get adjaceny matrix from graph
+		Eigen::MatrixXf adjacency = Eigen::MatrixXf::Zero(total_vertices,total_vertices);
+		long int row_index = 0, col_index = 0;
+
+		for(unsigned int i = 0; i < graph_list.size(); i++){
+
+			Eigen::MatrixXf local_adjacency = graph_list[i].getAdjacencyMatrix();
+			adjacency.block(row_index,col_index,local_adjacency.rows(),local_adjacency.cols()) = local_adjacency;
+			row_index += local_adjacency.rows(); col_index += local_adjacency.cols();
+
+		}
+		return adjacency;
+	}
+
 
 };
 
@@ -237,16 +280,6 @@ int main(int argc, char **argv){
 	ros::Publisher pub = nh.advertise<visualization_msgs::Marker>("/manipulation_marker", 1);
 	ros::Publisher pub_place = nh.advertise<visualization_msgs::Marker>("/place_location_marker", 1);
 
-	//Now set a bool variable to check till user quits
-	if(argc < 2)
-	{
-		ROS_INFO("svm_pr2_trainer: Usage: svm_pr2_trainer <reward_filename>");
-		return -1;
-	}
-
-
-	std::string base_filename(argv[1]);
-	ROS_INFO_STREAM("feature_learning_pr2::svm_pr2_trainer: Base file name %s"<<base_filename);
 	bool repeat = true;
 
 	int counter = 0;
@@ -289,21 +322,23 @@ int main(int argc, char **argv){
 					location_marker.color.r = 1.0;
 					pub.publish(location_marker);
 					ac.goal_.controller.arm.action = 6;
-					goal_.controller.arm.direction = 1;
+					ac.goal_.controller.arm.direction = 1;
 				}
 				ac.sendGoal();
 
 				if(ac.action_result_) // If action succeeds
-				{
-				}
-				else // If action fails
-				{
-
-				}
+					break;
 			}
 		}
 		else
 			ROS_INFO("feature_learning_pr2::svm_pr2_trainer: Feature Extraction failed");
+
+		char answer;
+		std::cout<<"Continue (y/n) :"<<std::endl;
+		std::cin>>answer;
+
+		if(std::cin.fail() || answer == 'n')
+			repeat = false;
 	}
 }
 
