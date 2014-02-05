@@ -48,7 +48,7 @@ using namespace dlib;
 
 typedef matrix<double,78,1> sample_type;
 
-
+typedef one_vs_one_trainer<any_trainer<sample_type> > ovo_trainer;
 typedef one_vs_all_trainer<any_trainer<sample_type> > ova_trainer;
 
 // Next, we will make two different binary classification trainer objects.  One
@@ -156,14 +156,14 @@ int main(int argc, char **argv)
 	}
 
 
-	// Vector Normalizer
+/*	// Vector Normalizer
 	vector_normalizer<sample_type> normalizer;
 	// let the normalizer learn the mean and standard deviation of the samples
 	normalizer.train(samples);
 
 	// now normalize each sample
 	for (unsigned long i = 0; i < samples.size(); ++i)
-		samples[i] = normalizer(samples[i]);
+		samples[i] = normalizer(samples[i]);*/
 
 	std::cout<<" Randomizing samples for training"<<std::endl;
 	randomize_samples(samples, labels);
@@ -174,10 +174,18 @@ int main(int argc, char **argv)
 
 	ova_trainer trainer_a;
 
+//	ovo_trainer trainer_a;
+
 	std::cout<<" Setting kernel parameters"<<std::endl;
-	static const double gamma[] = {0.000793701,0.00001,0.000793701};
-	static const double nu[] = {1.988,1.988,0.000584609};
-	static const double poly[] = {2,2,3};
+	static const double gamma[] = {0.0629961,0.00001,0.0629961};
+	static const double nu[] = {1.988,0.000584609,0.00001};
+	static const double poly[] = {3,2,4};
+/*
+
+	static const double gamma[] = {0.0629961,0.000793701};
+	static const double nu[] = {1.988,0.000584609};
+	static const double poly[] = {3,4};
+*/
 
 /*	std::vector<double> nu_vec (nu, nu + sizeof(nu) / sizeof(nu[0]) );
 	std::vector<double> gamma_vec (gamma, gamma + sizeof(gamma) / sizeof(gamma[0]) );
@@ -193,6 +201,12 @@ int main(int argc, char **argv)
             decision_function<poly_kernel>
         > dfb,dfc;
 
+/*
+    one_vs_one_decision_function<ovo_trainer,
+            decision_function<poly_kernel>  // This is the output of the poly_trainer
+        >dfb,dfc;
+*/
+
 	std::string test_file;
 	for(int i = 0;i <3; i++)
 	{
@@ -203,15 +217,17 @@ int main(int argc, char **argv)
 
 		std::cout<<"start_training"<<std::endl;
 	    trainer_a.set_trainer(poly_trainer);
-		std::string filename("svm_multiclass_"+boost::lexical_cast<std::string>(gamma[i])+"_"+boost::lexical_cast<std::string>(nu[i])+"_"+boost::lexical_cast<std::string>(poly[i])+".dat");
+		std::string filename("svm_ova_multiclass_"+boost::lexical_cast<std::string>(gamma[i])+"_"+boost::lexical_cast<std::string>(nu[i])+"_"+boost::lexical_cast<std::string>(poly[i])+".dat");
 		test_file  = filename;
 		one_vs_all_decision_function<ova_trainer> df = trainer_a.train(samples, labels);
+		//one_vs_one_decision_function<ovo_trainer> df = trainer_a.train(samples, labels);
 		dfb = df;
 		std::cout<<"Writing to disk"<<std::endl;
 		ofstream fout(filename.c_str(), ios::binary);
 		serialize(dfb, fout);
 		fout.close();
 
+		cout << "test serialized function: \n" << test_multiclass_decision_function(dfb, samples, labels) << endl;
 		MEASURE("SVM NU POLY")
 
 	    RESET

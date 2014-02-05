@@ -94,10 +94,12 @@ class extract_features {
 public:
 
 	//SVM Typedefs
-	typedef matrix<double,80,1> FeatureVector; // Matrix Data type
-    typedef radial_basis_kernel<FeatureVector> KernelType;
-    typedef probabilistic_decision_function<KernelType> ProbabilisticFunctType;
-    typedef normalized_function<ProbabilisticFunctType> PfunctType;
+	typedef matrix<double,78,1> FeatureVector; // Matrix Data type
+	typedef one_vs_all_trainer<any_trainer<FeatureVector> > ova_trainer;
+	typedef one_vs_one_trainer<any_trainer<FeatureVector> > ovo_trainer;
+	typedef polynomial_kernel<FeatureVector>  KernelType;
+    typedef one_vs_all_decision_function<ova_trainer,decision_function <KernelType> > DecisionFunctionTypeOVO;
+    typedef one_vs_one_decision_function<ovo_trainer,decision_function <KernelType> > DecisionFunctionTypeOVA;
 
 
 protected:
@@ -116,20 +118,19 @@ protected:
 
 	float table_height_;
 
-	bool initialized_, holes_;
+	bool initialized_, holes_, load_;
 
 	std::string tabletop_service_,input_cloud_topic_,input_camera_info_,input_image_topic_,base_frame_,environment_srv_;
 	tabletop_segmenter::TabletopSegmentation tabletop_srv_;
 	arm_navigation_msgs::GetPlanningScene planning_srv_;
-	std::string filename_, svm_filename_;
+	std::string filename_, svm_filename_ova_,svm_filename_ovo_;
 
 	static const double BOX_WIDTH_X = 0.10; // in m
 	static const double BOX_LENGTH_Y = 0.10; // in m
 	static const double BOX_HEIGHT_Z = 0.05; // in m
 
-	// D-Lib SVM includes
-	vector_normalizer<FeatureVector> normalizer_;
-	PfunctType learned_pfunct_;
+	DecisionFunctionTypeOVO decision_function_ovo_;
+	DecisionFunctionTypeOVA decision_function_ova_;
 
 public:
 
@@ -168,6 +169,8 @@ public:
 	FeatureVector convertEigenToFeature(const Eigen::MatrixXf& feature);
 
 	void publishManipulationMarker();
+
+	void publishClassMarker(geometry_msgs::PointStamped centroid);
 
 	bool publishTableMarker();
 

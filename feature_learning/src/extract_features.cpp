@@ -66,8 +66,10 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	nh_priv_.param<std::string>("input_camera_info",input_camera_info_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("input_image_topic",input_image_topic_,std::string("/tabletop_segmentation"));
 	nh_priv_.param<std::string>("base_frame",base_frame_,std::string("/tabletop_segmentation"));
-	nh_priv_.param<std::string>("svm_load",svm_filename_,std::string("saved_svm_function.dat"));
+	nh_priv_.param<std::string>("svm_ovo_load",svm_filename_ovo_,std::string("svm_ovo_multiclass_0.062996099999999999_1.988_3.dat"));
+	nh_priv_.param<std::string>("svm_ova_load",svm_filename_ova_,std::string("svm_ova_multiclass_0.062996099999999999_1.988_3.dat"));
 	nh_priv_.param<std::string>("environment_server",environment_srv_,std::string("/environment_server/set_planning_scene_diff"));
+	nh_priv_.param<bool>("load_svm",load_,true);
 
 
 	extract_feature_srv_ = nh_.advertiseService(nh_.resolveName("extract_features_srv"),&extract_features::serviceCallback, this);
@@ -94,9 +96,15 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	marker_.pose.orientation.w = 1.0;
 
 	ROS_INFO("feature_learning::extract_features: Loading SVM files");
+	if(load_)
+	{
+	    ifstream fin_b(svm_filename_ovo_.c_str(), ios::binary);
+	    deserialize(decision_function_ovo_, fin_b);
 
-	//	ifstream fin(svm_filename_.c_str(),ios::binary);
-	//    deserialize(learned_pfunct_, fin);
+	    ifstream fin_a(svm_filename_ova_.c_str(), ios::binary);
+	    deserialize(decision_function_ova_, fin_a);
+	}
+
 
 	ROS_INFO("feature_learning::extract_features: Loaded SVM files");
 
@@ -384,7 +392,7 @@ pcl17::PointCloud<pcl17::PointXYZ> extract_features::preProcessCloud_holes(cv::M
 extract_features::FeatureVector extract_features::convertEigenToFeature(const Eigen::MatrixXf& feature){
 
 	FeatureVector datum;
-	for(int j = 0 ; j < feature.cols(); j++)
+	for(int j = 0 ; j < feature.cols()-2 ; j++)
 	{
 		datum(j) = static_cast<double>(feature(0,j));
 	}
@@ -507,12 +515,13 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		ray.push_back(pcl17::PointXYZ(center));
 		ray.header.frame_id =  base_frame_;
 		ray.header.stamp = ros::Time::now();
+
 		try {
 			listener_.waitForTransform(model.tfFrame(),base_frame_,ray.header.stamp, ros::Duration(10.0));
-			ROS_VERIFY(pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_));
+			pcl17_ros::transformPointCloud(model.tfFrame(), ray,ray, listener_);
 		} catch (tf::TransformException ex) {
 			ROS_ERROR("%s",ex.what());
-			return 0;
+			return false;
 		}
 
 		cv::Point3d push_3d;
@@ -521,7 +530,7 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 		push_3d.z = static_cast<double>(ray.points[1].z);
 
 		model.project3dToPixel(push_3d,uv_image);
-		ROS_INFO("feature_learning::extract_features: Image size rows:%f cols:%f ",uv_image.x,uv_image.y);
+		ROS_INFO("feature_learning::extract_features: Image start x:%f start y:%f ",uv_image.x,uv_image.y);
 	}
 	else
 	{
@@ -529,32 +538,24 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 	}
 
 
-
 	ROS_INFO("feature_learning::extract_features: Image size rows:%d cols:%d ",image.rows,image.cols);
+	// Return false is sample template cannot be extracted
 	if(uv_image.x > image.cols || uv_image.y > image.rows)
-		return 0;
+		return false;
 
-	int window_ex = 60, window_ey = 60;
-	if(uv_image.x + 60 >= image.cols)
-		window_ex = static_cast<int>(floor(image.cols - uv_image.x));
+	if(uv_image.x < 0 || uv_image.y < 0 )
+		return false;
 
-	if(uv_image.y + 60 >= image.rows)
-		window_ey = static_cast<int>(floor(image.rows - uv_image.y));
+	if(uv_image.x + 60 >= image.cols || uv_image.y + 60 >= image.rows || uv_image.x - 60 <= 0 || uv_image.y - 60 <= 0)
+		return false;
 
-	int window_fx = 60, window_fy = 60;
-	if(uv_image.x - 60 <= 0)
-		window_fx = static_cast<int>(floor(uv_image.x));
-
-	if(uv_image.y - 60 <= 0)
-		window_fy = static_cast<int>(floor(uv_image.y));
-
-	cv::Rect faceRect(static_cast<int>(uv_image.x) - window_fx ,static_cast<int>(uv_image.y) - window_fy, window_fx+window_ex, window_fy+window_ey);
+	// Only execute if template works
+	cv::Rect faceRect(static_cast<int>(uv_image.x) - 60 ,static_cast<int>(uv_image.y) - 60, 120, 120);
 	image(faceRect).copyTo(image);
 
 	std::stringstream temp_filename;
 	temp_filename<<"/tmp/sampleRect_test_"<<index<<".jpg";
 	cv::imwrite(temp_filename.str(),image);
-
 
 	ROS_INFO("feature_learning::extract_features: Initializing feature class for given template of size %d",cloud->points.size());
 	feature.initialized_ = feature.initializeFeatureClass(image,cloud,centroid);
@@ -570,9 +571,18 @@ double extract_features::testfeatureClass(cv::Mat image, const pcl17::PointCloud
 
 	FeatureVector new_sample = convertEigenToFeature(final_feature);
 
-	double label = learned_pfunct_(new_sample);
+	DecisionFunctionTypeOVO df_ovo_ = decision_function_ovo_;
+	DecisionFunctionTypeOVA df_ova_ = decision_function_ova_;
 
-	return label;
+	double label_ovo = df_ovo_(new_sample);
+	double label_ova = df_ova_(new_sample);
+
+	if(label_ovo == label_ova)
+	{
+		ROS_INFO("feature_learning::extract_features: Labels match return label");
+	}
+
+	return label_ovo;
 
 }
 
@@ -664,6 +674,19 @@ void extract_features::publishManipulationMarker(){
 	marker_array_.markers.push_back(location_marker);
 	m_array_pub_.publish(marker_array_);
 
+}
+
+void extract_features::publishClassMarker(geometry_msgs::PointStamped centroid){
+
+	visualization_msgs::Marker location_marker = getMarker(1);
+	marker_array_.markers.clear(); // Clear current marker array
+	location_marker.type = visualization_msgs::Marker::CUBE;
+	location_marker.header = centroid.header;
+	location_marker.color.r = 1.0;
+	location_marker.header.stamp = ros::Time();
+	location_marker.pose.position.x = centroid.point.x; location_marker.pose.position.y = centroid.point.y; location_marker.pose.position.z = centroid.point.z;
+	marker_array_.markers.push_back(location_marker);
+	m_array_pub_.publish(marker_array_);
 }
 
 bool extract_features::publishTableMarker(){
@@ -791,30 +814,41 @@ bool extract_features::serviceCallback(ExtractFeatures::Request& request, Extrac
 				{
 					// Getting the data storage templates
 					double max_prob = 0; //geometry_msgs::PointStamped best_action_point;
+#pragma omp parallel for
 					for(size_t i = 0; i < templates.size(); i++)
 					{
-						pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[static_cast<int>(i)]));
+						pcl17::PointCloud<PointType>::Ptr temp_cloud(new pcl17::PointCloud<PointType>(templates[i]));
 						ROS_INFO("feature_learning::extract_features: Extracting features from template of size %d",temp_cloud->points.size());
 						if(temp_cloud->points.size() == 0)
 							continue;
 
-						double class_prob = testfeatureClass(input_image_,temp_cloud,left_cam_,cluster_centers.points[static_cast<int>(i)],
-								static_cast<int>(i));
+						image_geometry::PinholeCameraModel local_model = left_cam_;
 
-						if(class_prob > max_prob)
+						double class_prob = testfeatureClass(input_image_,temp_cloud,local_model,cluster_centers.points[i],i);
+
+						if(class_prob < 3)
 						{
-							response.action_location = action_point_;
-							response.result = ExtractFeatures::Response::SUCCESS;
+							geometry_msgs::PointStamped centroid;
+							centroid.point.x = static_cast<double>(cluster_centers.points[i].x);
+							centroid.point.y = static_cast<double>(cluster_centers.points[i].y);
+							centroid.point.z = static_cast<double>(cluster_centers.points[i].z);
+							centroid.header.frame_id = base_frame_;
+							centroid.header.stamp = ros::Time();
+#pragma omp critical
+							{
+								response.training_centers.push_back(centroid);
+								response.indicies.push_back(static_cast<int>(class_prob));
+								publishClassMarker(centroid);
+							}
 						}
 
 					}
 
-					ROS_INFO("feature_learning::extract_features: Action point header frame: %s",action_point_.header.frame_id.c_str());
-
-					publishManipulationMarker();
-
-					if(max_prob == 0)
+					if(response.indicies.size() >= 1)
+						response.result = ExtractFeatures::Response::SUCCESS;
+					else
 						response.result = ExtractFeatures::Response::FAILURE;
+
 					return true;
 				}
 				else // Training Pipeline

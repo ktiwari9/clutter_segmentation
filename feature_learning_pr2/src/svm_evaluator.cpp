@@ -163,13 +163,13 @@ void process_stream(std::string filenames, std::string label_names, std::vector<
 			if(filename.find("push_r")!=std::string::npos)
 				label=2;
 			if(filename.find("push_l")!=std::string::npos)
-				label=3;
+				label=2;
 			if(filename.find("push_f")!=std::string::npos)
-			    label=4;
+			    label=2;
 
 		}
 		else{
-			label = 5;
+			label = 3;
 		}
 
 //		std::cout<<" Processing "<<filename<<"..."<<" Extracted label value: "<<label<<std::endl;
@@ -212,14 +212,14 @@ int main(int argc, char **argv)
 	}
 
 
-	// Vector Normalizer
+/*	// Vector Normalizer
 	vector_normalizer<sample_type> normalizer;
 	// let the normalizer learn the mean and standard deviation of the samples
 	normalizer.train(samples);
 
 	// now normalize each sample
 	for (unsigned long i = 0; i < samples.size(); ++i)
-		samples[i] = normalizer(samples[i]);
+		samples[i] = normalizer(samples[i]);*/
 
 	std::cout<<" Randomizing samples for training"<<std::endl;
 	randomize_samples(samples, labels);
@@ -238,8 +238,8 @@ int main(int argc, char **argv)
 
 
 	std::cout<<" Setting kernel parameters"<<std::endl;
-	poly_trainer.set_kernel(poly_kernel(0.1,1,2));
-	nu_rbf_trainer.set_kernel(rbf_kernel(0.01));
+	poly_trainer.set_kernel(poly_kernel(0.01,1,2));
+	//nu_rbf_trainer.set_kernel(rbf_kernel(0.01));
 
 	std::cout<<"-------------------------"<<std::endl;
 	std::cout<<"-------One vs One--------"<<std::endl;
