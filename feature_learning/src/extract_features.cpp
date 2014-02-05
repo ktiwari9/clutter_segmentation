@@ -95,7 +95,7 @@ extract_features::extract_features(ros::NodeHandle& nh):
 	marker_.pose.orientation.z = 0.0;
 	marker_.pose.orientation.w = 1.0;
 
-	ROS_INFO("feature_learning::extract_features: Loading SVM files");
+	ROS_INFO("feature_learning::extract_features: Loading SVM files \n ovofile1 %s \n ovafile2 %s ",svm_filename_ovo_.c_str(),svm_filename_ova_.c_str());
 	if(load_)
 	{
 	    ifstream fin_b(svm_filename_ovo_.c_str(), ios::binary);

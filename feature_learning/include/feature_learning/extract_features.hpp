@@ -98,8 +98,8 @@ public:
 	typedef one_vs_all_trainer<any_trainer<FeatureVector> > ova_trainer;
 	typedef one_vs_one_trainer<any_trainer<FeatureVector> > ovo_trainer;
 	typedef polynomial_kernel<FeatureVector>  KernelType;
-    typedef one_vs_all_decision_function<ova_trainer,decision_function <KernelType> > DecisionFunctionTypeOVO;
-    typedef one_vs_one_decision_function<ovo_trainer,decision_function <KernelType> > DecisionFunctionTypeOVA;
+    typedef one_vs_all_decision_function<ova_trainer,decision_function <KernelType> > DecisionFunctionTypeOVA;
+    typedef one_vs_one_decision_function<ovo_trainer,decision_function <KernelType> > DecisionFunctionTypeOVO;
 
 
 protected:
